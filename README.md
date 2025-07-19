@@ -1,22 +1,25 @@
-# LenaMaps - Transportation Trip Visualization
+# LenaMaps - Route Planning & Animation
 
-A full-stack application for visualizing transportation trips with colored lines and icons for different modes of transportation. Perfect for tracking multi-modal journeys like bike rides, bus trips, walking, and more!
+A full-stack application for planning multi-modal transportation routes and watching them come to life with smooth animations. Create routes using different transportation modes (walk, bike, car, bus) and watch an animated playback of your journey with a marker that follows your path!
 
 ## Features
 
 - 🗺️ **Google Maps integration** with professional-grade mapping
 - 🔍 **City/location search** - Find any place worldwide
-- ✅ **Snap-to-road** - Waypoints automatically align to actual roads
-- 🚴‍♀️ **Smart routing** - Real bike lanes, walking paths, and transit routes
-- ✨ **Trip creation** - Click on map to add waypoints
-- 🚌 **9+ transportation modes** with mode-specific routing
-- 🎨 **Color-coded route segments** with custom icons
-- 📍 **Smart waypoint markers** with numbered sequence
-- 🔄 **Start/end points and transfer markers**
-- 💾 **Save and manage trips** with custom names
-- 🎯 **Transportation mode selection** for each segment
+- 📍 **Click-to-add locations** - Build routes by clicking on the map
+- 🚶🚴🚗🚌 **4 transportation modes** - Walk, Bike, Car, and Bus with mode-specific routing
+- 🎨 **Color-coded route segments** with custom icons for each mode
+- ↩️ **Undo functionality** - Undo your last action with Cmd/Ctrl+Z
+- 🎬 **Route Animation Playback** - Watch your route animated with:
+  - Play/Pause/Stop controls
+  - Adjustable playback speed (0.5x to 20x)
+  - Camera follows the animated marker
+  - Transportation mode icons change during playback
+  - Progress bar showing completion percentage
+- 🎯 **Draggable UI panels** - Both route planner and animator can be moved around
+- 🔄 **Dynamic route recalculation** - Change transportation modes and see instant updates
 - 📱 **Responsive design** for desktop and mobile
-- ⚡ **Real-time preview** while creating trips
+- ⚡ **Real-time preview** while creating routes
 
 ## Technology Stack
 
