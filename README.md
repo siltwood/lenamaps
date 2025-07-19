@@ -38,6 +38,7 @@ A full-stack application for visualizing transportation trips with colored lines
 ### Prerequisites
 - Node.js (v14 or higher)
 - npm
+- Google Maps API Key (see [API_KEY_SETUP.md](API_KEY_SETUP.md))
 
 ### Installation
 

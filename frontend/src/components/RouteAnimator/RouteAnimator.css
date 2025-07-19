@@ -1,0 +1,297 @@
+.route-animator {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.98), rgba(255, 255, 255, 0.95));
+  backdrop-filter: blur(20px);
+  border-radius: 20px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  z-index: 2000;
+  width: 400px;
+}
+
+.route-animator-header {
+  padding: 1.25rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: linear-gradient(135deg, rgba(248, 250, 252, 0.8), rgba(241, 245, 249, 0.8));
+  border-radius: 20px 20px 0 0;
+  border-bottom: 1px solid rgba(226, 232, 240, 0.5);
+  backdrop-filter: blur(10px);
+  position: relative;
+}
+
+.route-animator-header h4 {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1e293b;
+  flex: 1;
+  text-align: left;
+  margin-left: 12px;
+}
+
+
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.minimize-button,
+.collapse-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  color: #666;
+  transition: all 0.2s ease;
+  border-radius: 4px;
+}
+
+.minimize-button:hover,
+.collapse-button:hover {
+  background: #e9ecef;
+  color: #333;
+}
+
+
+.route-animator-content {
+  padding: 16px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.controls-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.playback-controls {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.control-btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+}
+
+.control-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.control-btn.play {
+  background: #4CAF50;
+  color: white;
+}
+
+.control-btn.play:hover {
+  background: #45a049;
+}
+
+.control-btn.pause {
+  background: #ff9800;
+  color: white;
+}
+
+.control-btn.pause:hover {
+  background: #e68900;
+}
+
+.control-btn.stop {
+  background: #f44336;
+  color: white;
+}
+
+.control-btn.stop:hover {
+  background: #da190b;
+}
+
+.control-btn.record {
+  background: #2196F3;
+  color: white;
+}
+
+.control-btn.record:hover {
+  background: #0b7dda;
+}
+
+.control-btn.snapshot {
+  background: #9333ea;
+  color: white;
+}
+
+.control-btn.snapshot:hover {
+  background: #7c3aed;
+}
+
+.control-btn.export {
+  background: #059669;
+  color: white;
+}
+
+.control-btn.export:hover {
+  background: #047857;
+}
+
+.export-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e9ecef;
+}
+
+.export-status {
+  margin-top: 12px;
+  padding: 12px;
+  background: #f0fdf4;
+  border: 1px solid #86efac;
+  border-radius: 6px;
+  text-align: center;
+}
+
+.export-status p {
+  margin: 0;
+  color: #166534;
+  font-weight: 500;
+}
+
+.recording-tips {
+  margin-top: 20px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.recording-tips h4 {
+  margin: 0 0 12px 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #333;
+}
+
+.recording-tips ul {
+  margin: 0;
+  padding-left: 20px;
+  list-style-type: disc;
+}
+
+.recording-tips li {
+  margin: 6px 0;
+  font-size: 13px;
+  color: #666;
+  line-height: 1.5;
+}
+
+.speed-control {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.speed-control label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.speed-control input[type="range"] {
+  width: 100%;
+  height: 6px;
+  border-radius: 3px;
+  background: #ddd;
+  outline: none;
+  -webkit-appearance: none;
+}
+
+.speed-control input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #4285F4;
+  cursor: pointer;
+}
+
+.speed-control input[type="range"]::-moz-range-thumb {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #4285F4;
+  cursor: pointer;
+  border: none;
+}
+
+
+.progress-bar {
+  margin-top: 8px;
+}
+
+.progress-label {
+  font-size: 12px;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.progress-track {
+  width: 100%;
+  height: 8px;
+  background: #e0e0e0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: #4285F4;
+  transition: width 0.1s ease;
+}
+
+/* Minimized state */
+.route-animator-minimized {
+  position: fixed;
+  right: 60px; /* Moved 40px more from the right (was 20px) */
+  bottom: 20px;
+  z-index: 2000;
+}
+
+.route-animator-minimized .expand-button {
+  width: 56px;
+  height: 56px;
+  border-radius: 28px;
+  background: white;
+  border: 2px solid #e9ecef;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  font-size: 20px;
+  color: #ff4444;
+}
+
+.route-animator-minimized .expand-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  background: #f8f9fa;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+  .route-animator {
+    width: 300px;
+  }
+}

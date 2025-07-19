@@ -1,128 +1,287 @@
 import React, { useState, useEffect, useRef } from 'react';
+import LocationSearchCustom from './LocationSearchCustom';
 
 const LocationSearch = ({ onLocationSelect, placeholder = "Search for a city or location..." }) => {
   const [searchInput, setSearchInput] = useState('');
-  const searchBoxRef = useRef();
-  const autocompleteRef = useRef();
-  const [isSearching, setIsSearching] = useState(false);
+  const [useNewAPI, setUseNewAPI] = useState(false);
+  const containerRef = useRef();
+  const inputRef = useRef();
+  
+  // Check if we should use custom implementation
+  const useCustomImplementation = process.env.REACT_APP_USE_CUSTOM_AUTOCOMPLETE === 'true';
 
   useEffect(() => {
-    if (!window.google?.maps?.places || !searchBoxRef.current) return;
+    // Check if new API is available
+    const timer = setTimeout(() => {
+      if (!window.google?.maps?.places) return;
 
-    const autocomplete = new window.google.maps.places.Autocomplete(searchBoxRef.current, {
-      types: ['(cities)'],
-      fields: ['place_id', 'geometry', 'name', 'formatted_address']
-    });
-
-      const handlePlaceSelect = (place) => {
-    setIsSearching(false);
-    
-    if (!place.geometry || !place.geometry.location) {
-      console.error('No geometry found for place');
-      return;
-    }
-
-    const location = {
-      lat: place.geometry.location.lat(),
-      lng: place.geometry.location.lng(),
-      name: place.name,
-      address: place.formatted_address
-    };
-
-    console.log('Selected location:', location);
-
-    if (onLocationSelect) {
-      onLocationSelect(location);
-    }
-
-    setSearchInput(place.formatted_address || place.name);
-  };
-
-    autocomplete.addListener('place_changed', () => {
-      const place = autocomplete.getPlace();
-      handlePlaceSelect(place);
-    });
-
-    autocompleteRef.current = autocomplete;
-
-    return () => {
-      if (autocompleteRef.current) {
-        window.google.maps.event.clearInstanceListeners(autocompleteRef.current);
-      }
-    };
-  }, [onLocationSelect]);
-
-  // Handle Enter key press for manual search
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter') {
-      e.preventDefault();
-      performManualSearch();
-    }
-  };
-
-  // Perform manual search using Places TextSearch
-  const performManualSearch = () => {
-    if (!searchInput.trim() || !window.google?.maps?.places) return;
-    
-    setIsSearching(true);
-    
-    const service = new window.google.maps.places.PlacesService(document.createElement('div'));
-    
-    const request = {
-      query: searchInput,
-      fields: ['place_id', 'geometry', 'name', 'formatted_address']
-    };
-
-    service.textSearch(request, (results, status) => {
-      setIsSearching(false);
-      
-      if (status === window.google.maps.places.PlacesServiceStatus.OK && results && results.length > 0) {
-        const place = results[0];
+      // Try to use new PlaceAutocompleteElement if available
+      if (window.google.maps.places.PlaceAutocompleteElement) {
+        setUseNewAPI(true);
         
-        if (place.geometry && place.geometry.location) {
-          const location = {
-            lat: place.geometry.location.lat(),
-            lng: place.geometry.location.lng(),
-            name: place.name,
-            address: place.formatted_address
-          };
+        try {
+          // Create the new PlaceAutocompleteElement
+          const input = document.createElement('gmp-place-autocomplete');
+          input.setAttribute('placeholder', placeholder);
+          // Set initial styles to prevent purple flash
+          input.style.background = '#ffffff';
+          input.style.display = 'block';
+          
+          if (containerRef.current) {
+            // Clear container
+            containerRef.current.innerHTML = '';
+            containerRef.current.appendChild(input);
+            
+            
+            // Try to log all available events
+            setTimeout(() => {
+              if (input.shadowRoot) {
+                const shadowInput = input.shadowRoot.querySelector('input');
+                
+                // If we find it, immediately start monitoring
+                if (shadowInput) {
+                  // Direct input listener on shadow element
+                  shadowInput.addEventListener('input', (e) => {
+                    currentValue = e.target.value;
+                  });
+                  
+                  // Also monitor on keyup for safety
+                  shadowInput.addEventListener('keyup', (e) => {
+                    currentValue = e.target.value;
+                  });
+                }
+              }
+            }, 500);
+            
+            // Listen for ALL events to see what's available
+            const allEvents = ['gmpx-input', 'gmpx-querychange', 'gmpx-select', 'gmpx-request-error', 
+                              'input', 'change', 'keydown', 'keyup', 'focus', 'blur'];
+            allEvents.forEach(eventName => {
+              input.addEventListener(eventName, (e) => {
+                
+                // Special handling for input event
+                if (eventName === 'input') {
+                  // The input event is bubbling from shadow DOM
+                  // Let's try to access the shadow input immediately
+                  setTimeout(() => {
+                    const shadowInput = input.shadowRoot?.querySelector('input');
+                    if (shadowInput) {
+                      currentValue = shadowInput.value;
+                    }
+                  }, 0);
+                  
+                  // Also try immediate access
+                  const shadowInput = input.shadowRoot?.querySelector('input');
+                  if (shadowInput?.value) {
+                    currentValue = shadowInput.value;
+                  }
+                }
+              });
+            });
+            
+            // Store the current input value and selected suggestion
+            let currentValue = '';
+            let selectedSuggestion = null;
+            
+            // Multiple methods to get input value
+            const getInputValue = () => {
+              // Method 1: Shadow DOM input (most reliable)
+              const shadowInput = input.shadowRoot?.querySelector('input');
+              if (shadowInput?.value) {
+                return shadowInput.value;
+              }
+              
+              // Method 2: Direct value property
+              if (input.value !== undefined && input.value !== '') {
+                return input.value;
+              }
+              
+              // Method 3: Check for query property
+              if (input.query !== undefined && input.query !== '') {
+                return input.query;
+              }
+              
+              // Method 4: Return stored value
+              return currentValue;
+            };
+            
+            // Listen for input value changes
+            input.addEventListener('gmpx-input', (e) => {
+              currentValue = e.detail?.value || '';
+            });
+            
+            // Listen for suggestion selection
+            input.addEventListener('gmpx-select', (e) => {
+              selectedSuggestion = e.detail;
+            });
+            
+            
+            // Container level
+            containerRef.current.addEventListener('keydown', async (e) => {
+              const actualValue = getInputValue();
+              
+              if (e.key === 'Enter') {
+                e.preventDefault();
+                e.stopPropagation();
+                
+                // One more attempt to get the value directly when Enter is pressed
+                const shadowInput = input.shadowRoot?.querySelector('input');
+                const directValue = shadowInput?.value || '';
+                
+                const searchValue = directValue || actualValue || currentValue;
+                
+                // If no suggestion selected but we have text, search for it
+                if (!selectedSuggestion && searchValue) {
+                  
+                  // Use Geocoding API to search for the text
+                  const geocoder = new window.google.maps.Geocoder();
+                  
+                  geocoder.geocode({ address: searchValue }, (results, status) => {
+                    
+                    if (status === 'OK' && results[0]) {
+                      const result = results[0];
+                      const location = {
+                        lat: result.geometry.location.lat(),
+                        lng: result.geometry.location.lng(),
+                        name: result.address_components[0]?.long_name || searchValue,
+                        address: result.formatted_address
+                      };
+                      
+                      if (onLocationSelect) {
+                        onLocationSelect(location);
+                      }
+                    } else {
+                    }
+                  });
+                } else {
+                }
+              }
+            }, true); // Use capture
+            
+            // Try to add listener directly to the element
+            input.addEventListener('keydown', (e) => {
+            }, true);
+            
+            // Monitor shadow DOM input if available
+            setTimeout(() => {
+              const shadowInput = input.shadowRoot?.querySelector('input');
+              if (shadowInput) {
+                shadowInput.addEventListener('input', (e) => {
+                  currentValue = e.target.value;
+                });
+                
+                shadowInput.addEventListener('keydown', (e) => {
+                });
+              }
+            }, 1000);
+            
+            // Use MutationObserver as fallback to detect value changes
+            const observer = new MutationObserver((mutations) => {
+              mutations.forEach((mutation) => {
+                if (mutation.type === 'attributes' && mutation.attributeName === 'value') {
+                  currentValue = input.value || '';
+                }
+              });
+            });
+            
+            // Observe the PlaceAutocompleteElement for attribute changes
+            observer.observe(input, { 
+              attributes: true, 
+              attributeFilter: ['value', 'query'],
+              subtree: true 
+            });
+            
+            // Also try to observe the shadow DOM input when available
+            setTimeout(() => {
+              const shadowInput = input.shadowRoot?.querySelector('input');
+              if (shadowInput) {
+                const shadowObserver = new MutationObserver(() => {
+                  const newValue = shadowInput.value;
+                  if (newValue !== currentValue) {
+                    currentValue = newValue;
+                  }
+                });
+                
+                shadowObserver.observe(shadowInput, { 
+                  attributes: true, 
+                  attributeFilter: ['value'] 
+                });
+                
+                // Also poll shadow input value
+                setInterval(() => {
+                  const val = shadowInput.value;
+                  if (val && val !== currentValue) {
+                    currentValue = val;
+                  }
+                }, 100);
+              }
+            }, 1000);
+            
+            // Handle place selection from dropdown
+            input.addEventListener('gmp-placeselect', async (e) => {
+              const place = e.detail.place;
+              
+              if (!place) return;
 
-          if (onLocationSelect) {
-            onLocationSelect(location);
+              try {
+                // Fetch full place details
+                await place.fetchFields({ 
+                  fields: ['displayName', 'formattedAddress', 'location', 'id'] 
+                });
+                
+                const location = {
+                  lat: place.location.lat(),
+                  lng: place.location.lng(),
+                  name: place.displayName || '',
+                  address: place.formattedAddress || '',
+                  placeId: place.id || ''
+                };
+
+                if (onLocationSelect) {
+                  onLocationSelect(location);
+                }
+                
+                // Clear the selected suggestion
+                selectedSuggestion = null;
+              } catch (error) {
+              }
+            });
           }
-
-          setSearchInput(place.formatted_address || place.name);
+        } catch (error) {
+          setUseNewAPI(false);
         }
       } else {
-        console.log('No results found for:', searchInput);
+        // PlaceAutocompleteElement not available
+        setUseNewAPI(false);
       }
-    });
-  };
+    }, 100);
 
+    return () => {
+      clearTimeout(timer);
+    };
+  }, [onLocationSelect, placeholder, useNewAPI]);
+
+  // Render custom implementation if enabled
+  if (useCustomImplementation) {
+    return <LocationSearchCustom onLocationSelect={onLocationSelect} placeholder={placeholder} />;
+  }
+
+  // Render new API implementation
+  if (useNewAPI) {
+    return <div ref={containerRef} className="location-search" />;
+  }
+
+  // Render basic input (fallback)
   return (
     <div className="location-search" style={{ position: 'relative' }}>
       <input
-        ref={searchBoxRef}
+        ref={inputRef}
         type="text"
         value={searchInput}
         onChange={(e) => setSearchInput(e.target.value)}
-        onKeyPress={handleKeyPress}
-        placeholder={isSearching ? "Searching..." : placeholder}
+        placeholder={placeholder}
         className="location-search-input"
-        disabled={isSearching}
       />
-      {isSearching && (
-        <div style={{ 
-          position: 'absolute', 
-          right: '10px', 
-          top: '50%', 
-          transform: 'translateY(-50%)',
-          fontSize: '12px',
-          color: '#666'
-        }}>
-          🔍
-        </div>
-      )}
     </div>
   );
 };
