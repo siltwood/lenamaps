@@ -2,17 +2,25 @@
   "name": "lenamaps",
   "version": "1.0.0",
   "description": "Transportation trip mapping application",
-  "main": "index.js",
+  "main": "backend/server.js",
   "scripts": {
+    "start": "node backend/server.js",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd backend && npm run dev",
     "client": "cd frontend && npm start",
-    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install"
+    "install-all": "npm install && cd backend && npm install && cd ../frontend && npm install",
+    "build": "cd frontend && npm run build",
+    "heroku-postbuild": "cd backend && npm install && cd ../frontend && npm install && npm run build"
   },
   "keywords": ["maps", "transportation", "trips", "visualization"],
   "author": "",
   "license": "MIT",
+  "engines": {
+    "node": ">=14.0.0",
+    "npm": ">=6.0.0"
+  },
   "devDependencies": {
     "concurrently": "^8.2.2"
-  }
+  },
+  "dependencies": {}
 } 
