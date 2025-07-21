@@ -134,7 +134,8 @@ const RouteSegmentManager = ({
     
     // Filter out null locations
     const validLocations = allLocations.filter(loc => loc !== null && loc !== undefined);
-    const validModes = allModes.slice(0, Math.max(0, validLocations.length - 1));
+    // For modes: keep at least 1 mode for single location, or n-1 modes for n locations
+    const validModes = allModes.slice(0, Math.max(1, validLocations.length - 1));
     
     // If no valid locations, clear everything
     if (validLocations.length === 0) {
