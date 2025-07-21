@@ -422,8 +422,7 @@ function App() {
     <div className="app">
       <header className="header">
         <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span style={{ fontSize: '1.5em' }}>🗺️</span> 
-          <span>LenaMaps - Trip Visualization</span>
+          <span>LenaMaps - Animate your Google Maps Route</span>
         </h1>
         <div className="header-search">
           {process.env.REACT_APP_GOOGLE_MAPS_API_KEY && 

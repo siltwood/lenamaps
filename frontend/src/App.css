@@ -484,13 +484,12 @@ body {
 }
 
 .header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
+  background: transparent;
+  color: #1e293b;
   padding: 1rem 2rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
   z-index: 100;
   position: relative;
 }
@@ -518,14 +517,14 @@ body {
 /* Style header search input */
 .header-search .location-search-input {
   background: rgba(255, 255, 255, 0.95);
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid #e2e8f0;
   color: #1e293b;
 }
 
 .header-search .location-search-input:focus {
   background: white;
-  border-color: white;
-  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.3);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
 }
 
 .header-search .location-search-input::placeholder {
