@@ -126,8 +126,24 @@ const RouteSegmentManager = ({
 
     const { allLocations, allModes } = directionsRoute;
     
+    // Additional check: if all locations are null, clear everything
+    if (allLocations.every(loc => !loc)) {
+      clearAllSegments();
+      return;
+    }
+    
+    // Filter out null locations
+    const validLocations = allLocations.filter(loc => loc !== null && loc !== undefined);
+    const validModes = allModes.slice(0, Math.max(0, validLocations.length - 1));
+    
+    // If no valid locations, clear everything
+    if (validLocations.length === 0) {
+      clearAllSegments();
+      return;
+    }
+    
     // For single location, only clear if we don't already have a single marker
-    if (allLocations && allLocations.length === 1) {
+    if (validLocations.length === 1) {
       const alreadyHasSingleMarker = segmentsRef.current.length === 1 && 
                                      segmentsRef.current[0].id === 'single-marker';
       if (!alreadyHasSingleMarker) {
@@ -137,7 +153,7 @@ const RouteSegmentManager = ({
       // Special case: transitioning from 1 location to 2 locations
       const wasSingleMarker = segmentsRef.current.length === 1 && 
         segmentsRef.current[0].id === 'single-marker' &&
-        allLocations.length === 2;
+        validLocations.length === 2;
       
       if (wasSingleMarker) {
         // Keep the single marker - it will become the start marker of the route
@@ -147,7 +163,7 @@ const RouteSegmentManager = ({
         const prevLocations = segmentsRef.current
           .filter(s => s.startLocation) // Only get segments with actual locations
           .map(s => s.startLocation);
-        const currentLocations = allLocations?.slice(0, -1) || [];
+        const currentLocations = validLocations?.slice(0, -1) || [];
         const locationsSame = prevLocations.length === currentLocations.length && 
           JSON.stringify(prevLocations) === JSON.stringify(currentLocations);
         
@@ -155,7 +171,7 @@ const RouteSegmentManager = ({
         // because bus/transit routes follow different paths than walking/driving
         if (locationsSame && segmentsRef.current.length > 0) {
           const modesChanged = segmentsRef.current.some((segment, i) => {
-            const newMode = allModes[i] || 'walk';
+            const newMode = validModes[i] || 'walk';
             return segment.mode !== newMode;
           });
           
@@ -178,23 +194,23 @@ const RouteSegmentManager = ({
     }
     
     // Show markers even with just 1 location
-    if (!allLocations || allLocations.length < 1) {
+    if (!validLocations || validLocations.length < 1) {
       return;
     }
     
     // If only 1 location, just show the marker without a route
-    if (allLocations.length === 1) {
+    if (validLocations.length === 1) {
       // Check if we already have this exact marker
       const existingMarker = segmentsRef.current.find(s => s.id === 'single-marker');
       if (existingMarker && 
-          existingMarker.startLocation.lat === allLocations[0].lat && 
-          existingMarker.startLocation.lng === allLocations[0].lng) {
+          existingMarker.startLocation.lat === validLocations[0].lat && 
+          existingMarker.startLocation.lng === validLocations[0].lng) {
         // Same marker already exists, don't recreate it
         return;
       }
       
-      const location = allLocations[0];
-      const mode = allModes[0] || 'walk';
+      const location = validLocations[0];
+      const mode = validModes[0] || 'walk';
       const modeIcon = TRANSPORT_ICONS[mode] || '🚶';
       const modeColor = getTransportationColor(mode);
       
@@ -232,10 +248,10 @@ const RouteSegmentManager = ({
         
         const newSegments = [];
         
-        for (let i = 0; i < allLocations.length - 1; i++) {
-          const segmentMode = allModes[i] || 'walk';
-          const segmentOrigin = allLocations[i];
-          const segmentDestination = allLocations[i + 1];
+        for (let i = 0; i < validLocations.length - 1; i++) {
+          const segmentMode = validModes[i] || 'walk';
+          const segmentOrigin = validLocations[i];
+          const segmentDestination = validLocations[i + 1];
           
           // Determine travel mode
           let travelMode = window.google.maps.TravelMode.WALKING;
@@ -378,8 +394,11 @@ const RouteSegmentManager = ({
               if (existingSingleMarker) {
                 // Reuse the existing marker
                 markers.start = segmentsRef.current[0].markers.start;
-                // Clear the old segment reference so it doesn't get cleared later
+                // Remove the single marker from segmentsRef but don't clear it from the map
+                const singleMarkerSegment = segmentsRef.current[0];
                 segmentsRef.current = [];
+                // Make sure we don't accidentally clear this marker later
+                delete singleMarkerSegment.markers.start;
               } else {
                 // Create new start marker
                 markers.start = createMarker(
@@ -394,11 +413,11 @@ const RouteSegmentManager = ({
             }
             
             // Check if this is the last segment
-            const isLastSegment = i === allLocations.length - 2;
+            const isLastSegment = i === validLocations.length - 2;
             
             // Add transition marker if mode changes to next segment
-            if (!isLastSegment && i < allModes.length - 1 && allModes[i] !== allModes[i + 1]) {
-              const nextMode = allModes[i + 1];
+            if (!isLastSegment && i < validModes.length - 1 && validModes[i] !== validModes[i + 1]) {
+              const nextMode = validModes[i + 1];
               const nextIcon = TRANSPORT_ICONS[nextMode] || '🚶';
               const nextColor = getTransportationColor(nextMode);
               
@@ -578,11 +597,11 @@ const RouteSegmentManager = ({
                 }
                 
                 // Check if this is the last segment
-                const isLastSegment = i === allLocations.length - 2;
+                const isLastSegment = i === validLocations.length - 2;
                 
                 // Add transition marker if mode changes to next segment
-                if (!isLastSegment && i < allModes.length - 1 && allModes[i] !== allModes[i + 1]) {
-                  const nextMode = allModes[i + 1];
+                if (!isLastSegment && i < validModes.length - 1 && validModes[i] !== validModes[i + 1]) {
+                  const nextMode = validModes[i + 1];
                   const nextIcon = TRANSPORT_ICONS[nextMode] || '🚶';
                   const nextColor = getTransportationColor(nextMode);
                   
