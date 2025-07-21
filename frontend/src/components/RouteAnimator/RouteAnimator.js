@@ -11,7 +11,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
   const [isAnimating, setIsAnimatingState] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '', type: 'info' });
-  const [position, setPosition] = useState({ x: Math.max(10, window.innerWidth - 420), y: 150 });
+  const [position, setPosition] = useState({ x: Math.max(10, window.innerWidth - 420), y: window.innerHeight - 300 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const panelRef = useRef(null);
