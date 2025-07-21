@@ -339,6 +339,46 @@ function App() {
     }
   }, [directionsLegModes, updateDirectionsLocations, updateDirectionsLegModes]);
 
+  // Update route when leg modes change
+  useEffect(() => {
+    const filledLocs = directionsLocations.filter(loc => loc !== null);
+    
+    if (filledLocs.length >= 2) {
+      const segments = [];
+      for (let i = 0; i < filledLocs.length - 1; i++) {
+        segments.push({
+          mode: directionsLegModes[i] || 'walk',
+          startIndex: i,
+          endIndex: i + 1
+        });
+      }
+      const routeData = {
+        origin: filledLocs[0],
+        destination: filledLocs[filledLocs.length - 1],
+        waypoints: filledLocs.slice(1, -1),
+        mode: directionsLegModes[0],
+        segments,
+        allLocations: filledLocs,
+        allModes: directionsLegModes,
+        routeId: filledLocs.map(loc => `${loc.lat},${loc.lng}`).join('_') + '_' + directionsLegModes.join('-')
+      };
+      setDirectionsRoute(routeData);
+    } else if (filledLocs.length === 1) {
+      // Single location - just show marker with updated mode
+      const routeData = {
+        origin: filledLocs[0],
+        destination: null,
+        waypoints: [],
+        mode: directionsLegModes[0],
+        segments: [],
+        allLocations: filledLocs,
+        allModes: directionsLegModes,
+        routeId: filledLocs.map(loc => `${loc.lat},${loc.lng}`).join('_') + '_' + directionsLegModes[0]
+      };
+      setDirectionsRoute(routeData);
+    }
+  }, [directionsLegModes, directionsLocations]);
+
   // Keyboard shortcuts for undo/redo
   useEffect(() => {
     const handleKeyDown = (e) => {
