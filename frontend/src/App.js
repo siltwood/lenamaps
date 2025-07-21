@@ -183,6 +183,11 @@ function App() {
   }, [directionsLocations, addActionToHistory]);
 
   const updateDirectionsLegModes = useCallback((newModes, segmentIndex = null) => {
+    console.log('App updateDirectionsLegModes:', {
+      newModes: newModes,
+      segmentIndex: segmentIndex,
+      previousModes: directionsLegModes
+    });
     // Track mode change
     if (segmentIndex !== null) {
       addActionToHistory({
@@ -375,6 +380,11 @@ function App() {
         allModes: directionsLegModes,
         routeId: filledLocs.map(loc => `${loc.lat},${loc.lng}`).join('_') + '_' + directionsLegModes[0]
       };
+      console.log('App: Setting single location route:', {
+        mode: directionsLegModes[0],
+        allModes: directionsLegModes,
+        routeData: routeData
+      });
       setDirectionsRoute(routeData);
     }
   }, [directionsLegModes, directionsLocations]);

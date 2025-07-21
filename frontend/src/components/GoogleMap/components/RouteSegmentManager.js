@@ -206,14 +206,38 @@ const RouteSegmentManager = ({
       if (existingMarker && 
           existingMarker.startLocation.lat === validLocations[0].lat && 
           existingMarker.startLocation.lng === validLocations[0].lng) {
-        // Same marker already exists, don't recreate it
-        return;
+        // Check if mode changed
+        const currentMode = validModes[0] || 'walk';
+        console.log('Single marker mode check:', {
+          existingMode: existingMarker.mode,
+          newMode: currentMode,
+          validModes: validModes,
+          allModes: allModes
+        });
+        
+        if (existingMarker.mode !== currentMode) {
+          console.log('Mode changed for single marker, recreating...');
+          // Mode changed, clear the old marker and create new one
+          clearSegment(existingMarker);
+          segmentsRef.current = [];
+        } else {
+          // Same marker already exists, don't recreate it
+          return;
+        }
       }
       
       const location = validLocations[0];
       const mode = validModes[0] || 'walk';
       const modeIcon = TRANSPORT_ICONS[mode] || '🚶';
       const modeColor = getTransportationColor(mode);
+      
+      console.log('Creating single marker:', {
+        mode: mode,
+        icon: modeIcon,
+        color: modeColor,
+        validModes: validModes,
+        allModes: allModes
+      });
       
       const marker = createMarker(
         location,
@@ -393,14 +417,41 @@ const RouteSegmentManager = ({
                 segmentsRef.current[0].startLocation.lng === segmentOrigin.lng;
               
               if (existingSingleMarker) {
-                // Reuse the existing marker
-                markers.start = segmentsRef.current[0].markers.start;
-                // Remove the single marker from segmentsRef but don't clear it from the map
-                const singleMarkerSegment = segmentsRef.current[0];
-                segmentsRef.current = [];
-                // Make sure we don't accidentally clear this marker later
-                delete singleMarkerSegment.markers.start;
+                console.log('Checking existing single marker:', {
+                  existingMode: segmentsRef.current[0].mode,
+                  newMode: segmentMode,
+                  shouldReuse: segmentsRef.current[0].mode === segmentMode
+                });
+                
+                // Check if mode changed
+                if (segmentsRef.current[0].mode !== segmentMode) {
+                  console.log('Mode changed from single marker to route, creating new start marker');
+                  // Mode changed, clear the old marker and create new one
+                  clearAdvancedMarker(segmentsRef.current[0].markers.start);
+                  markers.start = createMarker(
+                    segmentOrigin,
+                    modeIcon,
+                    modeColor,
+                    'Start',
+                    5000,
+                    segmentMode === 'bus'
+                  );
+                  segmentsRef.current = [];
+                } else {
+                  // Reuse the existing marker
+                  markers.start = segmentsRef.current[0].markers.start;
+                  // Remove the single marker from segmentsRef but don't clear it from the map
+                  const singleMarkerSegment = segmentsRef.current[0];
+                  segmentsRef.current = [];
+                  // Make sure we don't accidentally clear this marker later
+                  delete singleMarkerSegment.markers.start;
+                }
               } else {
+                console.log('Creating new start marker:', {
+                  mode: segmentMode,
+                  icon: modeIcon,
+                  color: modeColor
+                });
                 // Create new start marker
                 markers.start = createMarker(
                   segmentOrigin,

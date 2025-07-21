@@ -277,6 +277,12 @@ const DirectionsPanel = ({
     if (onLegModesChange) {
       const newModes = [...legModes];
       newModes[index] = mode;
+      console.log('DirectionsPanel updateLegMode:', {
+        index: index,
+        oldMode: legModes[index],
+        newMode: mode,
+        allModes: newModes
+      });
       onLegModesChange(newModes, index); // Pass index for action tracking
       
       // Update the route data immediately with new modes (visual update only)
