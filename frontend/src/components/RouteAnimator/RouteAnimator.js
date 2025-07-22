@@ -11,10 +11,16 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
   const [isAnimating, setIsAnimatingState] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '', type: 'info' });
-  const [position, setPosition] = useState({ x: Math.max(10, window.innerWidth - 480), y: window.innerHeight - 180 });
+  const [position, setPosition] = useState({ x: Math.max(10, window.innerWidth - 480), y: window.innerHeight - 250 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const panelRef = useRef(null);
+  const mapRef = useRef(map);
+  
+  // Update map ref when prop changes
+  useEffect(() => {
+    mapRef.current = map;
+  }, [map]);
   
   // Helper to show modal
   const showModal = (message, title = '', type = 'info') => {
@@ -49,6 +55,8 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
   const animationSpeedRef = useRef(animationSpeed);
   const lastPositionRef = useRef(null);
   const targetPositionRef = useRef(null);
+  const lastCameraUpdateRef = useRef(0);
+  const cameraUpdateIntervalRef = useRef(null);
 
 
   // Define stopAnimation early so it can be used in effects
@@ -63,6 +71,22 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
     lastPositionRef.current = null;
     targetPositionRef.current = null;
     
+    // Re-enable map interactions
+    if (map) {
+      map.setOptions({
+        draggable: true,
+        scrollwheel: true,
+        disableDoubleClickZoom: false,
+        gestureHandling: 'auto'
+      });
+    }
+    
+    // Clear camera update interval
+    if (cameraUpdateIntervalRef.current) {
+      clearInterval(cameraUpdateIntervalRef.current);
+      cameraUpdateIntervalRef.current = null;
+    }
+    
     if (markerRef.current) {
       if (window.google?.maps?.marker?.AdvancedMarkerElement && markerRef.current.map !== undefined) {
         markerRef.current.map = null;
@@ -76,7 +100,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
       cancelAnimationFrame(animationRef.current);
       animationRef.current = null;
     }
-  }, []);
+  }, [map]);
 
   useEffect(() => {
     return () => {
@@ -179,6 +203,14 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
     setProgress(0);
     isAnimatingRef.current = true;
     isPausedRef.current = false;
+    
+    // Disable map interactions during animation to prevent user from panning away
+    map.setOptions({
+      draggable: false,
+      scrollwheel: false,
+      disableDoubleClickZoom: true,
+      gestureHandling: 'none'
+    });
 
     // Clear existing marker if any
     if (markerRef.current) {
@@ -383,10 +415,34 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
       map.setCenter(startPos);
       map.setZoom(16); // Good default zoom level for route animation
       
-      // Start animation after a brief delay for zoom to complete
+      // Force a map resize to ensure it's properly initialized
+      window.google.maps.event.trigger(map, 'resize');
+      
+      // Set up camera following interval to ensure it works from the start
+      if (cameraUpdateIntervalRef.current) {
+        clearInterval(cameraUpdateIntervalRef.current);
+      }
+      
+      // Create interval to force camera updates
+      cameraUpdateIntervalRef.current = setInterval(() => {
+        if (markerRef.current && map) {
+          let markerPos;
+          if (window.google?.maps?.marker?.AdvancedMarkerElement && markerRef.current.position !== undefined) {
+            markerPos = markerRef.current.position;
+          } else if (markerRef.current.getPosition) {
+            markerPos = markerRef.current.getPosition();
+          }
+          
+          if (markerPos) {
+            map.panTo(markerPos);
+          }
+        }
+      }, 100); // Update 10 times per second
+      
+      // Start animation immediately
       setTimeout(() => {
         animateAlongRoute(fullPath);
-      }, 500);
+      }, 100);
       
     } catch (error) {
       console.error('Failed to start animation:', error);
@@ -455,6 +511,9 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
         markerRef.current.setPosition(startPosition);
       }
     }
+    
+    // Store map reference in closure
+    const mapInstance = map;
     
     const animate = (timestamp) => {
       if (!isAnimatingRef.current || isPausedRef.current) {
@@ -549,45 +608,61 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
       const progressPercent = Math.min((distanceTraveledRef.current / totalDistance) * 100, 100);
       setProgress(progressPercent);
 
-      // Update marker position and map view
-      if (markerRef.current && position) {
-        // Apply position smoothing for ultra-smooth movement
-        let smoothedPosition = position;
+      // Apply position smoothing for ultra-smooth movement
+      let smoothedPosition = position;
+      
+      if (lastPositionRef.current && position) {
+        // Interpolate between last position and new position for smoothness
+        const smoothingFactor = 0.3; // Higher = more responsive, lower = smoother
+        const lastPos = lastPositionRef.current;
         
-        if (lastPositionRef.current) {
-          // Interpolate between last position and new position for smoothness
-          const smoothingFactor = 0.3; // Higher = more responsive, lower = smoother
-          const lastPos = lastPositionRef.current;
-          
-          const smoothedLat = lastPos.lat() + (position.lat() - lastPos.lat()) * smoothingFactor;
-          const smoothedLng = lastPos.lng() + (position.lng() - lastPos.lng()) * smoothingFactor;
-          
-          smoothedPosition = new window.google.maps.LatLng(smoothedLat, smoothedLng);
-        }
+        const smoothedLat = lastPos.lat() + (position.lat() - lastPos.lat()) * smoothingFactor;
+        const smoothedLng = lastPos.lng() + (position.lng() - lastPos.lng()) * smoothingFactor;
         
+        smoothedPosition = new window.google.maps.LatLng(smoothedLat, smoothedLng);
+      }
+      
+      if (position) {
         lastPositionRef.current = smoothedPosition;
-        
+      }
+
+      // Update marker position
+      if (markerRef.current && position) {
         // Handle AdvancedMarkerElement vs regular Marker
         if (window.google?.maps?.marker?.AdvancedMarkerElement && markerRef.current.position !== undefined) {
           markerRef.current.position = smoothedPosition;
         } else {
           markerRef.current.setPosition(smoothedPosition);
         }
+      }
+      
+      // Camera following with throttling to prevent gray tiles
+      if (mapInstance && position) {
+        const now = Date.now();
+        const timeSinceLastUpdate = now - lastCameraUpdateRef.current;
         
-        // Always keep the marker centered during animation
-        // Use setCenter for immediate positioning
-        if (map) {
-          map.setCenter(smoothedPosition);
-        }
-        
-        // Optional: Adjust zoom based on speed to show more context at higher speeds
-        // Only adjust zoom once per speed range to avoid conflicts with camera following
-        const currentZoom = map.getZoom();
-        const targetZoom = animationSpeedRef.current > 4 ? 15 : 
-                          animationSpeedRef.current < 2 ? 17 : 16;
-        
-        if (Math.abs(currentZoom - targetZoom) > 1) {
-          map.setZoom(targetZoom);
+        // Update camera at most 30 times per second to prevent tile loading issues
+        if (timeSinceLastUpdate >= 33) { // ~30fps
+          lastCameraUpdateRef.current = now;
+          
+          // Use panTo with duration 0 for immediate but smoother updates
+          mapInstance.panTo(smoothedPosition);
+          
+          // Force a small pan to trigger tile loading
+          setTimeout(() => {
+            if (mapInstance.panBy) {
+              mapInstance.panBy(0, 0);
+            }
+          }, 10);
+          
+          // Optional: Adjust zoom based on speed
+          const currentZoom = mapInstance.getZoom();
+          const targetZoom = animationSpeedRef.current > 4 ? 15 : 
+                            animationSpeedRef.current < 2 ? 17 : 16;
+          
+          if (Math.abs(currentZoom - targetZoom) > 1) {
+            mapInstance.setZoom(targetZoom);
+          }
         }
       }
 
@@ -597,6 +672,23 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
         setIsPaused(false);
         isAnimatingRef.current = false;
         isPausedRef.current = false;
+        
+        // Re-enable map interactions
+        if (map) {
+          map.setOptions({
+            draggable: true,
+            scrollwheel: true,
+            disableDoubleClickZoom: false,
+            gestureHandling: 'auto'
+          });
+        }
+        
+        // Clear camera update interval
+        if (cameraUpdateIntervalRef.current) {
+          clearInterval(cameraUpdateIntervalRef.current);
+          cameraUpdateIntervalRef.current = null;
+        }
+        
         if (markerRef.current) {
           const lastPosition = path[path.length - 1];
           if (window.google?.maps?.marker?.AdvancedMarkerElement && markerRef.current.position !== undefined) {
