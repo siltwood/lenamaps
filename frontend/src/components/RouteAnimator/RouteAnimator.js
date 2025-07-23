@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faVideo, faPlay, faPause, faStop } from '@fortawesome/free-solid-svg-icons';
-import { TRANSPORT_ICONS } from '../GoogleMap/utils/constants';
+import { TRANSPORTATION_COLORS, TRANSPORT_ICONS } from '../GoogleMap/utils/constants';
 import DragHandle from '../common/DragHandle';
 import Modal from './Modal';
 import './RouteAnimator.css';
@@ -43,7 +43,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
   const [progress, setProgress] = useState(0);
   
   const animationRef = useRef(null);
-  const markerRef = useRef(null);
+  // Removed markerRef - using pure Symbol Animation API
   const pathRef = useRef(null);
   const segmentPathsRef = useRef(null);
   const isAnimatingRef = useRef(false);
@@ -53,11 +53,61 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
   const distanceTraveledRef = useRef(0);
   const lastTimestampRef = useRef(null);
   const animationSpeedRef = useRef(animationSpeed);
-  const lastPositionRef = useRef(null);
-  const targetPositionRef = useRef(null);
-  const lastCameraUpdateRef = useRef(0);
+  // Removed position refs - not needed with Symbol Animation API
   const cameraUpdateIntervalRef = useRef(null);
+  const polylineRef = useRef(null);
+  const offsetRef = useRef(0);
+  const lastCameraPositionRef = useRef(null);
+  const cameraVelocityRef = useRef(null);
+  const markerRef = useRef(null);
+  const zoomListenerRef = useRef(null);
+  const currentZoomRef = useRef(13);
 
+  // Calculate marker scale based on zoom level
+  const getMarkerScale = (zoom) => {
+    // Base scale at zoom 13
+    const baseZoom = 13;
+    const maxScale = 1.2;  // Maximum scale at high zoom
+    const minScale = 0.5;  // Minimum scale at low zoom
+    
+    // Scale decreases as you zoom out
+    const scaleFactor = Math.pow(2, (zoom - baseZoom) * 0.15);
+    return Math.max(minScale, Math.min(maxScale, scaleFactor));
+  };
+
+  // Update marker with new scale
+  const updateMarkerScale = useCallback(() => {
+    if (!map || !markerRef.current) return;
+    
+    const newZoom = map.getZoom();
+    currentZoomRef.current = newZoom;
+    const scale = getMarkerScale(newZoom);
+    
+    if (window.google?.maps?.marker?.AdvancedMarkerElement && markerRef.current.content) {
+      const currentMode = markerRef.current._currentMode || 'walk';
+      const content = document.createElement('div');
+      const size = 50 * scale;
+      const fontSize = 24 * scale;
+      const borderWidth = 4 * scale;
+      
+      content.style.cssText = `
+        width: ${size}px;
+        height: ${size}px;
+        background-color: ${TRANSPORTATION_COLORS[currentMode]};
+        border-radius: 50%;
+        border: ${borderWidth}px solid white;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: ${fontSize}px;
+        box-shadow: 0 ${4 * scale}px ${8 * scale}px rgba(0,0,0,0.4);
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+      `;
+      content.textContent = TRANSPORT_ICONS[currentMode];
+      markerRef.current.content = content;
+    }
+  }, [map]);
 
   // Define stopAnimation early so it can be used in effects
   const stopAnimation = useCallback(() => {
@@ -68,8 +118,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
     isPausedRef.current = false;
     distanceTraveledRef.current = 0;
     lastTimestampRef.current = null;
-    lastPositionRef.current = null;
-    targetPositionRef.current = null;
+    // Position tracking removed - handled by Symbol API
     
     // Re-enable map interactions
     if (map) {
@@ -87,6 +136,16 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
       cameraUpdateIntervalRef.current = null;
     }
     
+    if (zoomListenerRef.current) {
+      window.google.maps.event.removeListener(zoomListenerRef.current);
+      zoomListenerRef.current = null;
+    }
+    
+    if (polylineRef.current) {
+      polylineRef.current.setMap(null);
+      polylineRef.current = null;
+    }
+    
     if (markerRef.current) {
       if (window.google?.maps?.marker?.AdvancedMarkerElement && markerRef.current.map !== undefined) {
         markerRef.current.map = null;
@@ -95,6 +154,10 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
       }
       markerRef.current = null;
     }
+    
+    offsetRef.current = 0;
+    lastCameraPositionRef.current = null;
+    cameraVelocityRef.current = null;
     
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current);
@@ -131,10 +194,28 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
     prevRouteRef.current = directionsRoute;
   }, [directionsRoute, isAnimating, stopAnimation]);
 
+  // Set up zoom listener
+  useEffect(() => {
+    if (!map) return;
+    
+    // Get initial zoom
+    currentZoomRef.current = map.getZoom();
+    
+    // Listen for zoom changes
+    zoomListenerRef.current = map.addListener('zoom_changed', updateMarkerScale);
+    
+    return () => {
+      if (zoomListenerRef.current) {
+        window.google.maps.event.removeListener(zoomListenerRef.current);
+        zoomListenerRef.current = null;
+      }
+    };
+  }, [map, updateMarkerScale]);
+
   // Densify path by adding intermediate points for smoother animation
   const densifyPath = (originalPath) => {
     const densifiedPath = [];
-    const maxSegmentLength = 2; // Reduced to 2 meters for ultra-smooth movement
+    const maxSegmentLength = 1; // 1 meter segments for silky smooth movement
     
     for (let i = 0; i < originalPath.length - 1; i++) {
       densifiedPath.push(originalPath[i]);
@@ -212,15 +293,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
       gestureHandling: 'none'
     });
 
-    // Clear existing marker if any
-    if (markerRef.current) {
-      if (window.google?.maps?.marker?.AdvancedMarkerElement && markerRef.current.map !== undefined) {
-        markerRef.current.map = null;
-      } else {
-        markerRef.current.setMap(null);
-      }
-      markerRef.current = null;
-    }
+    // No marker cleanup needed - using pure Symbol Animation API
 
     // Get all DirectionsRenderer instances from the map
     const renderers = [];
@@ -398,50 +471,126 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
       segmentPathsRef.current = densifiedSegmentInfo;
       
       
-      // Create marker with initial mode
+      // Create polyline with animated symbol
       const initialMode = allModes[0] || 'walk';
-      markerRef.current = createAnimationMarker(initialMode);
-      markerRef.current._currentMode = initialMode;
       
-      // Set initial position
-      const startPos = fullPath[0];
-      if (window.google?.maps?.marker?.AdvancedMarkerElement && markerRef.current.position !== undefined) {
-        markerRef.current.position = startPos;
+      // Define larger circular symbols for each mode
+      const transportSymbols = {
+        walk: {
+          path: window.google.maps.SymbolPath.CIRCLE,
+          scale: 20,
+          fillColor: TRANSPORTATION_COLORS.walk,
+          fillOpacity: 1,
+          strokeColor: '#FFFFFF',
+          strokeWeight: 3
+        },
+        bike: {
+          path: window.google.maps.SymbolPath.CIRCLE,
+          scale: 20,
+          fillColor: TRANSPORTATION_COLORS.bike,
+          fillOpacity: 1,
+          strokeColor: '#FFFFFF',
+          strokeWeight: 3
+        },
+        car: {
+          path: window.google.maps.SymbolPath.CIRCLE,
+          scale: 20,
+          fillColor: TRANSPORTATION_COLORS.car,
+          fillOpacity: 1,
+          strokeColor: '#FFFFFF',
+          strokeWeight: 3
+        },
+        bus: {
+          path: window.google.maps.SymbolPath.CIRCLE,
+          scale: 20,
+          fillColor: TRANSPORTATION_COLORS.bus,
+          fillOpacity: 1,
+          strokeColor: '#FFFFFF',
+          strokeWeight: 3
+        }
+      };
+      
+      const initialSymbol = transportSymbols[initialMode] || transportSymbols.walk;
+      
+      // Create polyline without symbol (we'll use a separate marker)
+      polylineRef.current = new window.google.maps.Polyline({
+        path: densifiedPath,
+        geodesic: true,
+        strokeColor: '#CCCCCC',
+        strokeOpacity: 0.3,
+        strokeWeight: 4,
+        map: map
+      });
+      
+      // Create marker with circle and icon
+      if (window.google?.maps?.marker?.AdvancedMarkerElement) {
+        // Get current zoom and scale
+        currentZoomRef.current = map.getZoom();
+        const scale = getMarkerScale(currentZoomRef.current);
+        
+        // Create custom content with circle and emoji
+        const content = document.createElement('div');
+        const size = 50 * scale;
+        const fontSize = 24 * scale;
+        const borderWidth = 4 * scale;
+        
+        content.style.cssText = `
+          width: ${size}px;
+          height: ${size}px;
+          background-color: ${TRANSPORTATION_COLORS[initialMode]};
+          border-radius: 50%;
+          border: ${borderWidth}px solid white;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: ${fontSize}px;
+          box-shadow: 0 ${4 * scale}px ${8 * scale}px rgba(0,0,0,0.4);
+          cursor: pointer;
+        `;
+        content.textContent = TRANSPORT_ICONS[initialMode];
+        
+        markerRef.current = new window.google.maps.marker.AdvancedMarkerElement({
+          map: map,
+          content: content,
+          position: densifiedPath[0],
+          zIndex: 10000
+        });
+        markerRef.current._currentMode = initialMode;
       } else {
-        markerRef.current.setPosition(startPos);
+        // Fallback to regular marker
+        markerRef.current = new window.google.maps.Marker({
+          map: map,
+          position: densifiedPath[0],
+          icon: {
+            path: window.google.maps.SymbolPath.CIRCLE,
+            scale: 20,
+            fillColor: TRANSPORTATION_COLORS[initialMode],
+            fillOpacity: 1,
+            strokeColor: '#FFFFFF',
+            strokeWeight: 3
+          },
+          zIndex: 10000
+        });
       }
       
-      // Set initial zoom and center on start position
-      map.setCenter(startPos);
-      map.setZoom(16); // Good default zoom level for route animation
+      const startPos = fullPath[0];
       
-      // Force a map resize to ensure it's properly initialized
-      window.google.maps.event.trigger(map, 'resize');
+      // Set initial zoom and center on start position with instant zoom
+      map.moveCamera({
+        center: startPos,
+        zoom: 16
+      });
       
       // Set up camera following interval to ensure it works from the start
       if (cameraUpdateIntervalRef.current) {
         clearInterval(cameraUpdateIntervalRef.current);
       }
       
-      // Create interval to force camera updates
-      cameraUpdateIntervalRef.current = setInterval(() => {
-        if (markerRef.current && map) {
-          let markerPos;
-          if (window.google?.maps?.marker?.AdvancedMarkerElement && markerRef.current.position !== undefined) {
-            markerPos = markerRef.current.position;
-          } else if (markerRef.current.getPosition) {
-            markerPos = markerRef.current.getPosition();
-          }
-          
-          if (markerPos) {
-            map.panTo(markerPos);
-          }
-        }
-      }, 100); // Update 10 times per second
+      // Camera following handled in animation loop
       
       // Start animation immediately
       setTimeout(() => {
-        animateAlongRoute(fullPath);
+        animateAlongRoute();
       }, 100);
       
     } catch (error) {
@@ -451,223 +600,155 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
     }
   };
 
-  const createAnimationMarker = (mode) => {
-    const icon = TRANSPORT_ICONS[mode] || '🚶';
-    
-    if (!window.google?.maps?.marker?.AdvancedMarkerElement) {
-      // Fallback - can't do emoji markers with regular API
-      return new window.google.maps.Marker({
-        map: map,
-        icon: {
-          path: window.google.maps.SymbolPath.CIRCLE,
-          scale: 8,
-          fillColor: '#000000',
-          fillOpacity: 1,
-          strokeColor: 'white',
-          strokeWeight: 2
-        },
-        zIndex: 9999
-      });
-    }
-    
-    // Create custom content for just the emoji with black border
-    const content = document.createElement('div');
-    content.style.cssText = `
-      font-size: 24px;
-      text-shadow: 
-        -1px -1px 0 #000,
-         1px -1px 0 #000,
-        -1px  1px 0 #000,
-         1px  1px 0 #000,
-        -2px -2px 0 #000,
-         2px -2px 0 #000,
-        -2px  2px 0 #000,
-         2px  2px 0 #000;
-      filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));
-    `;
-    content.textContent = icon;
-    
-    return new window.google.maps.marker.AdvancedMarkerElement({
-      map: map,
-      content: content,
-      zIndex: 9999
-    });
-  };
+  // Removed createAnimationMarker - using Symbol Animation API
 
-  const animateAlongRoute = (path) => {
-    const totalDistance = calculateTotalDistance(path);
-    
-    // Initialize or resume from stored distance
-    if (!isPaused) {
-      distanceTraveledRef.current = 0;
-    }
-    
-    // Create the initial marker position
-    if (markerRef.current && !isPaused) {
-      const startPosition = getInterpolatedPosition(path, distanceTraveledRef.current);
-      if (window.google?.maps?.marker?.AdvancedMarkerElement && markerRef.current.position !== undefined) {
-        markerRef.current.position = startPosition;
-      } else {
-        markerRef.current.setPosition(startPosition);
-      }
-    }
-    
+  const animateAlongRoute = () => {
     // Store map reference in closure
     const mapInstance = map;
     
-    const animate = (timestamp) => {
+    // Initialize offset
+    if (!isPaused) {
+      offsetRef.current = 0;
+    }
+    
+    const animateSymbol = () => {
       if (!isAnimatingRef.current || isPausedRef.current) {
         animationRef.current = null;
         return;
       }
 
-      // Calculate time delta
-      if (!lastTimestampRef.current) {
-        lastTimestampRef.current = timestamp;
-      }
-      const deltaTime = timestamp - lastTimestampRef.current;
-      lastTimestampRef.current = timestamp;
-
-      // Calculate movement based on speed
-      // Base speed: 500 km/h = ~138.89 m/s (fast but controllable)
-      const baseSpeed = 500000 / 3600; // 500 km/h in m/s
-      const moveDistance = (baseSpeed * animationSpeedRef.current * deltaTime) / 1000; // Convert ms to s
-      distanceTraveledRef.current += moveDistance;
+      // Animate the marker position along path
+      // Speed: 0.015% per frame at 1x speed (smooth speed)
+      const increment = 0.015 * animationSpeedRef.current;
+      offsetRef.current = Math.min(offsetRef.current + increment, 100);
       
-      // Don't exceed total distance
-      if (distanceTraveledRef.current > totalDistance) {
-        distanceTraveledRef.current = totalDistance;
+      if (offsetRef.current >= 100) {
+        offsetRef.current = 100;
       }
       
-      // Get interpolated position
-      const position = getInterpolatedPosition(path, distanceTraveledRef.current);
+      // Get current position for marker and camera
+      const polylinePath = polylineRef.current.getPath();
+      const pathLength = polylinePath.getLength();
+      const exactIndex = (offsetRef.current / 100) * (pathLength - 1);
+      const currentIndex = Math.floor(exactIndex);
+      const nextIndex = Math.min(currentIndex + 1, pathLength - 1);
+      const fraction = exactIndex - currentIndex;
       
-      // Determine which segment we're on based on current path index
-      if (segmentPathsRef.current && markerRef.current) {
-        // Find current path index based on distance
-        let currentPathIndex = 0;
-        let accumDist = 0;
-        
-        for (let i = 0; i < path.length - 1; i++) {
-          const segDist = window.google.maps.geometry.spherical.computeDistanceBetween(path[i], path[i + 1]);
-          if (accumDist + segDist >= distanceTraveledRef.current) {
-            currentPathIndex = i;
-            break;
-          }
-          accumDist += segDist;
+      // Interpolate between points for smoother movement
+      let position;
+      if (currentIndex < pathLength - 1) {
+        const currentPos = polylinePath.getAt(currentIndex);
+        const nextPos = polylinePath.getAt(nextIndex);
+        const lat = currentPos.lat() + (nextPos.lat() - currentPos.lat()) * fraction;
+        const lng = currentPos.lng() + (nextPos.lng() - currentPos.lng()) * fraction;
+        position = new window.google.maps.LatLng(lat, lng);
+      } else {
+        position = polylinePath.getAt(pathLength - 1);
+      }
+      
+      // Update marker position
+      if (markerRef.current) {
+        if (window.google?.maps?.marker?.AdvancedMarkerElement && markerRef.current.position !== undefined) {
+          markerRef.current.position = position;
+        } else {
+          markerRef.current.setPosition(position);
         }
-        
-        // Find which segment this index belongs to
+      }
+      
+      // Update progress
+      setProgress(offsetRef.current);
+      
+      // Position tracking handled by Symbol Animation API
+      
+      // Check which segment we're on and update marker if needed
+      if (segmentPathsRef.current && markerRef.current) {
         let currentMode = 'walk';
+        
         for (const segment of segmentPathsRef.current) {
-          if (currentPathIndex >= segment.startIndex && currentPathIndex < segment.endIndex) {
+          if (currentIndex >= segment.startIndex && currentIndex < segment.endIndex) {
             currentMode = segment.mode;
             break;
           }
         }
         
-        
-        // Update marker icon if mode changed
+        // Update marker if mode changed
         if (markerRef.current._currentMode !== currentMode) {
           markerRef.current._currentMode = currentMode;
           
-          // For AdvancedMarkerElement, update the content
           if (window.google?.maps?.marker?.AdvancedMarkerElement && markerRef.current.content) {
-            const icon = TRANSPORT_ICONS[currentMode] || '🚶';
+            // Update advanced marker content with current scale
+            const scale = getMarkerScale(currentZoomRef.current);
             const content = document.createElement('div');
+            const size = 50 * scale;
+            const fontSize = 24 * scale;
+            const borderWidth = 4 * scale;
+            
             content.style.cssText = `
-              font-size: 24px;
-              text-shadow: 
-                -1px -1px 0 #000,
-                 1px -1px 0 #000,
-                -1px  1px 0 #000,
-                 1px  1px 0 #000,
-                -2px -2px 0 #000,
-                 2px -2px 0 #000,
-                -2px  2px 0 #000,
-                 2px  2px 0 #000;
-              filter: drop-shadow(0 1px 3px rgba(0,0,0,0.5));
+              width: ${size}px;
+              height: ${size}px;
+              background-color: ${TRANSPORTATION_COLORS[currentMode]};
+              border-radius: 50%;
+              border: ${borderWidth}px solid white;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              font-size: ${fontSize}px;
+              box-shadow: 0 ${4 * scale}px ${8 * scale}px rgba(0,0,0,0.4);
+              cursor: pointer;
+              transition: background-color 0.3s ease;
             `;
-            content.textContent = icon;
+            content.textContent = TRANSPORT_ICONS[currentMode];
             markerRef.current.content = content;
           } else {
-            // For regular marker, just change color
+            // Update regular marker icon
             markerRef.current.setIcon({
               path: window.google.maps.SymbolPath.CIRCLE,
-              scale: 8,
-              fillColor: '#000000',
+              scale: 20,
+              fillColor: TRANSPORTATION_COLORS[currentMode],
               fillOpacity: 1,
-              strokeColor: 'white',
-              strokeWeight: 2
+              strokeColor: '#FFFFFF',
+              strokeWeight: 3
             });
           }
         }
       }
       
-      // Update progress
-      const progressPercent = Math.min((distanceTraveledRef.current / totalDistance) * 100, 100);
-      setProgress(progressPercent);
-
-      // Apply position smoothing for ultra-smooth movement
-      let smoothedPosition = position;
-      
-      if (lastPositionRef.current && position) {
-        // Interpolate between last position and new position for smoothness
-        const smoothingFactor = 0.3; // Higher = more responsive, lower = smoother
-        const lastPos = lastPositionRef.current;
-        
-        const smoothedLat = lastPos.lat() + (position.lat() - lastPos.lat()) * smoothingFactor;
-        const smoothedLng = lastPos.lng() + (position.lng() - lastPos.lng()) * smoothingFactor;
-        
-        smoothedPosition = new window.google.maps.LatLng(smoothedLat, smoothedLng);
-      }
-      
-      if (position) {
-        lastPositionRef.current = smoothedPosition;
-      }
-
-      // Update marker position
-      if (markerRef.current && position) {
-        // Handle AdvancedMarkerElement vs regular Marker
-        if (window.google?.maps?.marker?.AdvancedMarkerElement && markerRef.current.position !== undefined) {
-          markerRef.current.position = smoothedPosition;
-        } else {
-          markerRef.current.setPosition(smoothedPosition);
-        }
-      }
-      
-      // Camera following with throttling to prevent gray tiles
+      // Smooth camera following with interpolation
       if (mapInstance && position) {
-        const now = Date.now();
-        const timeSinceLastUpdate = now - lastCameraUpdateRef.current;
+        // Initialize camera position if this is the first frame
+        if (!lastCameraPositionRef.current) {
+          lastCameraPositionRef.current = position;
+          mapInstance.setCenter(position);
+        } else {
+          // Calculate smooth camera position
+          const smoothingFactor = 0.05; // Ultra smooth camera following
+          
+          const currentCameraPos = lastCameraPositionRef.current;
+          const targetPos = position;
+          
+          // Interpolate between current camera position and target
+          const newLat = currentCameraPos.lat() + (targetPos.lat() - currentCameraPos.lat()) * smoothingFactor;
+          const newLng = currentCameraPos.lng() + (targetPos.lng() - currentCameraPos.lng()) * smoothingFactor;
+          const smoothCameraPos = new window.google.maps.LatLng(newLat, newLng);
+          
+          // Update camera position
+          mapInstance.setCenter(smoothCameraPos);
+          lastCameraPositionRef.current = smoothCameraPos;
+        }
         
-        // Update camera at most 30 times per second to prevent tile loading issues
-        if (timeSinceLastUpdate >= 33) { // ~30fps
-          lastCameraUpdateRef.current = now;
-          
-          // Use panTo with duration 0 for immediate but smoother updates
-          mapInstance.panTo(smoothedPosition);
-          
-          // Force a small pan to trigger tile loading
-          setTimeout(() => {
-            if (mapInstance.panBy) {
-              mapInstance.panBy(0, 0);
-            }
-          }, 10);
-          
-          // Optional: Adjust zoom based on speed
-          const currentZoom = mapInstance.getZoom();
-          const targetZoom = animationSpeedRef.current > 4 ? 15 : 
-                            animationSpeedRef.current < 2 ? 17 : 16;
-          
-          if (Math.abs(currentZoom - targetZoom) > 1) {
-            mapInstance.setZoom(targetZoom);
-          }
+        // Adjust zoom based on speed
+        const currentZoom = mapInstance.getZoom();
+        const targetZoom = animationSpeedRef.current > 4 ? 15 : 
+                          animationSpeedRef.current < 2 ? 17 : 16;
+        
+        if (Math.abs(currentZoom - targetZoom) > 1) {
+          // Use setOptions for instant zoom change
+          mapInstance.setOptions({ zoom: targetZoom });
         }
       }
 
       // Check if animation is complete
-      if (distanceTraveledRef.current >= totalDistance) {
+      if (offsetRef.current >= 100) {
         setIsAnimating(false);
         setIsPaused(false);
         isAnimatingRef.current = false;
@@ -689,37 +770,32 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
           cameraUpdateIntervalRef.current = null;
         }
         
+        if (polylineRef.current) {
+          polylineRef.current.setMap(null);
+          polylineRef.current = null;
+        }
+        
         if (markerRef.current) {
-          const lastPosition = path[path.length - 1];
-          if (window.google?.maps?.marker?.AdvancedMarkerElement && markerRef.current.position !== undefined) {
-            markerRef.current.position = lastPosition;
+          if (window.google?.maps?.marker?.AdvancedMarkerElement && markerRef.current.map !== undefined) {
+            markerRef.current.map = null;
           } else {
-            markerRef.current.setPosition(lastPosition);
+            markerRef.current.setMap(null);
           }
+          markerRef.current = null;
         }
       } else {
         // Continue animation
-        animationRef.current = requestAnimationFrame(animate);
+        animationRef.current = requestAnimationFrame(animateSymbol);
       }
     };
     
     // Store the animate function for resume
-    animateRef.current = animate;
+    animateRef.current = animateSymbol;
 
     // Start the animation loop
-    animationRef.current = requestAnimationFrame(animate);
+    animationRef.current = requestAnimationFrame(animateSymbol);
   };
   
-  const calculateTotalDistance = (path) => {
-    let total = 0;
-    for (let i = 0; i < path.length - 1; i++) {
-      total += window.google.maps.geometry.spherical.computeDistanceBetween(
-        path[i], 
-        path[i + 1]
-      );
-    }
-    return total;
-  };
 
   const pauseAnimation = () => {
     setIsPaused(true);

@@ -11,6 +11,20 @@ const RouteSegmentManager = ({
   const segmentsRef = useRef([]);
   const currentRouteIdRef = useRef(null);
   const cleanupTimeoutRef = useRef(null);
+  const zoomListenerRef = useRef(null);
+  const currentZoomRef = useRef(13);
+
+  // Calculate marker scale based on zoom level
+  const getMarkerScale = (zoom) => {
+    // Base scale at zoom 13
+    const baseZoom = 13;
+    const maxScale = 1.2;  // Maximum scale at high zoom
+    const minScale = 0.5;  // Minimum scale at low zoom
+    
+    // Scale decreases as you zoom out
+    const scaleFactor = Math.pow(2, (zoom - baseZoom) * 0.15);
+    return Math.max(minScale, Math.min(maxScale, scaleFactor));
+  };
 
   // Helper function to clear a single segment (route + markers)
   const clearSegment = (segment) => {
@@ -48,7 +62,8 @@ const RouteSegmentManager = ({
   // Create a marker
   const createMarker = (location, icon, color, title, zIndex = 5000, isBusStop = false) => {
     const { AdvancedMarkerElement } = window.google.maps.marker;
-    const markerContent = createMarkerContent(icon, color);
+    const scale = getMarkerScale(currentZoomRef.current);
+    const markerContent = createMarkerContent(icon, color, false, null, null, scale);
     
     // Add offset to avoid Google's transit markers and labels
     let offsetLat = 0.0001; // Default small offset
@@ -65,7 +80,7 @@ const RouteSegmentManager = ({
       lng: location.lng + offsetLng
     };
     
-    return new AdvancedMarkerElement({
+    const marker = new AdvancedMarkerElement({
       position: offsetLocation,
       map: map,
       title: title,
@@ -73,12 +88,19 @@ const RouteSegmentManager = ({
       zIndex: zIndex,
       collisionBehavior: window.google.maps.CollisionBehavior.REQUIRED_AND_HIDES_OPTIONAL
     });
+    
+    // Store the base icon and color for updates
+    marker._icon = icon;
+    marker._color = color;
+    
+    return marker;
   };
 
   // Create a transition marker (two icons)
   const createTransitionMarker = (location, fromIcon, fromColor, toIcon, toColor) => {
     const { AdvancedMarkerElement } = window.google.maps.marker;
-    const transitionContent = createMarkerContent(fromIcon, fromColor, true, toIcon, toColor);
+    const scale = getMarkerScale(currentZoomRef.current);
+    const transitionContent = createMarkerContent(fromIcon, fromColor, true, toIcon, toColor, scale);
     
     // Add offset to avoid Google's transit markers and labels
     let offsetLat = 0.0001; // Default small offset
@@ -95,7 +117,7 @@ const RouteSegmentManager = ({
       lng: location.lng + offsetLng
     };
     
-    return new AdvancedMarkerElement({
+    const marker = new AdvancedMarkerElement({
       position: offsetLocation,
       map: map,
       title: `Transfer`,
@@ -103,7 +125,86 @@ const RouteSegmentManager = ({
       zIndex: 5100, // Higher than regular markers
       collisionBehavior: window.google.maps.CollisionBehavior.REQUIRED_AND_HIDES_OPTIONAL
     });
+    
+    // Store the icons and colors for updates
+    marker._fromIcon = fromIcon;
+    marker._fromColor = fromColor;
+    marker._toIcon = toIcon;
+    marker._toColor = toColor;
+    marker._isTransition = true;
+    
+    return marker;
   };
+
+  // Update all markers with new scale
+  const updateMarkersScale = useCallback(() => {
+    if (!map) return;
+    
+    const newZoom = map.getZoom();
+    currentZoomRef.current = newZoom;
+    const scale = getMarkerScale(newZoom);
+    
+    segmentsRef.current.forEach(segment => {
+      if (segment.markers) {
+        // Update start marker
+        if (segment.markers.start && segment.markers.start._icon) {
+          const newContent = createMarkerContent(
+            segment.markers.start._icon,
+            segment.markers.start._color,
+            false,
+            null,
+            null,
+            scale
+          );
+          segment.markers.start.content = newContent;
+        }
+        
+        // Update end marker
+        if (segment.markers.end && segment.markers.end._icon) {
+          const newContent = createMarkerContent(
+            segment.markers.end._icon,
+            segment.markers.end._color,
+            false,
+            null,
+            null,
+            scale
+          );
+          segment.markers.end.content = newContent;
+        }
+        
+        // Update transition marker
+        if (segment.markers.transition && segment.markers.transition._isTransition) {
+          const newContent = createMarkerContent(
+            segment.markers.transition._fromIcon,
+            segment.markers.transition._fromColor,
+            true,
+            segment.markers.transition._toIcon,
+            segment.markers.transition._toColor,
+            scale
+          );
+          segment.markers.transition.content = newContent;
+        }
+      }
+    });
+  }, [map]);
+
+  // Set up zoom listener
+  useEffect(() => {
+    if (!map) return;
+    
+    // Get initial zoom
+    currentZoomRef.current = map.getZoom();
+    
+    // Listen for zoom changes
+    zoomListenerRef.current = map.addListener('zoom_changed', updateMarkersScale);
+    
+    return () => {
+      if (zoomListenerRef.current) {
+        window.google.maps.event.removeListener(zoomListenerRef.current);
+        zoomListenerRef.current = null;
+      }
+    };
+  }, [map, updateMarkersScale]);
 
   // Main effect to render route segments with their markers
   useEffect(() => {

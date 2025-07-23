@@ -13,7 +13,7 @@ export const clearAdvancedMarker = (marker) => {
 };
 
 // Helper function to create HTML content for Advanced Markers
-export const createMarkerContent = (icon, color, isTransition = false, icon2 = null, color2 = null) => {
+export const createMarkerContent = (icon, color, isTransition = false, icon2 = null, color2 = null, scale = 1) => {
   const content = document.createElement('div');
   
   if (isTransition && icon2 && color2) {
@@ -23,36 +23,36 @@ export const createMarkerContent = (icon, color, isTransition = false, icon2 = n
       align-items: center;
       justify-content: center;
       background: white;
-      border-radius: 22px;
-      padding: 8px 12px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-      gap: 8px;
+      border-radius: ${22 * scale}px;
+      padding: ${8 * scale}px ${12 * scale}px;
+      box-shadow: 0 ${2 * scale}px ${6 * scale}px rgba(0,0,0,0.3);
+      gap: ${8 * scale}px;
       position: relative;
     `;
     
     const leftDiv = document.createElement('div');
     leftDiv.style.cssText = `
-      width: 36px;
-      height: 36px;
+      width: ${36 * scale}px;
+      height: ${36 * scale}px;
       background-color: ${color};
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 18px;
+      font-size: ${18 * scale}px;
     `;
     leftDiv.textContent = icon;
     
     const rightDiv = document.createElement('div');
     rightDiv.style.cssText = `
-      width: 36px;
-      height: 36px;
+      width: ${36 * scale}px;
+      height: ${36 * scale}px;
       background-color: ${color2};
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 18px;
+      font-size: ${18 * scale}px;
     `;
     rightDiv.textContent = icon2;
     
@@ -61,16 +61,16 @@ export const createMarkerContent = (icon, color, isTransition = false, icon2 = n
   } else {
     // Single icon marker
     content.style.cssText = `
-      width: 44px;
-      height: 44px;
+      width: ${44 * scale}px;
+      height: ${44 * scale}px;
       background-color: ${color};
-      border: 3px solid white;
+      border: ${3 * scale}px solid white;
       border-radius: 50%;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 20px;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+      font-size: ${20 * scale}px;
+      box-shadow: 0 ${2 * scale}px ${6 * scale}px rgba(0,0,0,0.3);
     `;
     content.textContent = icon;
   }
