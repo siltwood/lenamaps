@@ -17,16 +17,12 @@ export const createMarkerContent = (icon, color, isTransition = false, icon2 = n
   const content = document.createElement('div');
   
   if (isTransition && icon2 && color2) {
-    // Transition marker with two icons
+    // Transition marker with two icons - no background
     content.style.cssText = `
       display: flex;
       align-items: center;
       justify-content: center;
-      background: white;
-      border-radius: ${22 * scale}px;
-      padding: ${8 * scale}px ${12 * scale}px;
-      box-shadow: 0 ${2 * scale}px ${6 * scale}px rgba(0,0,0,0.3);
-      gap: ${8 * scale}px;
+      gap: ${4 * scale}px;
       position: relative;
     `;
     

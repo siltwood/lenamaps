@@ -65,15 +65,20 @@ const RouteSegmentManager = ({
     const scale = getMarkerScale(currentZoomRef.current);
     const markerContent = createMarkerContent(icon, color, false, null, null, scale);
     
-    // Add offset to avoid Google's transit markers and labels
-    let offsetLat = 0.0001; // Default small offset
-    let offsetLng = 0;
+    // Add intelligent offset to avoid Google's transit markers and labels
+    let offsetLat = 0.00015; // Default offset
+    let offsetLng = 0.00015;
     
     // For bus stops, use a larger offset to avoid route number labels
     if (isBusStop || icon === '🚌') {
-      offsetLat = 0.0003; // Larger offset for bus stops
-      offsetLng = 0.0001; // Slight horizontal offset too
+      offsetLat = 0.0004; // Larger offset for bus stops
+      offsetLng = 0.0002; // Larger horizontal offset
     }
+    
+    // Vary offset based on marker index to avoid overlapping our own markers
+    const markerIndex = title === 'Start' ? 0 : title === 'End' ? 2 : 1;
+    offsetLat += markerIndex * 0.00005;
+    offsetLng -= markerIndex * 0.00005;
     
     const offsetLocation = {
       lat: location.lat + offsetLat,
@@ -86,7 +91,7 @@ const RouteSegmentManager = ({
       title: title,
       content: markerContent,
       zIndex: zIndex,
-      collisionBehavior: window.google.maps.CollisionBehavior.REQUIRED_AND_HIDES_OPTIONAL
+      collisionBehavior: window.google.maps.CollisionBehavior.OPTIONAL_AND_HIDES_LOWER_PRIORITY
     });
     
     // Store the base icon and color for updates
@@ -102,14 +107,14 @@ const RouteSegmentManager = ({
     const scale = getMarkerScale(currentZoomRef.current);
     const transitionContent = createMarkerContent(fromIcon, fromColor, true, toIcon, toColor, scale);
     
-    // Add offset to avoid Google's transit markers and labels
-    let offsetLat = 0.0001; // Default small offset
-    let offsetLng = 0;
+    // Add intelligent offset to avoid Google's transit markers and labels
+    let offsetLat = 0.0002; // Larger default for transitions
+    let offsetLng = 0.0002;
     
     // If either mode is bus, use larger offset
     if (fromIcon === '🚌' || toIcon === '🚌') {
-      offsetLat = 0.0003; // Larger offset for bus transitions
-      offsetLng = 0.0001; // Slight horizontal offset too
+      offsetLat = 0.0005; // Much larger offset for bus transitions
+      offsetLng = 0.0003; // Larger horizontal offset
     }
     
     const offsetLocation = {
@@ -123,7 +128,7 @@ const RouteSegmentManager = ({
       title: `Transfer`,
       content: transitionContent,
       zIndex: 5100, // Higher than regular markers
-      collisionBehavior: window.google.maps.CollisionBehavior.REQUIRED_AND_HIDES_OPTIONAL
+      collisionBehavior: window.google.maps.CollisionBehavior.OPTIONAL_AND_HIDES_LOWER_PRIORITY
     });
     
     // Store the icons and colors for updates
