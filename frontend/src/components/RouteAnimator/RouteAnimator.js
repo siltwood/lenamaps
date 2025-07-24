@@ -598,9 +598,9 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
             const ne = bounds.getNorthEast();
             const sw = bounds.getSouthWest();
             
-            // Calculate buffer zone (20% from edge)
-            const latBuffer = (ne.lat() - sw.lat()) * 0.2;
-            const lngBuffer = (ne.lng() - sw.lng()) * 0.2;
+            // Calculate buffer zone (30% from edge - triggers earlier)
+            const latBuffer = (ne.lat() - sw.lat()) * 0.3;
+            const lngBuffer = (ne.lng() - sw.lng()) * 0.3;
             
             // Check if marker is within buffer zone of any edge
             const nearEdge = markerPosition.lat() > ne.lat() - latBuffer ||
@@ -609,8 +609,23 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
                            markerPosition.lng() < sw.lng() + lngBuffer;
             
             if (nearEdge) {
-              // Smoothly pan to re-center the marker
-              map.panTo(markerPosition);
+              // Pan ahead of the marker so it has room to travel
+              // Calculate the direction of travel
+              let nextIndex = Math.min(currentIndex + 20, numPoints - 1); // Look 20 points ahead
+              const nextPosition = path.getAt(nextIndex);
+              
+              if (nextPosition) {
+                // Calculate a point between current and next for smoother panning
+                const panLat = markerPosition.lat() + (nextPosition.lat() - markerPosition.lat()) * 0.5;
+                const panLng = markerPosition.lng() + (nextPosition.lng() - markerPosition.lng()) * 0.5;
+                const panTarget = new window.google.maps.LatLng(panLat, panLng);
+                
+                // Pan to a position ahead of the marker
+                map.panTo(panTarget);
+              } else {
+                // Fallback to marker position if we can't look ahead
+                map.panTo(markerPosition);
+              }
             }
           }
         }
