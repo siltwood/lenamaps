@@ -1,4 +1,6 @@
 // Rate limiter for Google Maps API calls
+import { getLimitsForTier } from '../config/apiConfig';
+
 class RateLimiter {
   constructor() {
     this.queues = {
@@ -7,23 +9,9 @@ class RateLimiter {
       geocoding: []
     };
     
-    this.limits = {
-      directions: {
-        perSecond: 10,  // Conservative limit
-        perMinute: 300,
-        perDay: 2500    // Assuming ~$20/day budget
-      },
-      places: {
-        perSecond: 10,
-        perMinute: 300,
-        perDay: 1000
-      },
-      geocoding: {
-        perSecond: 50,
-        perMinute: 3000,
-        perDay: 5000
-      }
-    };
+    this.userTier = 'free';
+    this.userId = null;
+    this.limits = getLimitsForTier('free');
     
     this.usage = this.loadUsageFromStorage();
     this.resetDailyUsage();
@@ -155,6 +143,29 @@ class RateLimiter {
       };
     });
     return stats;
+  }
+
+  setUserTier(tier, userId = null) {
+    this.userTier = tier;
+    this.userId = userId;
+    this.limits = getLimitsForTier(tier);
+    
+    // If user is logged in, use server-side tracking
+    if (userId) {
+      this.syncWithServer();
+    }
+  }
+
+  async syncWithServer() {
+    if (!this.userId) return;
+    
+    try {
+      // This will be implemented when we set up the backend
+      // For now, just use local storage
+      console.log('Syncing usage with server for user:', this.userId);
+    } catch (error) {
+      console.error('Failed to sync with server:', error);
+    }
   }
 }
 
