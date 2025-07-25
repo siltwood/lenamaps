@@ -200,38 +200,54 @@
   gap: 8px;
 }
 
-.speed-control label {
+.speed-control > label {
   font-size: 14px;
   font-weight: 500;
   color: #333;
+  margin-bottom: 4px;
 }
 
-.speed-control input[type="range"] {
+.speed-radio-group {
+  display: flex;
+  gap: 8px;
   width: 100%;
-  height: 6px;
-  border-radius: 3px;
-  background: #ddd;
-  outline: none;
-  -webkit-appearance: none;
 }
 
-.speed-control input[type="range"]::-webkit-slider-thumb {
-  -webkit-appearance: none;
-  appearance: none;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #4285F4;
+.speed-radio {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
   cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
 }
 
-.speed-control input[type="range"]::-moz-range-thumb {
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: #4285F4;
-  cursor: pointer;
-  border: none;
+.speed-radio:hover {
+  border-color: #4285F4;
+  background: #f8f9fa;
+}
+
+.speed-radio.active {
+  border-color: #4285F4;
+  background: #e8f0fe;
+  color: #1967d2;
+  font-weight: 500;
+}
+
+.speed-radio input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.speed-radio span {
+  font-size: 13px;
+  user-select: none;
 }
 
 
@@ -287,6 +303,55 @@
   transform: scale(1.05);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   background: #f8f9fa;
+}
+
+.floating-controls {
+  position: absolute;
+  bottom: 70px;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: center;
+}
+
+.progress-indicator {
+  background: rgba(0, 0, 0, 0.8);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.mini-control {
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  background: white;
+  border: 2px solid #e9ecef;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  color: #333;
+}
+
+.mini-control:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.mini-control.stop {
+  color: #f44336;
+}
+
+.mini-control.stop:hover {
+  background: #ffebee;
+  border-color: #f44336;
 }
 
 /* Responsive adjustments */

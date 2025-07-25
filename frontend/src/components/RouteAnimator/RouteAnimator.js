@@ -279,6 +279,9 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
     isAnimatingRef.current = true;
     isPausedRef.current = false;
     
+    // Auto-minimize the panel when animation starts
+    setIsMinimized(true);
+    
     // Disable map interactions during animation to prevent user from panning away
     map.setOptions({
       draggable: false,
@@ -796,6 +799,25 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
         >
           <FontAwesomeIcon icon={faVideo} />
         </button>
+        {isAnimating && (
+          <div className="floating-controls">
+            <div className="progress-indicator">
+              {Math.round(progress)}%
+            </div>
+            {isPaused ? (
+              <button onClick={resumeAnimation} className="mini-control" title="Resume">
+                <FontAwesomeIcon icon={faPlay} />
+              </button>
+            ) : (
+              <button onClick={pauseAnimation} className="mini-control" title="Pause">
+                <FontAwesomeIcon icon={faPause} />
+              </button>
+            )}
+            <button onClick={stopAnimation} className="mini-control stop" title="Stop">
+              <FontAwesomeIcon icon={faStop} />
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -850,18 +872,39 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
             </div>
             
             <div className="speed-control">
-              <label>Speed: {animationSpeed}x</label>
-              <input
-                type="range"
-                min="0.5"
-                max="20"
-                step="0.5"
-                value={animationSpeed}
-                onChange={(e) => {
-                  const newSpeed = parseFloat(e.target.value);
-                  setAnimationSpeed(newSpeed);
-                }}
-              />
+              <label>Animation Speed</label>
+              <div className="speed-radio-group">
+                <label className={`speed-radio ${animationSpeed === 0.5 ? 'active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="speed"
+                    value="0.5"
+                    checked={animationSpeed === 0.5}
+                    onChange={() => setAnimationSpeed(0.5)}
+                  />
+                  <span>Slow</span>
+                </label>
+                <label className={`speed-radio ${animationSpeed === 2 ? 'active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="speed"
+                    value="2"
+                    checked={animationSpeed === 2}
+                    onChange={() => setAnimationSpeed(2)}
+                  />
+                  <span>Regular</span>
+                </label>
+                <label className={`speed-radio ${animationSpeed === 5 ? 'active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="speed"
+                    value="5"
+                    checked={animationSpeed === 5}
+                    onChange={() => setAnimationSpeed(5)}
+                  />
+                  <span>Fast</span>
+                </label>
+              </div>
             </div>
             
             {isAnimating && (
