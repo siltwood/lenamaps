@@ -1,0 +1,123 @@
+.api-usage-indicator {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  z-index: 1000;
+}
+
+.usage-toggle {
+  background: white;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 8px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transition: all 0.2s ease;
+}
+
+.usage-toggle:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.usage-toggle.safe {
+  border-color: #4caf50;
+}
+
+.usage-toggle.warning {
+  border-color: #ff9800;
+  background: #fff8e1;
+}
+
+.usage-toggle.danger {
+  border-color: #f44336;
+  background: #ffebee;
+  animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3); }
+  50% { box-shadow: 0 2px 16px rgba(244, 67, 54, 0.5); }
+  100% { box-shadow: 0 2px 8px rgba(244, 67, 54, 0.3); }
+}
+
+.usage-icon {
+  font-size: 16px;
+}
+
+.usage-percent {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.usage-details {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 8px;
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.15);
+  padding: 16px;
+  min-width: 300px;
+}
+
+.usage-details h4 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  color: #333;
+}
+
+.usage-item {
+  margin-bottom: 12px;
+}
+
+.usage-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: #666;
+  margin-bottom: 4px;
+}
+
+.usage-bar {
+  height: 8px;
+  background: #f0f0f0;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.usage-fill {
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.usage-fill.safe {
+  background: #4caf50;
+}
+
+.usage-fill.warning {
+  background: #ff9800;
+}
+
+.usage-fill.danger {
+  background: #f44336;
+}
+
+.usage-text {
+  font-size: 11px;
+  color: #999;
+  text-align: right;
+}
+
+.usage-note {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #eee;
+  font-size: 11px;
+  color: #666;
+  line-height: 1.4;
+}
