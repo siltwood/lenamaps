@@ -1,0 +1,126 @@
+.usage-warning {
+  position: fixed;
+  top: 70px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1000;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 12px 20px;
+  animation: slideDown 0.3s ease-out;
+  max-width: 90%;
+  width: auto;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateX(-50%) translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(-50%) translateY(0);
+    opacity: 1;
+  }
+}
+
+.usage-warning-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.usage-warning-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.usage-warning-message {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.usage-warning-action {
+  background: #4285F4;
+  color: white;
+  border: none;
+  padding: 6px 16px;
+  border-radius: 4px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.2s;
+  white-space: nowrap;
+}
+
+.usage-warning-action:hover {
+  background: #1967d2;
+}
+
+.usage-warning-dismiss {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  color: #666;
+  cursor: pointer;
+  padding: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  transition: background 0.2s;
+}
+
+.usage-warning-dismiss:hover {
+  background: rgba(0, 0, 0, 0.05);
+}
+
+/* Warning level styles */
+.usage-warning-warning {
+  border: 2px solid #F9AB00;
+  background: #FFF3CD;
+}
+
+.usage-warning-warning .usage-warning-message {
+  color: #856404;
+}
+
+.usage-warning-critical {
+  border: 2px solid #EA4335;
+  background: #FFEBEE;
+}
+
+.usage-warning-critical .usage-warning-message {
+  color: #C62828;
+}
+
+.usage-warning-blocked {
+  border: 2px solid #EA4335;
+  background: #FFEBEE;
+}
+
+.usage-warning-blocked .usage-warning-message {
+  color: #C62828;
+  font-weight: 600;
+}
+
+/* Mobile responsive */
+@media (max-width: 480px) {
+  .usage-warning {
+    top: 60px;
+    padding: 10px 16px;
+    font-size: 13px;
+  }
+  
+  .usage-warning-content {
+    gap: 8px;
+  }
+  
+  .usage-warning-action {
+    padding: 4px 12px;
+    font-size: 12px;
+  }
+}

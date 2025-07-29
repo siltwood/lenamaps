@@ -25,8 +25,12 @@ const ApiUsageIndicator = () => {
     return 'safe';
   };
 
-  const totalUsagePercentage = Object.values(usage).reduce((sum, api) => 
-    sum + api.daily.percentage, 0) / Object.keys(usage).length;
+  const totalUsagePercentage = Object.keys(usage).length > 0 
+    ? Math.max(...Object.values(usage).map(api => api.daily.percentage || 0))
+    : 0;
+
+  // Only show indicator if usage is above 50%
+  if (totalUsagePercentage < 50) return null;
 
   return (
     <div className="api-usage-indicator">
@@ -43,7 +47,7 @@ const ApiUsageIndicator = () => {
         <div className="usage-details">
           <h4>API Usage Today</h4>
           {Object.entries(usage).map(([apiType, data]) => (
-            <div key={apiType} className="usage-item">
+            <div key={apiType} className="usage-item" title={`${data.daily.used} / ${data.daily.limit} calls`}>
               <div className="usage-label">
                 {apiType.charAt(0).toUpperCase() + apiType.slice(1)}
               </div>
@@ -54,7 +58,7 @@ const ApiUsageIndicator = () => {
                 />
               </div>
               <div className="usage-text">
-                {data.daily.used} / {data.daily.limit}
+                {Math.round(data.daily.percentage)}% used
               </div>
             </div>
           ))}

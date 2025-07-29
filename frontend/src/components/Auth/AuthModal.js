@@ -18,7 +18,7 @@ const AuthModal = ({ isOpen, onClose }) => {
         
         <div className="auth-modal-header">
           <h2>Welcome to LeNa Maps</h2>
-          <p>Sign in to track your usage and unlock premium features</p>
+          <p>Create an account to get 5x more API calls per day</p>
         </div>
 
         <Auth
@@ -62,14 +62,13 @@ const AuthModal = ({ isOpen, onClose }) => {
         />
 
         <div className="auth-benefits">
-          <h3>Why sign up?</h3>
+          <h3>Free account includes:</h3>
           <ul>
-            <li>📊 Track your API usage across sessions</li>
-            <li>🚀 Get 5x more daily API calls</li>
-            <li>💾 Save and share your routes</li>
-            <li>📹 Export high-quality route videos</li>
-            <li>⚡ Priority support</li>
+            <li>🚀 5x more daily API calls (500 routes/day)</li>
+            <li>📊 Usage tracking across sessions</li>
+            <li>💾 Save your favorite routes</li>
           </ul>
+          <p style="marginTop: '12px', fontSize: '13px', color: '#666'">No credit card required</p>
         </div>
       </div>
     </div>

@@ -124,9 +124,15 @@ const PricingModal = ({ isOpen, onClose }) => {
               <div className="plan-header">
                 <h3 style={{ color: plan.color }}>{plan.name}</h3>
                 <div className="plan-price">
-                  <span className="currency">$</span>
-                  <span className="amount">{plan.price}</span>
-                  <span className="period">/month</span>
+                  {plan.price === 0 ? (
+                    <span className="amount">Free</span>
+                  ) : (
+                    <>
+                      <span className="currency">$</span>
+                      <span className="amount">{plan.price}</span>
+                      <span className="period">/month</span>
+                    </>
+                  )}
                 </div>
                 <p className="plan-description">{plan.description}</p>
               </div>

@@ -40,24 +40,15 @@ const UserMenu = () => {
               <div className="user-avatar">
                 {user.email?.[0]?.toUpperCase() || 'U'}
               </div>
-              <span className="user-tier" style={{ color: getTierColor(userTier) }}>
-                {userTier.toUpperCase()}
-              </span>
             </button>
             
             {showMenu && (
               <div className="user-dropdown">
                 <div className="user-info">
                   <div className="user-email">{user.email}</div>
-                  <div className="user-tier-badge">
-                    {userTier} tier
-                  </div>
                 </div>
                 
                 <div className="user-menu-items">
-                  <button className="user-menu-item">
-                    📊 Usage Dashboard
-                  </button>
                   <button 
                     className="user-menu-item"
                     onClick={() => {
@@ -65,13 +56,7 @@ const UserMenu = () => {
                       setShowMenu(false);
                     }}
                   >
-                    💳 Manage Subscription
-                  </button>
-                  <button className="user-menu-item">
-                    💾 Saved Routes
-                  </button>
-                  <button className="user-menu-item">
-                    ⚙️ Settings
+                    💳 Manage Plan
                   </button>
                   <hr className="user-menu-divider" />
                   <button 

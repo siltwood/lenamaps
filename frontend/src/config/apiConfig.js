@@ -67,7 +67,7 @@ const API_CONFIG = {
 
 // Get limits based on user tier (default to free)
 export const getLimitsForTier = (tier = 'free') => {
-  const tierConfig = API_CONFIG.tiers[tier];
+  const tierConfig = API_CONFIG.tiers[tier] || API_CONFIG.tiers.free;
   return {
     directions: {
       daily: tierConfig.dailyDirections,
@@ -77,6 +77,11 @@ export const getLimitsForTier = (tier = 'free') => {
     places: {
       daily: tierConfig.dailyPlaces,
       perMinute: Math.min(300, tierConfig.dailyPlaces / 10),
+      perSecond: 10
+    },
+    geocoding: {
+      daily: tierConfig.dailyPlaces * 2, // Geocoding is cheaper, allow more
+      perMinute: Math.min(300, tierConfig.dailyPlaces * 2 / 10),
       perSecond: 10
     },
     mapLoads: {

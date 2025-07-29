@@ -31,12 +31,15 @@ class RateLimiter {
   }
 
   getEmptyUsage() {
-    return {
+    const usage = {
       date: new Date().toISOString(),
       directions: { second: 0, minute: 0, day: 0 },
       places: { second: 0, minute: 0, day: 0 },
-      geocoding: { second: 0, minute: 0, day: 0 }
+      geocoding: { second: 0, minute: 0, day: 0 },
+      mapLoads: { second: 0, minute: 0, day: 0 }
     };
+    
+    return usage;
   }
 
   saveUsage() {
@@ -60,11 +63,25 @@ class RateLimiter {
 
   async checkLimit(apiType) {
     const limit = this.limits[apiType];
+    if (!this.usage[apiType]) {
+      this.usage[apiType] = { second: 0, minute: 0, day: 0 };
+    }
     const usage = this.usage[apiType];
     
     // Check daily limit
-    if (usage.day >= limit.perDay) {
-      throw new Error(`Daily limit reached for ${apiType} API. Please try again tomorrow.`);
+    if (usage.day >= limit.daily) {
+      const percentage = (usage.day / limit.daily) * 100;
+      const error = new Error(`You've reached your daily limit for ${apiType} API.`);
+      error.type = 'DAILY_LIMIT_REACHED';
+      error.details = {
+        type: 'DAILY_LIMIT_REACHED',
+        message: `You've reached your daily limit for ${apiType} API.`,
+        apiType,
+        usage: usage.day,
+        limit: limit.daily,
+        percentage
+      };
+      throw error;
     }
     
     // Check per-minute limit
@@ -83,18 +100,26 @@ class RateLimiter {
   }
 
   incrementUsage(apiType) {
+    if (!this.usage[apiType]) {
+      this.usage[apiType] = { second: 0, minute: 0, day: 0 };
+    }
+    
     this.usage[apiType].second++;
     this.usage[apiType].minute++;
     this.usage[apiType].day++;
     
     // Reset second counter after 1 second
     setTimeout(() => {
-      this.usage[apiType].second = Math.max(0, this.usage[apiType].second - 1);
+      if (this.usage[apiType]) {
+        this.usage[apiType].second = Math.max(0, this.usage[apiType].second - 1);
+      }
     }, 1000);
     
     // Reset minute counter after 1 minute
     setTimeout(() => {
-      this.usage[apiType].minute = Math.max(0, this.usage[apiType].minute - 1);
+      if (this.usage[apiType]) {
+        this.usage[apiType].minute = Math.max(0, this.usage[apiType].minute - 1);
+      }
     }, 60000);
     
     this.saveUsage();
@@ -121,9 +146,12 @@ class RateLimiter {
       this.incrementUsage(apiType);
       return await fn();
     } catch (error) {
-      if (error.message.includes('limit reached')) {
-        // Show user-friendly message
-        throw error;
+      if (error.type === 'DAILY_LIMIT_REACHED') {
+        // Create a custom error that components can handle
+        const limitError = new Error(error.message);
+        limitError.type = 'DAILY_LIMIT_REACHED';
+        limitError.details = error;
+        throw limitError;
       }
       throw error;
     }
@@ -131,14 +159,21 @@ class RateLimiter {
 
   getUsageStats() {
     const stats = {};
-    Object.keys(this.limits).forEach(apiType => {
-      const limit = this.limits[apiType];
-      const usage = this.usage[apiType];
+    const apiTypes = ['directions', 'places', 'geocoding', 'mapLoads'];
+    
+    apiTypes.forEach(apiType => {
+      const limit = this.limits[apiType] || { daily: 1, perMinute: 1, perSecond: 1 };
+      const usage = this.usage[apiType] || { second: 0, minute: 0, day: 0 };
+      
+      const used = usage.day || 0;
+      const dailyLimit = limit.daily || 1;
+      const percentage = Math.min(100, (used / dailyLimit) * 100);
+      
       stats[apiType] = {
         daily: {
-          used: usage.day,
-          limit: limit.perDay,
-          percentage: (usage.day / limit.perDay) * 100
+          used: used,
+          limit: dailyLimit,
+          percentage: percentage
         }
       };
     });

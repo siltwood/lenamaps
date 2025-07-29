@@ -5,9 +5,15 @@ import DirectionsPanel from './DirectionsPanel';
 import LocationSearch from './LocationSearch';
 import UserMenu from './UserMenu/UserMenu';
 import ApiUsageIndicator from './ApiUsageIndicator/ApiUsageIndicator';
+import UsageWarning from './UsageWarning/UsageWarning';
+import LimitReachedModal from './LimitReachedModal/LimitReachedModal';
+import AuthModal from './Auth/AuthModal';
+import PricingModal from './Pricing/PricingModal';
 import { useRateLimiter } from '../hooks/useRateLimiter';
+import { useAuth } from '../contexts/AuthContext';
 
 function AppContent() {
+  const { user } = useAuth();
   const [isDirectionsMode, setIsDirectionsMode] = useState(true); // Start in directions mode
   const [directionsRoute, setDirectionsRoute] = useState(null);
   const [mapCenter, setMapCenter] = useState({ lat: 48.1181, lng: -123.4307 }); // Port Angeles, WA
@@ -23,6 +29,12 @@ function AppContent() {
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false); // Sidebar collapse state
   const [isAnimating, setIsAnimating] = useState(false); // Animation state
   
+  // Modal states
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showPricingModal, setShowPricingModal] = useState(false);
+  const [showLimitModal, setShowLimitModal] = useState(false);
+  const [limitDetails, setLimitDetails] = useState(null);
+  
   // Initialize rate limiter with auth context
   useRateLimiter();
   
@@ -35,6 +47,41 @@ function AppContent() {
   useEffect(() => {
     fetchTrips();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  
+  // Listen for auth modal events
+  useEffect(() => {
+    const handleOpenAuth = () => setShowAuthModal(true);
+    const handleOpenPricing = () => setShowPricingModal(true);
+    
+    window.addEventListener('openAuthModal', handleOpenAuth);
+    window.addEventListener('openPricingModal', handleOpenPricing);
+    
+    return () => {
+      window.removeEventListener('openAuthModal', handleOpenAuth);
+      window.removeEventListener('openPricingModal', handleOpenPricing);
+    };
+  }, []);
+  
+  // Listen for rate limit errors
+  useEffect(() => {
+    const handleRateLimitError = (event) => {
+      const { detail } = event;
+      if (detail && detail.type === 'DAILY_LIMIT_REACHED') {
+        setLimitDetails({
+          apiType: detail.apiType,
+          usage: detail.usage,
+          limit: detail.limit,
+          percentage: detail.percentage
+        });
+        setShowLimitModal(true);
+      }
+    };
+    
+    window.addEventListener('rateLimitExceeded', handleRateLimitError);
+    return () => {
+      window.removeEventListener('rateLimitExceeded', handleRateLimitError);
+    };
+  }, []);
 
 
   const fetchTrips = async () => {
@@ -427,6 +474,7 @@ function AppContent() {
     <div className="app">
       <UserMenu />
       <ApiUsageIndicator />
+      <UsageWarning />
       <header className="header">
         <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
           <span>LenaMaps - Animate your Google Maps Route</span>
@@ -497,6 +545,22 @@ function AppContent() {
           lastAction={actionHistory.length > 0 ? actionHistory[actionHistory.length - 1] : null}
         />
       )}
+      
+      <AuthModal 
+        isOpen={showAuthModal} 
+        onClose={() => setShowAuthModal(false)} 
+      />
+      
+      <PricingModal 
+        isOpen={showPricingModal} 
+        onClose={() => setShowPricingModal(false)} 
+      />
+      
+      <LimitReachedModal 
+        isOpen={showLimitModal}
+        onClose={() => setShowLimitModal(false)}
+        limitDetails={limitDetails}
+      />
     </div>
   );
 }
