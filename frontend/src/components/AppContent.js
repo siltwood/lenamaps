@@ -472,14 +472,16 @@ function AppContent() {
 
   return (
     <div className="app">
-      <UserMenu />
       <ApiUsageIndicator />
       <UsageWarning />
       <header className="header">
-        <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <span>LenaMaps - Animate your Google Maps Route</span>
-        </h1>
-        <div className="header-search">
+        <div className="header-left">
+          <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <span>LenaMaps - Animate your Google Maps Route</span>
+          </h1>
+        </div>
+        <div className="header-right">
+          <div className="header-search">
           {process.env.REACT_APP_GOOGLE_MAPS_API_KEY && 
            process.env.REACT_APP_GOOGLE_MAPS_API_KEY !== "your_google_maps_api_key_here" ? (
             <LocationSearch 
@@ -497,6 +499,8 @@ function AppContent() {
               Set up Google Maps API to enable search
             </div>
           )}
+          </div>
+          <UserMenu />
         </div>
       </header>
       <div className="main-content">

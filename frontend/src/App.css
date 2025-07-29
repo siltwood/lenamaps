@@ -494,6 +494,17 @@ body {
   position: relative;
 }
 
+.header-left {
+  display: flex;
+  align-items: center;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+}
+
 .header h1 {
   margin: 0;
   font-size: 1.5rem;

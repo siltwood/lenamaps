@@ -1,8 +1,5 @@
 .user-menu {
-  position: fixed;
-  top: 20px;
-  left: 20px;
-  z-index: 1000;
+  /* Remove absolute positioning - will be positioned by parent */
 }
 
 .user-menu-skeleton {
@@ -157,4 +154,21 @@
 
 .user-menu-item.logout:hover {
   background: #ffebee;
+}
+
+.user-menu-anonymous {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.free-tier-badge {
+  font-size: 12px;
+  font-weight: 600;
+  color: #6b7280;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 4px 8px;
+  background: #f3f4f6;
+  border-radius: 4px;
 }

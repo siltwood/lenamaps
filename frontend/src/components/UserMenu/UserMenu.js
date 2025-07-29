@@ -70,12 +70,15 @@ const UserMenu = () => {
             )}
           </div>
         ) : (
-          <button 
-            className="sign-in-button"
-            onClick={() => setShowAuthModal(true)}
-          >
-            Sign In
-          </button>
+          <div className="user-menu-anonymous">
+            <span className="free-tier-badge">Free Tier</span>
+            <button 
+              className="sign-in-button"
+              onClick={() => setShowAuthModal(true)}
+            >
+              Sign In
+            </button>
+          </div>
         )}
       </div>
       
