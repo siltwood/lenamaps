@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
 import { signOut } from '../../lib/supabase';
 import AuthModal from '../Auth/AuthModal';
+import PricingModal from '../Pricing/PricingModal';
 import './UserMenu.css';
 
 const UserMenu = () => {
   const { user, userTier, loading } = useAuth();
   const [showMenu, setShowMenu] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showPricingModal, setShowPricingModal] = useState(false);
 
   const handleSignOut = async () => {
     await signOut();
@@ -56,7 +58,13 @@ const UserMenu = () => {
                   <button className="user-menu-item">
                     📊 Usage Dashboard
                   </button>
-                  <button className="user-menu-item">
+                  <button 
+                    className="user-menu-item"
+                    onClick={() => {
+                      setShowPricingModal(true);
+                      setShowMenu(false);
+                    }}
+                  >
                     💳 Manage Subscription
                   </button>
                   <button className="user-menu-item">
@@ -89,6 +97,11 @@ const UserMenu = () => {
       <AuthModal 
         isOpen={showAuthModal} 
         onClose={() => setShowAuthModal(false)} 
+      />
+      
+      <PricingModal
+        isOpen={showPricingModal}
+        onClose={() => setShowPricingModal(false)}
       />
     </>
   );
