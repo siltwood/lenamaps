@@ -68,7 +68,7 @@ const AuthModal = ({ isOpen, onClose }) => {
             <li>📊 Usage tracking across sessions</li>
             <li>💾 Save your favorite routes</li>
           </ul>
-          <p style="marginTop: '12px', fontSize: '13px', color: '#666'">No credit card required</p>
+          <p style={{ marginTop: '12px', fontSize: '13px', color: '#666' }}>No credit card required</p>
         </div>
       </div>
     </div>
