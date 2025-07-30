@@ -34,7 +34,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
       onAnimationStateChange(value);
     }
   };
-  const [animationSpeed, setAnimationSpeed] = useState(2);
+  const [animationSpeed, setAnimationSpeed] = useState(3);
   
   // Update speed ref when state changes
   useEffect(() => {
@@ -572,8 +572,8 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
         return;
       }
 
-      // EXTREMELY slow increment for video editing
-      count = count + (animationSpeedRef.current * 0.01);
+      // Increment based on animation speed
+      count = count + (animationSpeedRef.current * 0.05);
       if (count >= 200) count = 200;
       
       // Update symbol position
@@ -874,33 +874,33 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
             <div className="speed-control">
               <label>Animation Speed</label>
               <div className="speed-radio-group">
-                <label className={`speed-radio ${animationSpeed === 0.5 ? 'active' : ''}`}>
+                <label className={`speed-radio ${animationSpeed === 1 ? 'active' : ''}`}>
                   <input
                     type="radio"
                     name="speed"
-                    value="0.5"
-                    checked={animationSpeed === 0.5}
-                    onChange={() => setAnimationSpeed(0.5)}
+                    value="1"
+                    checked={animationSpeed === 1}
+                    onChange={() => setAnimationSpeed(1)}
                   />
                   <span>Slow</span>
                 </label>
-                <label className={`speed-radio ${animationSpeed === 2 ? 'active' : ''}`}>
+                <label className={`speed-radio ${animationSpeed === 3 ? 'active' : ''}`}>
                   <input
                     type="radio"
                     name="speed"
-                    value="2"
-                    checked={animationSpeed === 2}
-                    onChange={() => setAnimationSpeed(2)}
+                    value="3"
+                    checked={animationSpeed === 3}
+                    onChange={() => setAnimationSpeed(3)}
                   />
                   <span>Regular</span>
                 </label>
-                <label className={`speed-radio ${animationSpeed === 5 ? 'active' : ''}`}>
+                <label className={`speed-radio ${animationSpeed === 6 ? 'active' : ''}`}>
                   <input
                     type="radio"
                     name="speed"
-                    value="5"
-                    checked={animationSpeed === 5}
-                    onChange={() => setAnimationSpeed(5)}
+                    value="6"
+                    checked={animationSpeed === 6}
+                    onChange={() => setAnimationSpeed(6)}
                   />
                   <span>Fast</span>
                 </label>
