@@ -500,22 +500,26 @@ body {
 .header-left {
   display: flex;
   align-items: center;
+  flex: 0 0 auto;
 }
 
 .header-right {
   display: flex;
   align-items: center;
   gap: 1.5rem;
+  flex: 1;
+  justify-content: flex-end;
 }
 
 .header h1 {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   font-weight: 700;
   display: flex;
   align-items: center;
   gap: 0.75rem;
   color: #1e293b;
+  white-space: nowrap;
 }
 
 .header-search {

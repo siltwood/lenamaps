@@ -1,5 +1,6 @@
 .donate-button-container {
   position: relative;
+  display: inline-block;
 }
 
 .donate-button {
