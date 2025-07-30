@@ -15,6 +15,9 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const panelRef = useRef(null);
+  
+  // Store position before minimizing
+  const savedPositionRef = useRef(null);
   const mapRef = useRef(map);
   
   // Update map ref when prop changes
@@ -279,7 +282,8 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
     isAnimatingRef.current = true;
     isPausedRef.current = false;
     
-    // Auto-minimize the panel when animation starts
+    // Save current position and minimize the panel when animation starts
+    savedPositionRef.current = { ...position };
     setIsMinimized(true);
     
     // Disable map interactions during animation to prevent user from panning away
@@ -794,7 +798,13 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
       >
         <button 
           className="expand-button"
-          onClick={() => setIsMinimized(false)}
+          onClick={() => {
+            setIsMinimized(false);
+            // Restore saved position if available
+            if (savedPositionRef.current) {
+              setPosition(savedPositionRef.current);
+            }
+          }}
           title="Route Animator"
         >
           <FontAwesomeIcon icon={faVideo} />
@@ -838,7 +848,10 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
         <DragHandle />
         <h4>Route Animator</h4>
         <div className="header-actions">
-          <button className="minimize-button" onClick={() => setIsMinimized(true)} title="Minimize panel">
+          <button className="minimize-button" onClick={() => {
+            savedPositionRef.current = { ...position };
+            setIsMinimized(true);
+          }} title="Minimize panel">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
               <path d="M4 9h8v1H4z"/>
             </svg>

@@ -41,6 +41,9 @@ const DirectionsPanel = ({
   const [isMinimized, setIsMinimized] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const panelRef = useRef(null);
+  
+  // Store position before minimizing
+  const savedPositionRef = useRef(null);
 
   useEffect(() => {
     fetchTransportationModes();
@@ -400,11 +403,16 @@ const DirectionsPanel = ({
   }, [isDragging, handleMouseMove, handleMouseUp]);
 
   const handleMinimize = () => {
+    savedPositionRef.current = { ...position };
     setIsMinimized(true);
   };
 
   const handleExpand = () => {
     setIsMinimized(false);
+    // Restore saved position if available
+    if (savedPositionRef.current) {
+      setPosition(savedPositionRef.current);
+    }
   };
 
   if (!isOpen) return null;
