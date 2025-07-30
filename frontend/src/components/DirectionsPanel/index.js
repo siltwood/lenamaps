@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import LocationSearch from '../LocationSearch';
-import Modal from '../Modal';
-import axios from 'axios';
 import DirectionsHeader from './DirectionsHeader';
 import LocationInput from './LocationInput';
 import TransportationModeSelector from './TransportationModeSelector';
 import { calculateRouteData, getLocationLabel } from '../../utils/routeCalculations';
+import TRANSPORTATION_MODES from '../../constants/transportationModes';
 
 const DirectionsPanel = ({ 
   onDirectionsCalculated, 
@@ -30,11 +29,10 @@ const DirectionsPanel = ({
   editingTrip = null,
   lastAction = null
 }) => {
-  const [transportationModes, setTransportationModes] = useState({});
+  const [transportationModes] = useState(TRANSPORTATION_MODES);
   const [segments, setSegments] = useState([]);
   const [tripName, setTripName] = useState(editingTrip ? editingTrip.name : '');
   const [isCalculating, setIsCalculating] = useState(false);
-  const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '', type: 'info' });
   const [position, setPosition] = useState({ x: 10, y: 200 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -45,9 +43,6 @@ const DirectionsPanel = ({
   // Store position before minimizing
   const savedPositionRef = useRef(null);
 
-  useEffect(() => {
-    fetchTransportationModes();
-  }, []);
 
   // Notify parent when first location (origin) changes
   useEffect(() => {
@@ -135,14 +130,6 @@ const DirectionsPanel = ({
   
   // Removed auto-recalculate on mode change to prevent annoying re-renders
 
-  const fetchTransportationModes = async () => {
-    try {
-      const response = await axios.get('/api/transportation-modes');
-      setTransportationModes(response.data);
-    } catch (error) {
-      console.error('Error fetching transportation modes:', error);
-    }
-  };
 
   const addNextLeg = () => {
     if (onLocationsChange && onLegModesChange) {
@@ -548,14 +535,6 @@ const DirectionsPanel = ({
         </div>
 
       </div>
-      
-      <Modal
-        isOpen={modalState.isOpen}
-        onClose={() => setModalState({ ...modalState, isOpen: false })}
-        title={modalState.title}
-        message={modalState.message}
-        type={modalState.type}
-      />
     </div>
   );
 };

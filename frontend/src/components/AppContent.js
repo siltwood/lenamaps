@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import axios from 'axios';
 import GoogleMap from './GoogleMap';
 import DirectionsPanel from './DirectionsPanel';
 import LocationSearch from './LocationSearch';
@@ -28,19 +27,6 @@ function AppContent() {
     isDirectionsModeRef.current = isDirectionsMode;
   }, [isDirectionsMode]);
 
-  useEffect(() => {
-    fetchTrips();
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-
-  const fetchTrips = async () => {
-    try {
-      const response = await axios.get('/api/trips');
-    } catch (error) {
-      console.error('Error fetching trips:', error);
-    } finally {
-    }
-  };
 
   // Helper function to add an action to history
   const addActionToHistory = useCallback((action) => {
@@ -120,14 +106,6 @@ function AppContent() {
     setShouldCenterMap(false);
   }, []);
 
-  const handleDeleteTrip = async (tripId) => {
-    try {
-      await axios.delete(`/api/trips/${tripId}`);
-    } catch (error) {
-      console.error('Error deleting trip:', error);
-      alert('Error deleting trip. Please try again.');
-    }
-  };
 
   const handleMapClick = useCallback((lat, lng, locationInfo) => {
     if (isDirectionsModeRef.current) {
