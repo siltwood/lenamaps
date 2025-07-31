@@ -163,22 +163,18 @@ const MapComponent = ({
       <div ref={mapRef} style={{ height: '100%', width: '100%' }} />
       
       {/* Render child components */}
-      {isDirectionsMode && (
-        <RouteSegmentManager
-          map={map}
-          directionsService={directionsService}
-          directionsRoute={directionsRoute}
-          onRouteDragged={onRouteDragged}
-        />
-      )}
+      <RouteSegmentManager
+        map={map}
+        directionsService={directionsService}
+        directionsRoute={directionsRoute}
+        onRouteDragged={onRouteDragged}
+      />
       
-      {isDirectionsMode && (
-        <RouteAnimator
-          map={map}
-          directionsRoute={directionsRoute}
-          onAnimationStateChange={onAnimationStateChange}
-        />
-      )}
+      <RouteAnimator
+        map={map}
+        directionsRoute={directionsRoute}
+        onAnimationStateChange={onAnimationStateChange}
+      />
       
     </div>
   );
@@ -188,8 +184,6 @@ export default React.memo(MapComponent, (prevProps, nextProps) => {
   // Custom comparison to prevent re-renders
   // Only re-render if specific props change that actually affect the map
   return (
-    prevProps.isCreating === nextProps.isCreating &&
-    prevProps.isDirectionsMode === nextProps.isDirectionsMode &&
     JSON.stringify(prevProps.center) === JSON.stringify(nextProps.center) &&
     prevProps.shouldCenterMap === nextProps.shouldCenterMap &&
     // Use stable routeId for comparison
