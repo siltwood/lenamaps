@@ -2,22 +2,14 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { DEFAULT_CENTER, MAP_CONFIG } from '../utils/constants';
 import { createMarkerContent, clearAdvancedMarker } from '../utils/mapHelpers';
 import RouteSegmentManager from './RouteSegmentManager';
-import WaypointManager from './WaypointManager';
-import TripRenderer from './TripRenderer';
 import RouteAnimator from '../../RouteAnimator';
 
 const MapComponent = ({ 
-  isCreating, 
-  waypoints = [], 
-  segments = [], 
   onMapClick, 
-  trip,
   center,
   shouldCenterMap = false,
   onMapCentered,
-  onWaypointsChange,
   directionsRoute,
-  isDirectionsMode,
   directionsLocations = [],
   directionsLegModes = [],
   onRouteDragged,
@@ -26,12 +18,6 @@ const MapComponent = ({
   const mapRef = useRef();
   const [map, setMap] = useState(null);
   const [directionsService, setDirectionsService] = useState(null);
-  const isDirectionsModeRef = useRef(isDirectionsMode);
-  
-  // Update ref when isDirectionsMode changes
-  useEffect(() => {
-    isDirectionsModeRef.current = isDirectionsMode;
-  }, [isDirectionsMode]);
 
   // Initialize map
   const initMap = useCallback(() => {
@@ -185,23 +171,6 @@ const MapComponent = ({
           onRouteDragged={onRouteDragged}
         />
       )}
-      
-      <WaypointManager
-        map={map}
-        directionsService={directionsService}
-        isCreating={isCreating}
-        waypoints={waypoints}
-        segments={segments}
-        onWaypointsChange={onWaypointsChange}
-      />
-      
-      <TripRenderer
-        map={map}
-        directionsService={directionsService}
-        trip={trip}
-        isCreating={isCreating}
-        isDirectionsMode={isDirectionsMode}
-      />
       
       {isDirectionsMode && (
         <RouteAnimator
