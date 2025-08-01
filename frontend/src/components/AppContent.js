@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import GoogleMap from './GoogleMap';
 import DirectionsPanel from './DirectionsPanel';
 import LocationSearch from './LocationSearch';
@@ -49,7 +49,8 @@ function AppContent() {
 
   return (
     <div className="app">
-      <header className="header">
+      {!isAnimating && (
+        <header className="header">
         <div className="header-left">
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span>LenaMaps - Animate your Google Maps Route</span>
@@ -77,7 +78,8 @@ function AppContent() {
           </div>
           <DonateButton />
         </div>
-      </header>
+        </header>
+      )}
       <div className="main-content">
         <div className="map-container">
           <GoogleMap
@@ -96,6 +98,7 @@ function AppContent() {
       
       {!isAnimating && (
         <DirectionsPanel
+          key="directions-panel"
           isOpen={true}
           onDirectionsCalculated={setDirectionsRoute}
           clickedLocation={clickedLocation}

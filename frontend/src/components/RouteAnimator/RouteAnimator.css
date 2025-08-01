@@ -250,6 +250,74 @@
   user-select: none;
 }
 
+/* Zoom control styles - identical to speed control */
+.zoom-control {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.zoom-control > label {
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+  margin-bottom: 4px;
+}
+
+.zoom-radio-group {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+}
+
+.zoom-radio {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
+  position: relative;
+}
+
+.zoom-radio:hover:not([disabled]) {
+  border-color: #4285F4;
+  background: #f8f9fa;
+}
+
+.zoom-radio.active {
+  border-color: #4285F4;
+  background: #e8f0fe;
+  color: #1967d2;
+  font-weight: 500;
+}
+
+.zoom-radio[disabled] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.zoom-radio[disabled]:hover {
+  border-color: #e0e0e0;
+  background: white;
+}
+
+.zoom-radio input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.zoom-radio span {
+  font-size: 13px;
+  user-select: none;
+}
 
 .progress-bar {
   margin-top: 8px;
@@ -303,6 +371,29 @@
   transform: scale(1.05);
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   background: #f8f9fa;
+}
+
+/* Simple camera icon button */
+.camera-icon-btn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: white;
+  border: 2px solid #e0e0e0;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  color: #333;
+}
+
+.camera-icon-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  border-color: #4285F4;
+  color: #4285F4;
 }
 
 .floating-controls {

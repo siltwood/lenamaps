@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faVideo, faPlay, faPause, faStop } from '@fortawesome/free-solid-svg-icons';
+import { faPlay, faPause, faStop } from '@fortawesome/free-solid-svg-icons';
 import { TRANSPORTATION_COLORS, TRANSPORT_ICONS } from '../GoogleMap/utils/constants';
 import DragHandle from '../common/DragHandle';
 import Modal from './Modal';
@@ -38,6 +38,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
     }
   };
   const [animationSpeed, setAnimationSpeed] = useState(3);
+  const [zoomLevel, setZoomLevel] = useState('medium'); // 'close', 'medium', 'far'
   
   // Update speed ref when state changes
   useEffect(() => {
@@ -66,6 +67,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
   const zoomListenerRef = useRef(null);
   const currentZoomRef = useRef(13);
   const lastSymbolUpdateRef = useRef(0);
+  const countRef = useRef(0); // Add ref to persist animation count
 
   // Calculate marker scale based on zoom level
   const getMarkerScale = (zoom) => {
@@ -124,6 +126,9 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
     lastTimestampRef.current = null;
     // Position tracking removed - handled by Symbol API
     
+    // Expand the modal when animation stops
+    setIsMinimized(false);
+    
     // Re-enable map interactions
     if (map) {
       map.setOptions({
@@ -145,7 +150,15 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
       zoomListenerRef.current = null;
     }
     
+    // Don't remove the polyline - just hide the animated symbol
     if (polylineRef.current) {
+      // Reset the symbol to the start position
+      const icons = polylineRef.current.get('icons');
+      if (icons && icons.length > 0) {
+        icons[0].offset = '0%';
+        polylineRef.current.set('icons', icons);
+      }
+      // Hide the polyline that shows the animated symbol
       polylineRef.current.setMap(null);
       polylineRef.current = null;
     }
@@ -160,22 +173,35 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
     }
     
     offsetRef.current = 0;
+    countRef.current = 0; // Reset count when stopping
     lastCameraPositionRef.current = null;
     cameraVelocityRef.current = null;
     
     if (animationRef.current) {
-      clearInterval(animationRef.current);
+      cancelAnimationFrame(animationRef.current);
       animationRef.current = null;
     }
-  }, [map]);
+  }, [map, setIsAnimating]);
 
   useEffect(() => {
     return () => {
       if (animationRef.current) {
-        clearInterval(animationRef.current);
+        cancelAnimationFrame(animationRef.current);
       }
     };
   }, []);
+  
+  // Handle escape key to stop animation and unminimize
+  useEffect(() => {
+    const handleEscape = (e) => {
+      if (e.key === 'Escape' && isAnimatingRef.current) {
+        stopAnimation();
+      }
+    };
+    
+    window.addEventListener('keydown', handleEscape);
+    return () => window.removeEventListener('keydown', handleEscape);
+  }, [stopAnimation]);
 
   // Handle route changes (from undo/redo or other updates)
   useEffect(() => {
@@ -212,7 +238,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
   // Densify path by adding intermediate points for smoother animation
   const densifyPath = (originalPath) => {
     const densifiedPath = [];
-    const maxSegmentLength = 10; // Back to reasonable segments
+    const maxSegmentLength = 5; // Smaller segments for smoother movement
     
     for (let i = 0; i < originalPath.length - 1; i++) {
       densifiedPath.push(originalPath[i]);
@@ -539,14 +565,22 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
       // Start with a cinematic view of the beginning of the route
       const startPos = densifiedPath[0];
       map.setCenter(startPos);
-      map.setZoom(17); // Close zoom for video recording
       
-      // Set up camera following interval to ensure it works from the start
+      // Set zoom based on selected level
+      let zoomValue = 16; // default medium
+      if (zoomLevel === 'close') {
+        zoomValue = 18;
+      } else if (zoomLevel === 'far') {
+        zoomValue = 14;
+      }
+      map.setZoom(zoomValue);
+      
+      // Clear any existing camera update interval
       if (cameraUpdateIntervalRef.current) {
         clearInterval(cameraUpdateIntervalRef.current);
       }
       
-      // Camera following handled in animation loop
+      // Camera centering is handled in the animation loop
       
       // Start animation immediately
       setTimeout(() => {
@@ -562,52 +596,71 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
 
   // Removed createAnimationMarker - using Symbol Animation API
 
-  const animateAlongRoute = () => {
-    // Use count like Google's example
-    let count = 0;
-    if (isPausedRef.current && offsetRef.current > 0) {
-      // Resume from where we left off
-      count = offsetRef.current * 2;
+  const animateAlongRoute = (isResuming = false) => {
+    // Initialize count only if starting fresh (not resuming from pause)
+    if (!isResuming) {
+      // Starting fresh - reset to beginning
+      countRef.current = 0;
     }
+    // If resuming from pause, countRef.current already has the correct value
     
-    const interval = window.setInterval(() => {
+    let lastTimestamp = performance.now();
+    
+    const animate = (timestamp) => {
       if (!isAnimatingRef.current || isPausedRef.current || !polylineRef.current) {
-        clearInterval(interval);
         return;
       }
 
-      // Increment based on animation speed
-      count = count + (animationSpeedRef.current * 0.05);
-      if (count >= 200) count = 200;
+      // Calculate delta time for frame-independent animation
+      const deltaTime = timestamp - lastTimestamp;
+      lastTimestamp = timestamp;
+      
+      // Increment based on animation speed and delta time
+      const speedMultiplier = animationSpeedRef.current * 0.002; // Reduced from 0.003
+      countRef.current = countRef.current + (speedMultiplier * deltaTime);
+      if (countRef.current >= 200) countRef.current = 200;
       
       // Update symbol position
       const icons = polylineRef.current.get('icons');
-      icons[0].offset = (count / 2) + '%';
+      icons[0].offset = (countRef.current / 2) + '%';
       polylineRef.current.set('icons', icons);
       
       // Track progress
-      offsetRef.current = count / 2;
+      offsetRef.current = countRef.current / 2;
       
       // Update progress
       setProgress(offsetRef.current);
       
-      // Smart camera panning - only pan when marker approaches edge of screen
+      // Smart camera panning - pan when marker approaches edge of screen
       const path = polylineRef.current.getPath();
       const numPoints = path.getLength();
-      const currentIndex = Math.round((offsetRef.current / 100) * (numPoints - 1));
+      const progress = offsetRef.current / 100;
+      
+      // Use floating point index for smoother interpolation
+      const floatIndex = progress * (numPoints - 1);
+      const currentIndex = Math.floor(floatIndex);
+      const nextIndex = Math.min(currentIndex + 1, numPoints - 1);
+      const interpolationFactor = floatIndex - currentIndex;
       
       if (currentIndex < numPoints) {
-        const markerPosition = path.getAt(currentIndex);
-        if (markerPosition) {
+        const currentPos = path.getAt(currentIndex);
+        const nextPos = path.getAt(nextIndex);
+        
+        if (currentPos && nextPos) {
+          // Interpolate between points for smoother movement
+          const lat = currentPos.lat() + (nextPos.lat() - currentPos.lat()) * interpolationFactor;
+          const lng = currentPos.lng() + (nextPos.lng() - currentPos.lng()) * interpolationFactor;
+          const markerPosition = new window.google.maps.LatLng(lat, lng);
+          
           // Get map bounds and check if marker is near edge
           const bounds = map.getBounds();
           if (bounds) {
             const ne = bounds.getNorthEast();
             const sw = bounds.getSouthWest();
             
-            // Calculate buffer zone (30% from edge - triggers earlier)
-            const latBuffer = (ne.lat() - sw.lat()) * 0.3;
-            const lngBuffer = (ne.lng() - sw.lng()) * 0.3;
+            // Calculate buffer zone (20% from edge - triggers when closer to edge)
+            const latBuffer = (ne.lat() - sw.lat()) * 0.2;
+            const lngBuffer = (ne.lng() - sw.lng()) * 0.2;
             
             // Check if marker is within buffer zone of any edge
             const nearEdge = markerPosition.lat() > ne.lat() - latBuffer ||
@@ -618,19 +671,20 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
             if (nearEdge) {
               // Pan ahead of the marker so it has room to travel
               // Calculate the direction of travel
-              let nextIndex = Math.min(currentIndex + 20, numPoints - 1); // Look 20 points ahead
-              const nextPosition = path.getAt(nextIndex);
+              let lookAheadDistance = 30; // Look further ahead
+              let lookAheadIndex = Math.min(floatIndex + lookAheadDistance, numPoints - 1);
+              const lookAheadPos = path.getAt(Math.floor(lookAheadIndex));
               
-              if (nextPosition) {
-                // Calculate a point between current and next for smoother panning
-                const panLat = markerPosition.lat() + (nextPosition.lat() - markerPosition.lat()) * 0.5;
-                const panLng = markerPosition.lng() + (nextPosition.lng() - markerPosition.lng()) * 0.5;
+              if (lookAheadPos) {
+                // Pan to a position well ahead of the marker
+                const panLat = markerPosition.lat() * 0.3 + lookAheadPos.lat() * 0.7;
+                const panLng = markerPosition.lng() * 0.3 + lookAheadPos.lng() * 0.7;
                 const panTarget = new window.google.maps.LatLng(panLat, panLng);
                 
-                // Pan to a position ahead of the marker
+                // Pan to keep marker comfortably in view
                 map.panTo(panTarget);
               } else {
-                // Fallback to marker position if we can't look ahead
+                // Fallback to centering on marker position
                 map.panTo(markerPosition);
               }
             }
@@ -639,52 +693,34 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
       }
 
       // Check if animation is complete
-      if (count >= 198) {
-        clearInterval(interval);
-        
-        setIsAnimating(false);
-        setIsPaused(false);
-        isAnimatingRef.current = false;
-        isPausedRef.current = false;
-        
-        // Re-enable map interactions
-        if (map) {
-          map.setOptions({
-            draggable: true,
-            scrollwheel: true,
-            disableDoubleClickZoom: false,
-            gestureHandling: 'auto'
-          });
-        }
-        
-        if (polylineRef.current) {
-          polylineRef.current.setMap(null);
-          polylineRef.current = null;
-        }
-        
-        offsetRef.current = 0;
+      if (countRef.current >= 198) {
+        // Use stopAnimation to ensure proper cleanup and callback notification
+        stopAnimation();
+      } else {
+        // Continue animation
+        animationRef.current = requestAnimationFrame(animate);
       }
-    }, 16); // ~60fps for smoother visual updates
+    };
     
-    // Store interval for pause/resume
-    animationRef.current = interval;
+    // Start animation
+    animationRef.current = requestAnimationFrame(animate);
   };
   
 
   const pauseAnimation = () => {
     setIsPaused(true);
     isPausedRef.current = true;
-    // Clear the interval when pausing
+    // Cancel the animation frame when pausing
     if (animationRef.current) {
-      clearInterval(animationRef.current);
+      cancelAnimationFrame(animationRef.current);
     }
   };
 
   const resumeAnimation = () => {
     setIsPaused(false);
     isPausedRef.current = false;
-    // Restart the animation from where it left off
-    animateAlongRoute();
+    // Resume the animation from where it left off - countRef already has the position
+    animateAlongRoute(true); // Pass true to indicate we're resuming
   };
 
 
@@ -791,43 +827,20 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
         className="route-animator-minimized"
         style={{
           position: 'fixed',
-          right: '60px',
+          right: '80px',
           bottom: '20px',
           zIndex: 2000
         }}
       >
         <button 
-          className="expand-button"
-          onClick={() => {
-            setIsMinimized(false);
-            // Restore saved position if available
-            if (savedPositionRef.current) {
-              setPosition(savedPositionRef.current);
-            }
-          }}
-          title="Route Animator"
+          className="camera-icon-btn"
+          onClick={() => setIsMinimized(false)}
+          title="Show Animation Controls"
         >
-          <FontAwesomeIcon icon={faVideo} />
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+          </svg>
         </button>
-        {isAnimating && (
-          <div className="floating-controls">
-            <div className="progress-indicator">
-              {Math.round(progress)}%
-            </div>
-            {isPaused ? (
-              <button onClick={resumeAnimation} className="mini-control" title="Resume">
-                <FontAwesomeIcon icon={faPlay} />
-              </button>
-            ) : (
-              <button onClick={pauseAnimation} className="mini-control" title="Pause">
-                <FontAwesomeIcon icon={faPause} />
-              </button>
-            )}
-            <button onClick={stopAnimation} className="mini-control stop" title="Stop">
-              <FontAwesomeIcon icon={faStop} />
-            </button>
-          </div>
-        )}
       </div>
     );
   }
@@ -916,6 +929,45 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
                     onChange={() => setAnimationSpeed(6)}
                   />
                   <span>Fast</span>
+                </label>
+              </div>
+            </div>
+            
+            <div className="zoom-control">
+              <label>Zoom Level</label>
+              <div className="zoom-radio-group">
+                <label className={`zoom-radio ${zoomLevel === 'close' ? 'active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="zoom"
+                    value="close"
+                    checked={zoomLevel === 'close'}
+                    onChange={() => setZoomLevel('close')}
+                    disabled={isAnimating}
+                  />
+                  <span>Close</span>
+                </label>
+                <label className={`zoom-radio ${zoomLevel === 'medium' ? 'active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="zoom"
+                    value="medium"
+                    checked={zoomLevel === 'medium'}
+                    onChange={() => setZoomLevel('medium')}
+                    disabled={isAnimating}
+                  />
+                  <span>Medium</span>
+                </label>
+                <label className={`zoom-radio ${zoomLevel === 'far' ? 'active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="zoom"
+                    value="far"
+                    checked={zoomLevel === 'far'}
+                    onChange={() => setZoomLevel('far')}
+                    disabled={isAnimating}
+                  />
+                  <span>Far</span>
                 </label>
               </div>
             </div>
