@@ -40,11 +40,28 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
   const [animationSpeed, setAnimationSpeed] = useState(3);
   const [zoomLevel, setZoomLevel] = useState('medium'); // 'close', 'medium', 'far'
   
+  // Add effect to update zoom during animation
+  useEffect(() => {
+    console.log('Zoom level changed to:', zoomLevel);
+    
+    // If animation is running, update the zoom immediately
+    if (isAnimatingRef.current && map) {
+      let zoomValue = 16; // default medium
+      if (zoomLevel === 'close') {
+        zoomValue = 18;
+      } else if (zoomLevel === 'far') {
+        zoomValue = 13;
+      }
+      map.setZoom(zoomValue);
+      console.log('Updated zoom during animation to:', zoomValue);
+    }
+  }, [zoomLevel, map]);
+  
   // Update speed ref when state changes
   useEffect(() => {
     animationSpeedRef.current = animationSpeed;
+    console.log('Animation speed changed to:', animationSpeed);
   }, [animationSpeed]);
-  const [progress, setProgress] = useState(0);
   
   const animationRef = useRef(null);
   // Removed markerRef - using pure Symbol Animation API
@@ -119,7 +136,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
   const stopAnimation = useCallback(() => {
     setIsAnimating(false);
     setIsPaused(false);
-    setProgress(0);
     isAnimatingRef.current = false;
     isPausedRef.current = false;
     distanceTraveledRef.current = 0;
@@ -304,7 +320,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
 
     setIsAnimating(true);
     setIsPaused(false);
-    setProgress(0);
     isAnimatingRef.current = true;
     isPausedRef.current = false;
     
@@ -569,11 +584,12 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
       // Set zoom based on selected level
       let zoomValue = 16; // default medium
       if (zoomLevel === 'close') {
-        zoomValue = 18;
+        zoomValue = 18; // Close but not too close
       } else if (zoomLevel === 'far') {
-        zoomValue = 14;
+        zoomValue = 13; // City overview
       }
       map.setZoom(zoomValue);
+      console.log('Setting zoom to:', zoomValue, 'for level:', zoomLevel);
       
       // Clear any existing camera update interval
       if (cameraUpdateIntervalRef.current) {
@@ -627,9 +643,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
       
       // Track progress
       offsetRef.current = countRef.current / 2;
-      
-      // Update progress
-      setProgress(offsetRef.current);
       
       // Smart camera panning - pan when marker approaches edge of screen
       const path = polylineRef.current.getPath();
@@ -934,7 +947,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
             </div>
             
             <div className="zoom-control">
-              <label>Zoom Level</label>
+              <label>Zoom Level (Camera Distance)</label>
               <div className="zoom-radio-group">
                 <label className={`zoom-radio ${zoomLevel === 'close' ? 'active' : ''}`}>
                   <input
@@ -943,9 +956,9 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
                     value="close"
                     checked={zoomLevel === 'close'}
                     onChange={() => setZoomLevel('close')}
-                    disabled={isAnimating}
                   />
                   <span>Close</span>
+                  <small>(Street level)</small>
                 </label>
                 <label className={`zoom-radio ${zoomLevel === 'medium' ? 'active' : ''}`}>
                   <input
@@ -954,9 +967,9 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
                     value="medium"
                     checked={zoomLevel === 'medium'}
                     onChange={() => setZoomLevel('medium')}
-                    disabled={isAnimating}
                   />
                   <span>Medium</span>
+                  <small>(Neighborhood)</small>
                 </label>
                 <label className={`zoom-radio ${zoomLevel === 'far' ? 'active' : ''}`}>
                   <input
@@ -965,24 +978,13 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
                     value="far"
                     checked={zoomLevel === 'far'}
                     onChange={() => setZoomLevel('far')}
-                    disabled={isAnimating}
                   />
                   <span>Far</span>
+                  <small>(City view)</small>
                 </label>
               </div>
             </div>
             
-            {isAnimating && (
-              <div className="progress-bar">
-                <div className="progress-label">Progress: {Math.round(progress)}%</div>
-                <div className="progress-track">
-                  <div 
-                    className="progress-fill" 
-                    style={{ width: `${progress}%` }}
-                  />
-                </div>
-              </div>
-            )}
             
           </div>
         </div>
