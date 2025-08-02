@@ -28,9 +28,9 @@ const DirectionsHeader = ({
         <button 
           className="header-action-btn clear-btn" 
           onClick={onClear}
-          title="Clear all locations"
+          title="Reset route"
         >
-          🗑️
+          🔄
         </button>
         <button className="minimize-button" onClick={onMinimize} title="Minimize panel">
           <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">

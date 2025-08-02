@@ -39,7 +39,7 @@ const RouteSegmentManager = ({
       try {
         segment.routeRenderer.setDirections({ routes: [] });
       } catch (e) {
-        console.warn('Error clearing route:', e);
+        // Silently ignore clearing errors
       }
     }
     
@@ -91,7 +91,7 @@ const RouteSegmentManager = ({
       title: title,
       content: markerContent,
       zIndex: zIndex,
-      collisionBehavior: window.google.maps.CollisionBehavior.OPTIONAL_AND_HIDES_LOWER_PRIORITY
+      collisionBehavior: window.google.maps.CollisionBehavior.REQUIRED
     });
     
     // Store the base icon and color for updates
@@ -128,7 +128,7 @@ const RouteSegmentManager = ({
       title: `Transfer`,
       content: transitionContent,
       zIndex: 5100, // Higher than regular markers
-      collisionBehavior: window.google.maps.CollisionBehavior.OPTIONAL_AND_HIDES_LOWER_PRIORITY
+      collisionBehavior: window.google.maps.CollisionBehavior.REQUIRED
     });
     
     // Store the icons and colors for updates
@@ -264,7 +264,6 @@ const RouteSegmentManager = ({
       
       if (wasSingleMarker) {
         // Keep the single marker - it will become the start marker of the route
-        console.log('Keeping single marker as route start');
       } else {
         // Check if only modes changed (same locations)
         const prevLocations = segmentsRef.current
@@ -294,8 +293,19 @@ const RouteSegmentManager = ({
           // Same locations and modes, no update needed
           return;
         } else {
-          // Clear existing segments only if locations changed
-          clearAllSegments();
+          // Locations changed - be selective about what to clear
+          // Only clear segments that are beyond the new route length
+          const newSegmentCount = Math.max(0, validLocations.length - 1);
+          const currentSegmentCount = segmentsRef.current.filter(s => s.id !== 'single-marker').length;
+          
+          if (newSegmentCount < currentSegmentCount) {
+            // Route shortened - clear extra segments
+            for (let i = currentSegmentCount - 1; i >= newSegmentCount; i--) {
+              clearSegment(segmentsRef.current[i]);
+              segmentsRef.current.splice(i, 1);
+            }
+          }
+          // For route extension, we'll handle it in the rendering section
         }
       }
     }
@@ -314,15 +324,8 @@ const RouteSegmentManager = ({
           existingMarker.startLocation.lng === validLocations[0].lng) {
         // Check if mode changed
         const currentMode = validModes[0] || 'walk';
-        console.log('Single marker mode check:', {
-          existingMode: existingMarker.mode,
-          newMode: currentMode,
-          validModes: validModes,
-          allModes: allModes
-        });
         
         if (existingMarker.mode !== currentMode) {
-          console.log('Mode changed for single marker, recreating...');
           // Mode changed, clear the old marker and create new one
           clearSegment(existingMarker);
           segmentsRef.current = [];
@@ -337,13 +340,6 @@ const RouteSegmentManager = ({
       const modeIcon = TRANSPORT_ICONS[mode] || '🚶';
       const modeColor = getTransportationColor(mode);
       
-      console.log('Creating single marker:', {
-        mode: mode,
-        icon: modeIcon,
-        color: modeColor,
-        validModes: validModes,
-        allModes: allModes
-      });
       
       const marker = createMarker(
         location,
@@ -377,24 +373,34 @@ const RouteSegmentManager = ({
           return;
         }
         
+        // Start with existing segments that are still valid
         const newSegments = [];
+        const existingSegmentCount = segmentsRef.current.filter(s => s.id !== 'single-marker').length;
         
-        for (let i = 0; i < validLocations.length - 1; i++) {
+        // Copy existing segments that are still valid
+        for (let i = 0; i < Math.min(existingSegmentCount, validLocations.length - 1); i++) {
+          if (segmentsRef.current[i] && segmentsRef.current[i].id !== 'single-marker') {
+            newSegments.push(segmentsRef.current[i]);
+          }
+        }
+        
+        // Only render new segments (those that don't exist yet)
+        const startIndex = existingSegmentCount;
+        
+        for (let i = startIndex; i < validLocations.length - 1; i++) {
           const segmentMode = validModes[i] || 'walk';
           const segmentOrigin = validLocations[i];
           const segmentDestination = validLocations[i + 1];
           
-          // Determine travel mode
+          // Determine travel mode (bus uses DRIVING for reliability)
           let travelMode = window.google.maps.TravelMode.WALKING;
           switch (segmentMode) {
             case 'bike':
               travelMode = window.google.maps.TravelMode.BICYCLING;
               break;
             case 'car':
+            case 'bus': // Treat bus as driving for reliable routes
               travelMode = window.google.maps.TravelMode.DRIVING;
-              break;
-            case 'bus':
-              travelMode = window.google.maps.TravelMode.TRANSIT;
               break;
           }
           
@@ -424,38 +430,18 @@ const RouteSegmentManager = ({
               });
               routeFound = true;
             } catch (err) {
-              console.log(`No ${segmentMode} route found, trying alternatives...`);
-              
-              // Try alternative modes
-              const alternatives = [];
-              if (segmentMode === 'bus') {
-                alternatives.push(
-                  { mode: window.google.maps.TravelMode.DRIVING, name: 'driving' },
-                  { mode: window.google.maps.TravelMode.WALKING, name: 'walking' }
-                );
-              } else if (segmentMode === 'car') {
-                alternatives.push(
-                  { mode: window.google.maps.TravelMode.WALKING, name: 'walking' }
-                );
-              } else if (segmentMode === 'bike') {
-                alternatives.push(
-                  { mode: window.google.maps.TravelMode.WALKING, name: 'walking' },
-                  { mode: window.google.maps.TravelMode.DRIVING, name: 'driving' }
-                );
-              }
-              
-              for (const alt of alternatives) {
+              // If bike mode fails, try walking
+              if (segmentMode === 'bike') {
                 try {
                   const altRequest = {
                     origin: request.origin,
                     destination: request.destination,
-                    travelMode: alt.mode
+                    travelMode: window.google.maps.TravelMode.WALKING
                   };
                   
                   result = await new Promise((resolve, reject) => {
                     directionsService.route(altRequest, (result, status) => {
                       if (status === window.google.maps.DirectionsStatus.OK) {
-                        console.log(`Using ${alt.name} route as fallback for ${segmentMode}`);
                         resolve(result);
                       } else {
                         reject(status);
@@ -464,9 +450,8 @@ const RouteSegmentManager = ({
                   });
                   
                   routeFound = true;
-                  break;
                 } catch (altErr) {
-                  continue;
+                  // Walking also failed
                 }
               }
             }
@@ -515,7 +500,7 @@ const RouteSegmentManager = ({
             const modeColor = getTransportationColor(segmentMode);
             
             // Add start marker (only for first segment and if we don't already have one)
-            if (i === 0) {
+            if (i === 0 && startIndex === 0) {
               // Check if we already have a single marker at this location
               const existingSingleMarker = segmentsRef.current.length === 1 && 
                 segmentsRef.current[0].id === 'single-marker' &&
@@ -523,15 +508,9 @@ const RouteSegmentManager = ({
                 segmentsRef.current[0].startLocation.lng === segmentOrigin.lng;
               
               if (existingSingleMarker) {
-                console.log('Checking existing single marker:', {
-                  existingMode: segmentsRef.current[0].mode,
-                  newMode: segmentMode,
-                  shouldReuse: segmentsRef.current[0].mode === segmentMode
-                });
                 
                 // Check if mode changed
                 if (segmentsRef.current[0].mode !== segmentMode) {
-                  console.log('Mode changed from single marker to route, creating new start marker');
                   // Mode changed, clear the old marker and create new one
                   clearAdvancedMarker(segmentsRef.current[0].markers.start);
                   markers.start = createMarker(
@@ -553,11 +532,6 @@ const RouteSegmentManager = ({
                   delete singleMarkerSegment.markers.start;
                 }
               } else {
-                console.log('Creating new start marker:', {
-                  mode: segmentMode,
-                  icon: modeIcon,
-                  color: modeColor
-                });
                 // Create new start marker
                 markers.start = createMarker(
                   segmentOrigin,
@@ -669,10 +643,10 @@ const RouteSegmentManager = ({
               markers: markers
             };
             
-            newSegments.push(segment);
+            // Insert at the correct index to maintain order
+            newSegments[i] = segment;
             
           } catch (error) {
-            console.warn(`Directions request failed for segment ${i}:`, error);
             
             // Last resort: try to find ANY route that gets us closer
             const straightLinePath = [
@@ -681,7 +655,6 @@ const RouteSegmentManager = ({
             ];
             
             // This should rarely happen now since we try multiple modes
-            console.error(`Could not find any route for segment ${i}`);
             continue;
             
             // Handle transit fallback
@@ -796,10 +769,11 @@ const RouteSegmentManager = ({
                   isFallback: true // Mark as fallback route
                 };
                 
-                newSegments.push(segment);
+                // Insert at the correct index to maintain order
+                newSegments[i] = segment;
                 
               } catch (fallbackError) {
-                console.error('Fallback driving route also failed:', fallbackError);
+                // Fallback driving route also failed
               }
             }
           }

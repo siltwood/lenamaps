@@ -24,6 +24,7 @@ const DirectionsPanel = ({
   onLegModesChange,
   onUndo,
   onClear,
+  onClearHistory,
   canUndo = false,
   isEditing = false,
   editingTrip = null,
@@ -267,17 +268,24 @@ const DirectionsPanel = ({
     if (onLegModesChange) {
       const newModes = [...legModes];
       newModes[index] = mode;
-      console.log('DirectionsPanel updateLegMode:', {
-        index: index,
-        oldMode: legModes[index],
-        newMode: mode,
-        allModes: newModes
-      });
       onLegModesChange(newModes, index); // Pass index for action tracking
       
       // Update the route data immediately with new modes (visual update only)
       const filledLocations = locations.filter(loc => loc !== null);
-      if (filledLocations.length >= 2 && onDirectionsCalculated) {
+      if (filledLocations.length === 1 && onDirectionsCalculated) {
+        // Single location - update marker
+        const routeData = {
+          origin: filledLocations[0],
+          destination: null,
+          waypoints: [],
+          mode: newModes[0],
+          segments: [],
+          allLocations: filledLocations,
+          allModes: newModes,
+          routeId: filledLocations.map(loc => `${loc.lat},${loc.lng}`).join('_') + '_' + newModes.join('-')
+        };
+        onDirectionsCalculated(routeData);
+      } else if (filledLocations.length >= 2 && onDirectionsCalculated) {
         const segments = [];
         for (let i = 0; i < filledLocations.length - 1; i++) {
           segments.push({
@@ -330,7 +338,7 @@ const DirectionsPanel = ({
 
   const handleReset = () => {
     if (onLocationsChange && onLegModesChange) {
-      onLocationsChange([null, null]);
+      onLocationsChange([null, null], null); // Don't track this in history
       onLegModesChange(['walk']);
     }
     setSegments([]);
@@ -448,11 +456,18 @@ const DirectionsPanel = ({
         editingTrip={editingTrip}
         onUndo={onUndo}
         onClear={() => {
-          onClear();
-          setSegments([]);
-          setTripName('');
-          if (window.draggedSegments) {
-            window.draggedSegments = {};
+          handleReset();
+          // Clear undo history
+          if (onClearHistory) {
+            onClearHistory();
+          }
+          // Also clear the route on the map
+          if (onDirectionsCalculated) {
+            onDirectionsCalculated({
+              routeId: 'empty',
+              allLocations: [],
+              allModes: []
+            });
           }
         }}
         onClose={onClose}

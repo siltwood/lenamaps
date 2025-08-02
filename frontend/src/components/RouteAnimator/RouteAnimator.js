@@ -39,11 +39,10 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
   };
   const [animationSpeed, setAnimationSpeed] = useState(3);
   const [zoomLevel, setZoomLevel] = useState('medium'); // 'close', 'medium', 'far'
+  const [animationProgress, setAnimationProgress] = useState(0); // 0-100 for timeline
   
   // Add effect to update zoom during animation
   useEffect(() => {
-    console.log('Zoom level changed to:', zoomLevel);
-    
     // If animation is running, update the zoom immediately
     if (isAnimatingRef.current && map) {
       let zoomValue = 16; // default medium
@@ -53,14 +52,12 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
         zoomValue = 13;
       }
       map.setZoom(zoomValue);
-      console.log('Updated zoom during animation to:', zoomValue);
     }
   }, [zoomLevel, map]);
   
   // Update speed ref when state changes
   useEffect(() => {
     animationSpeedRef.current = animationSpeed;
-    console.log('Animation speed changed to:', animationSpeed);
   }, [animationSpeed]);
   
   const animationRef = useRef(null);
@@ -141,6 +138,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
     distanceTraveledRef.current = 0;
     lastTimestampRef.current = null;
     // Position tracking removed - handled by Symbol API
+    setAnimationProgress(0); // Reset progress bar
     
     // Expand the modal when animation stops
     setIsMinimized(false);
@@ -362,10 +360,8 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
             travelMode = window.google.maps.TravelMode.BICYCLING;
             break;
           case 'car':
+          case 'bus': // Treat bus as driving for reliable routes
             travelMode = window.google.maps.TravelMode.DRIVING;
-            break;
-          case 'bus':
-            travelMode = window.google.maps.TravelMode.TRANSIT;
             break;
         }
         
@@ -380,37 +376,8 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
             directionsService.route(request, (result, status) => {
               if (status === 'OK') {
                 resolve(result);
-              } else if (mode === 'bus' && status === 'ZERO_RESULTS') {
-                // Fallback to driving
-                const fallbackRequest = {
-                  ...request,
-                  travelMode: window.google.maps.TravelMode.DRIVING
-                };
-                directionsService.route(fallbackRequest, (fbResult, fbStatus) => {
-                  if (fbStatus === 'OK') {
-                    resolve(fbResult);
-                  } else {
-                    // Create straight line as last resort
-                    const straightLineRoute = {
-                      routes: [{
-                        overview_path: [
-                          request.origin,
-                          request.destination
-                        ],
-                        legs: [{
-                          start_location: request.origin,
-                          end_location: request.destination,
-                          steps: [{
-                            path: [request.origin, request.destination]
-                          }]
-                        }]
-                      }]
-                    };
-                    resolve(straightLineRoute);
-                  }
-                });
               } else {
-                // Any other error - create straight line
+                // Any error - create straight line as fallback
                 const straightLineRoute = {
                   routes: [{
                     overview_path: [
@@ -456,7 +423,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
             
           }
         } catch (err) {
-          console.warn(`Segment ${i} failed, using straight line`, err);
           // Never fail - always show something
           const start = new window.google.maps.LatLng(allLocations[i].lat, allLocations[i].lng);
           const end = new window.google.maps.LatLng(allLocations[i + 1].lat, allLocations[i + 1].lng);
@@ -567,14 +533,61 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
       polylineRef.current = new window.google.maps.Polyline({
         path: densifiedPath,
         geodesic: false,
-        strokeColor: '#CCCCCC',
-        strokeOpacity: 0.3,
-        strokeWeight: 4,
+        strokeColor: 'transparent', // Make the line itself invisible
+        strokeOpacity: 0,
+        strokeWeight: 20, // Keep it wide for click detection
         icons: [{
           icon: lineSymbol,
           offset: '0%'
         }],
-        map: map
+        map: map,
+        clickable: true,
+        zIndex: 1000
+      });
+      
+      // Add click listener to jump to position
+      polylineRef.current.addListener('click', (e) => {
+        if (isPausedRef.current || !isAnimatingRef.current) {
+          // Find closest point on path
+          let closestDistance = Infinity;
+          let closestIndex = 0;
+          
+          for (let i = 0; i < densifiedPath.length; i++) {
+            const distance = window.google.maps.geometry.spherical.computeDistanceBetween(
+              e.latLng,
+              densifiedPath[i]
+            );
+            if (distance < closestDistance) {
+              closestDistance = distance;
+              closestIndex = i;
+            }
+          }
+          
+          // Set animation position to this point
+          const progress = (closestIndex / (densifiedPath.length - 1)) * 100;
+          countRef.current = progress * 2; // Convert to count (0-200 range)
+          offsetRef.current = progress;
+          setAnimationProgress(progress); // Update UI state
+          
+          // Update visual position immediately
+          const icons = polylineRef.current.get('icons');
+          icons[0].offset = progress + '%';
+          polylineRef.current.set('icons', icons);
+          
+          // Pan to the clicked location
+          map.panTo(e.latLng);
+          
+          // If paused, stay paused but at new position
+          // If stopped, start from this position
+          if (!isAnimatingRef.current) {
+            // Restart animation from this position
+            setIsAnimating(true);
+            setIsPaused(false);
+            isAnimatingRef.current = true;
+            isPausedRef.current = false;
+            animateAlongRoute(true);
+          }
+        }
       });
       
       // Start with a cinematic view of the beginning of the route
@@ -589,7 +602,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
         zoomValue = 13; // City overview
       }
       map.setZoom(zoomValue);
-      console.log('Setting zoom to:', zoomValue, 'for level:', zoomLevel);
       
       // Clear any existing camera update interval
       if (cameraUpdateIntervalRef.current) {
@@ -604,7 +616,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
       }, 100);
       
     } catch (error) {
-      console.error('Failed to start animation:', error);
       showModal('Failed to start the animation. Please try again.', 'Animation Error', 'error');
       setIsAnimating(false);
     }
@@ -632,7 +643,8 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
       lastTimestamp = timestamp;
       
       // Increment based on animation speed and delta time
-      const speedMultiplier = animationSpeedRef.current * 0.002; // Reduced from 0.003
+      // For video recording: Slow = 0.005, Regular = 0.015, Fast = 0.03
+      const speedMultiplier = animationSpeedRef.current * 0.005; // Much faster for actual use!
       countRef.current = countRef.current + (speedMultiplier * deltaTime);
       if (countRef.current >= 200) countRef.current = 200;
       
@@ -641,8 +653,11 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
       icons[0].offset = (countRef.current / 2) + '%';
       polylineRef.current.set('icons', icons);
       
-      // Track progress
+      // Track progress and update UI
       offsetRef.current = countRef.current / 2;
+      // Always update progress for smooth UI
+      const newProgress = countRef.current / 2;
+      setAnimationProgress(newProgress);
       
       // Smart camera panning - pan when marker approaches edge of screen
       const path = polylineRef.current.getPath();
@@ -683,18 +698,41 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
             
             if (nearEdge) {
               // Pan ahead of the marker so it has room to travel
-              // Calculate the direction of travel
-              let lookAheadDistance = 30; // Look further ahead
-              let lookAheadIndex = Math.min(floatIndex + lookAheadDistance, numPoints - 1);
-              const lookAheadPos = path.getAt(Math.floor(lookAheadIndex));
+              // Look at multiple points ahead to better understand the route direction
+              const lookAheadPoints = [];
+              for (let i = 5; i <= 40; i += 5) {
+                const idx = Math.min(floatIndex + i, numPoints - 1);
+                const point = path.getAt(Math.floor(idx));
+                if (point) lookAheadPoints.push(point);
+              }
               
-              if (lookAheadPos) {
-                // Pan to a position well ahead of the marker
-                const panLat = markerPosition.lat() * 0.3 + lookAheadPos.lat() * 0.7;
-                const panLng = markerPosition.lng() * 0.3 + lookAheadPos.lng() * 0.7;
+              if (lookAheadPoints.length > 0) {
+                // Calculate the average position of look-ahead points
+                let avgLat = 0, avgLng = 0;
+                lookAheadPoints.forEach(point => {
+                  avgLat += point.lat();
+                  avgLng += point.lng();
+                });
+                avgLat /= lookAheadPoints.length;
+                avgLng /= lookAheadPoints.length;
+                
+                // Create a bounding box that includes current position and look-ahead points
+                const allPoints = [markerPosition, ...lookAheadPoints];
+                let minLat = allPoints[0].lat(), maxLat = allPoints[0].lat();
+                let minLng = allPoints[0].lng(), maxLng = allPoints[0].lng();
+                
+                allPoints.forEach(point => {
+                  minLat = Math.min(minLat, point.lat());
+                  maxLat = Math.max(maxLat, point.lat());
+                  minLng = Math.min(minLng, point.lng());
+                  maxLng = Math.max(maxLng, point.lng());
+                });
+                
+                // Pan to center of the bounding box
+                const panLat = (minLat + maxLat) / 2;
+                const panLng = (minLng + maxLng) / 2;
                 const panTarget = new window.google.maps.LatLng(panLat, panLng);
                 
-                // Pan to keep marker comfortably in view
                 map.panTo(panTarget);
               } else {
                 // Fallback to centering on marker position
@@ -838,12 +876,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
     return (
       <div 
         className="route-animator-minimized"
-        style={{
-          position: 'fixed',
-          right: '80px',
-          bottom: '20px',
-          zIndex: 2000
-        }}
       >
         <button 
           className="camera-icon-btn"
@@ -904,7 +936,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
                     </button>
                   )}
                   <button onClick={stopAnimation} className="control-btn stop">
-                    <FontAwesomeIcon icon={faStop} /> Stop
+                    <FontAwesomeIcon icon={faStop} /> Exit Animation
                   </button>
                 </>
               )}
@@ -985,6 +1017,64 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
               </div>
             </div>
             
+            <div className="timeline-control">
+              <label>Timeline Scrubber</label>
+              <div className="timeline-container">
+                <div className="timeline-track">
+                  <div className="timeline-progress" style={{ width: `${animationProgress}%` }}></div>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={animationProgress}
+                  onChange={(e) => {
+                    const newProgress = parseFloat(e.target.value);
+                    setAnimationProgress(newProgress);
+                    
+                    // Update animation position
+                    countRef.current = newProgress * 2;
+                    offsetRef.current = newProgress;
+                    
+                    // Update visual position if animating
+                    if (polylineRef.current) {
+                      const icons = polylineRef.current.get('icons');
+                      if (icons && icons.length > 0) {
+                        icons[0].offset = newProgress + '%';
+                        polylineRef.current.set('icons', icons);
+                      }
+                      
+                      // Pan to new position
+                      const path = polylineRef.current.getPath();
+                      const numPoints = path.getLength();
+                      const floatIndex = (newProgress / 100) * (numPoints - 1);
+                      const currentIndex = Math.floor(floatIndex);
+                      
+                      if (currentIndex < numPoints) {
+                        const currentPos = path.getAt(currentIndex);
+                        if (currentPos && map) {
+                          map.panTo(currentPos);
+                        }
+                      }
+                    }
+                    
+                    // Pause if playing
+                    if (isAnimating && !isPaused) {
+                      pauseAnimation();
+                    }
+                  }}
+                  className="timeline-slider"
+                />
+                <div className="timeline-labels">
+                  <span>0%</span>
+                  <span>{Math.round(animationProgress)}%</span>
+                  <span>100%</span>
+                </div>
+              </div>
+              <div className="timeline-tips">
+                💡 <small>Click anywhere on the blue route to jump to that spot!</small>
+              </div>
+            </div>
             
           </div>
         </div>

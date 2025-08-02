@@ -12,6 +12,39 @@ function AppContent() {
   const [directionsLocations, setDirectionsLocations] = useState([null, null]);
   const [directionsLegModes, setDirectionsLegModes] = useState(['walk']);
   const [isAnimating, setIsAnimating] = useState(false);
+  
+  // Undo functionality
+  const [history, setHistory] = useState([]);
+  const [lastAction, setLastAction] = useState(null);
+
+  // Save state to history before making changes
+  const saveToHistory = useCallback((action) => {
+    setHistory(prev => [...prev, {
+      locations: directionsLocations,
+      legModes: directionsLegModes,
+      route: directionsRoute,
+      action: action
+    }]);
+    setLastAction(action);
+  }, [directionsLocations, directionsLegModes, directionsRoute]);
+
+  // Undo last action
+  const handleUndo = useCallback(() => {
+    if (history.length > 0) {
+      const previousState = history[history.length - 1];
+      setDirectionsLocations(previousState.locations);
+      setDirectionsLegModes(previousState.legModes);
+      setDirectionsRoute(previousState.route);
+      setHistory(prev => prev.slice(0, -1));
+      setLastAction(null);
+    }
+  }, [history]);
+
+  // Clear history (for reset)
+  const handleClearHistory = useCallback(() => {
+    setHistory([]);
+    setLastAction(null);
+  }, []);
 
   const handleLocationSearch = useCallback((location) => {
     setMapCenter({ lat: location.lat, lng: location.lng });
@@ -30,9 +63,53 @@ function AppContent() {
     setClickedLocation(null);
   }, []);
 
+  // Wrapped setters that save to history
+  const setDirectionsLocationsWithHistory = useCallback((newLocations, actionType, extraData) => {
+    // Save current state before changing
+    if (actionType) {
+      // Find what changed by comparing with current locations
+      let action = { type: actionType };
+      
+      // Find the index that changed
+      for (let i = 0; i < Math.max(newLocations.length, directionsLocations.length); i++) {
+        if (newLocations[i] !== directionsLocations[i]) {
+          action.index = i;
+          break;
+        }
+      }
+      
+      // Add any extra data (like mode for ADD_LOCATION_WITH_MODE)
+      if (extraData) {
+        action = { ...action, ...extraData };
+      }
+      
+      saveToHistory(action);
+    }
+    setDirectionsLocations(newLocations);
+  }, [saveToHistory, directionsLocations]);
+
+  const setDirectionsLegModesWithHistory = useCallback((newModes, index) => {
+    // Create action for mode change if index is provided
+    if (index !== undefined) {
+      const action = {
+        type: 'mode_change',
+        index: index,
+        newMode: newModes[index]
+      };
+      saveToHistory(action);
+    }
+    setDirectionsLegModes(newModes);
+  }, [saveToHistory]);
+
   const handleRouteDragged = useCallback((draggedRoute) => {
     // Handle segment-specific dragging
     if (draggedRoute.segmentIndex !== undefined && draggedRoute.draggedPath) {
+      // Save to history
+      saveToHistory({
+        type: 'route_drag',
+        index: draggedRoute.segmentIndex
+      });
+      
       const newRoute = {
         ...directionsRoute,
         draggedSegments: {
@@ -45,7 +122,7 @@ function AppContent() {
       };
       setDirectionsRoute(newRoute);
     }
-  }, [directionsRoute]);
+  }, [directionsRoute, saveToHistory]);
 
   return (
     <div className="app">
@@ -105,8 +182,12 @@ function AppContent() {
           onLocationUsed={handleLocationUsed}
           locations={directionsLocations}
           legModes={directionsLegModes}
-          onLocationsChange={setDirectionsLocations}
-          onLegModesChange={setDirectionsLegModes}
+          onLocationsChange={setDirectionsLocationsWithHistory}
+          onLegModesChange={setDirectionsLegModesWithHistory}
+          onUndo={handleUndo}
+          onClearHistory={handleClearHistory}
+          canUndo={history.length > 0}
+          lastAction={lastAction}
         />
       )}
     </div>
