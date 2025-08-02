@@ -3,6 +3,7 @@ import { DEFAULT_CENTER, MAP_CONFIG } from '../utils/constants';
 import { createMarkerContent, clearAdvancedMarker } from '../utils/mapHelpers';
 import RouteSegmentManager from './RouteSegmentManager';
 import RouteAnimator from '../../RouteAnimator';
+import MapErrorBoundary from '../MapErrorBoundary';
 
 const MapComponent = ({ 
   onMapClick, 
@@ -18,31 +19,44 @@ const MapComponent = ({
   const mapRef = useRef();
   const [map, setMap] = useState(null);
   const [directionsService, setDirectionsService] = useState(null);
+  const [mapError, setMapError] = useState(null);
 
   // Initialize map
   const initMap = useCallback(() => {
     if (!mapRef.current) return;
     
-    // Check if map already exists on the DOM element
-    if (mapRef.current._mapInstance) {
-      setMap(mapRef.current._mapInstance);
+    try {
+      // Check if map already exists on the DOM element
+      if (mapRef.current._mapInstance) {
+        setMap(mapRef.current._mapInstance);
+        return;
+      }
+
+      const mapInstance = new window.google.maps.Map(mapRef.current, {
+        mapId: 'eb5a26e3f8eb70b4dec5041c', // Your Google Cloud Map ID
+        zoom: MAP_CONFIG.zoom,
+        center: center || DEFAULT_CENTER,
+        ...MAP_CONFIG
+      });
+
+      const directionsServiceInstance = new window.google.maps.DirectionsService();
+
+      // Store map instance on DOM element to prevent re-initialization
+      mapRef.current._mapInstance = mapInstance;
+      
+      setMap(mapInstance);
+      setDirectionsService(directionsServiceInstance);
+    } catch (error) {
+      // Check for common API errors
+      if (error.message?.includes('quota') || error.message?.includes('OVER_QUERY_LIMIT')) {
+        setMapError(new Error('QUOTA_EXCEEDED: Google Maps API quota limit reached'));
+      } else if (error.message?.includes('API key')) {
+        setMapError(new Error('API_KEY_ERROR: Invalid or missing API key'));
+      } else {
+        setMapError(error);
+      }
       return;
     }
-
-    const mapInstance = new window.google.maps.Map(mapRef.current, {
-      mapId: 'eb5a26e3f8eb70b4dec5041c', // Your Google Cloud Map ID
-      zoom: MAP_CONFIG.zoom,
-      center: center || DEFAULT_CENTER,
-      ...MAP_CONFIG
-    });
-
-    const directionsServiceInstance = new window.google.maps.DirectionsService();
-
-    // Store map instance on DOM element to prevent re-initialization
-    mapRef.current._mapInstance = mapInstance;
-    
-    setMap(mapInstance);
-    setDirectionsService(directionsServiceInstance);
 
     // Add click listener
     mapInstance.addListener('click', (event) => {
@@ -157,6 +171,17 @@ const MapComponent = ({
     }
   }, [map, center, shouldCenterMap, onMapCentered]);
 
+
+  // Show error boundary if there's an error
+  if (mapError) {
+    return <MapErrorBoundary 
+      error={mapError} 
+      onRetry={() => {
+        setMapError(null);
+        window.location.reload();
+      }} 
+    />;
+  }
 
   return (
     <div style={{ height: '100%', position: 'relative' }}>

@@ -1,51 +1,42 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Wrapper, Status } from '@googlemaps/react-wrapper';
 import MapComponent from './components/MapComponent';
-
-const render = (status) => {
-  switch (status) {
-    case Status.LOADING:
-      return (
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          height: '100%',
-          flexDirection: 'column',
-          color: '#6b7280'
-        }}>
-          <div style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>🗺️</div>
-          <p>Loading Google Maps...</p>
-        </div>
-      );
-    case Status.FAILURE:
-      return (
-        <div style={{ 
-          display: 'flex', 
-          justifyContent: 'center', 
-          alignItems: 'center', 
-          height: '100%',
-          flexDirection: 'column',
-          color: '#ef4444',
-          padding: '2rem',
-          textAlign: 'center'
-        }}>
-          <div style={{ fontSize: '2rem', marginBottom: '1rem' }}>⚠️</div>
-          <h3>Google Maps API Error</h3>
-          <p>Please check your API key in <code>frontend/.env.local</code></p>
-          <p style={{ fontSize: '0.9rem', color: '#6b7280' }}>
-            See <strong>GOOGLE_MAPS_SETUP.md</strong> for setup instructions
-          </p>
-        </div>
-      );
-    default:
-      return null;
-  }
-};
+import MapErrorBoundary from './MapErrorBoundary';
 
 const GoogleMap = (props) => {
   const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
+  const [retryCount, setRetryCount] = useState(0);
+  const [lastError, setLastError] = useState(null);
   
+  const handleRetry = () => {
+    setRetryCount(prev => prev + 1);
+    window.location.reload(); // Simple reload to retry loading maps
+  };
+
+  const render = (status, error) => {
+    switch (status) {
+      case Status.LOADING:
+        return (
+          <div style={{ 
+            display: 'flex', 
+            justifyContent: 'center', 
+            alignItems: 'center', 
+            height: '100%',
+            flexDirection: 'column',
+            color: '#6b7280'
+          }}>
+            <div style={{ fontSize: '1.2rem', marginBottom: '1rem' }}>🗺️</div>
+            <p>Loading Google Maps...</p>
+          </div>
+        );
+      case Status.FAILURE:
+        // Capture the error for the error boundary
+        if (error) setLastError(error);
+        return <MapErrorBoundary error={error || lastError} onRetry={handleRetry} />;
+      default:
+        return null;
+    }
+  };
 
   return (
     <Wrapper 
