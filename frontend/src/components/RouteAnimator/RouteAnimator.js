@@ -1021,7 +1021,14 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
               <label>Timeline Scrubber</label>
               <div className="timeline-container">
                 <div className="timeline-track">
-                  <div className="timeline-progress" style={{ width: `${animationProgress}%` }}></div>
+                  <div 
+                    className="timeline-progress" 
+                    style={{ 
+                      width: `${animationProgress}%`,
+                      transition: 'none' // Remove any CSS transitions that might interfere
+                    }}
+                    key={`progress-${Math.floor(animationProgress)}`} // Force re-render
+                  ></div>
                 </div>
                 <input
                   type="range"
