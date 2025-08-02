@@ -16,8 +16,8 @@ const MapErrorBoundary = ({ error, onRetry }) => {
     
     if (errorString.includes('quota') || errorString.includes('limit exceeded')) {
       return {
-        title: 'API Quota Exceeded',
-        message: 'The Google Maps API daily quota has been reached. Please try again tomorrow or contact the site owner.',
+        title: 'Daily Map Limit Reached',
+        message: 'We\'ve hit our daily Google Maps limit. The map may show watermarks or have limited functionality. Please try again tomorrow.',
         icon: '📊'
       };
     }
@@ -54,6 +54,7 @@ const MapErrorBoundary = ({ error, onRetry }) => {
   };
 
   const { title, message, icon } = getErrorDetails();
+  const errorString = error ? error.toString().toLowerCase() : '';
 
   return (
     <div className="map-error-boundary">
@@ -73,25 +74,19 @@ const MapErrorBoundary = ({ error, onRetry }) => {
           <button onClick={onRetry} className="retry-button">
             🔄 Try Again
           </button>
-          <a 
-            href="https://console.cloud.google.com/google/maps-apis/overview" 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="console-link"
-          >
-            Open Google Console →
-          </a>
         </div>
         
-        <div className="error-tips">
-          <h4>Common Solutions:</h4>
-          <ul>
-            <li>Check API quotas in Google Cloud Console</li>
-            <li>Verify billing account is active</li>
-            <li>Ensure API key has proper restrictions</li>
-            <li>Wait for daily quota reset (midnight PST)</li>
-          </ul>
-        </div>
+        {errorString.includes('quota') && (
+          <div className="error-tips">
+            <h4>What this means:</h4>
+            <ul>
+              <li>The map may show "For development purposes only" watermarks</li>
+              <li>Some features like search or directions might not work</li>
+              <li>Already loaded maps will continue to display</li>
+              <li>Service typically resets at midnight Pacific Time</li>
+            </ul>
+          </div>
+        )}
       </div>
     </div>
   );

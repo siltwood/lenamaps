@@ -93,13 +93,12 @@
 
 .error-actions {
   display: flex;
-  gap: 1rem;
   justify-content: center;
   margin: 1.5rem 0;
 }
 
 .retry-button {
-  padding: 0.75rem 1.5rem;
+  padding: 0.75rem 2rem;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border: none;
@@ -111,28 +110,6 @@
 }
 
 .retry-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
-}
-
-.console-link {
-  padding: 0.75rem 1.5rem;
-  background: white;
-  color: #667eea;
-  border: 2px solid #667eea;
-  border-radius: 8px;
-  font-size: 1rem;
-  font-weight: 500;
-  text-decoration: none;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  display: inline-flex;
-  align-items: center;
-}
-
-.console-link:hover {
-  background: #667eea;
-  color: white;
   transform: translateY(-2px);
   box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }
@@ -187,12 +164,7 @@
     font-size: 1.5rem;
   }
   
-  .error-actions {
-    flex-direction: column;
-  }
-  
-  .retry-button,
-  .console-link {
+  .retry-button {
     width: 100%;
   }
 }
