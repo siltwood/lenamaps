@@ -202,8 +202,6 @@ const DirectionsPanel = ({
       // Auto-calculate route or show marker for single location
       const filledLocations = newLocations.filter(loc => loc !== null);
       if (filledLocations.length >= 1) {
-        setIsCalculating(true);
-        
         if (filledLocations.length >= 2) {
           // Multiple locations - create route
           const segments = [];
