@@ -1,9 +1,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import LocationSearch from '../LocationSearch';
 import DirectionsHeader from './DirectionsHeader';
-import LocationInput from './LocationInput';
-import TransportationModeSelector from './TransportationModeSelector';
-import { calculateRouteData, getLocationLabel } from '../../utils/routeCalculations';
+import { getLocationLabel } from '../../utils/routeCalculations';
 import TRANSPORTATION_MODES from '../../constants/transportationModes';
 
 const DirectionsPanel = ({ 
@@ -31,14 +29,10 @@ const DirectionsPanel = ({
   lastAction = null
 }) => {
   const [transportationModes] = useState(TRANSPORTATION_MODES);
-  const [segments, setSegments] = useState([]);
-  const [tripName, setTripName] = useState(editingTrip ? editingTrip.name : '');
-  const [isCalculating, setIsCalculating] = useState(false);
   const [position, setPosition] = useState({ x: 10, y: 200 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [isMinimized, setIsMinimized] = useState(false);
-  const [isAnimating, setIsAnimating] = useState(false);
   const panelRef = useRef(null);
   
   // Store position before minimizing
@@ -75,7 +69,6 @@ const DirectionsPanel = ({
           // Auto-calculate route or show marker for single location
           const filledLocations = newLocations.filter(loc => loc !== null);
           if (filledLocations.length >= 1) {
-            setIsCalculating(true);
             
             if (filledLocations.length >= 2) {
               // Multiple locations - create route
@@ -98,7 +91,6 @@ const DirectionsPanel = ({
                 // Add a stable ID based on locations
                 routeId: filledLocations.map(loc => `${loc.lat},${loc.lng}`).join('_') + '_' + legModes.join('-')
               };
-              setSegments(segments);
               onDirectionsCalculated(routeData);
             } else {
               // Single location - just show marker
@@ -113,11 +105,8 @@ const DirectionsPanel = ({
                 // Add a stable ID based on locations
                 routeId: filledLocations.map(loc => `${loc.lat},${loc.lng}`).join('_') + '_' + legModes.join('-')
               };
-              setSegments([]);
               onDirectionsCalculated(routeData);
             }
-            
-            setIsCalculating(false);
           }
         }
       }
@@ -194,11 +183,9 @@ const DirectionsPanel = ({
           allModes: newModes,
           routeId: filledLocations.map(loc => `${loc.lat},${loc.lng}`).join('_') + '_' + newModes.join('-')
         };
-        setSegments(segments);
         onDirectionsCalculated(routeData);
       } else {
         // Clear routes when we have less than 2 locations
-        setSegments([]);
         onDirectionsCalculated(null);
       }
     }
@@ -237,8 +224,7 @@ const DirectionsPanel = ({
             allModes: legModes,
             routeId: filledLocations.map(loc => `${loc.lat},${loc.lng}`).join('_') + '_' + legModes.join('-')
           };
-          setSegments(segments);
-          onDirectionsCalculated(routeData);
+            onDirectionsCalculated(routeData);
         } else {
           // Single location - just show marker
           const routeData = {
@@ -251,14 +237,10 @@ const DirectionsPanel = ({
             allModes: legModes,
             routeId: filledLocations.map(loc => `${loc.lat},${loc.lng}`).join('_') + '_' + legModes.join('-')
           };
-          setSegments([]);
-          onDirectionsCalculated(routeData);
+            onDirectionsCalculated(routeData);
         }
-        
-        setIsCalculating(false);
       } else {
         // No locations - clear everything
-        setSegments([]);
         onDirectionsCalculated(null);
       }
     }
@@ -341,8 +323,6 @@ const DirectionsPanel = ({
       onLocationsChange([null, null], null); // Don't track this in history
       onLegModesChange(['walk']);
     }
-    setSegments([]);
-    setTripName('');
     // Clear dragged segments
     if (window.draggedSegments) {
       window.draggedSegments = {};

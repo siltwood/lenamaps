@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback } from 'react';
 import GoogleMap from './GoogleMap';
 import DirectionsPanel from './DirectionsPanel';
 import LocationSearch from './LocationSearch';

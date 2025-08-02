@@ -46,21 +46,10 @@ const MapComponent = ({
       
       setMap(mapInstance);
       setDirectionsService(directionsServiceInstance);
-    } catch (error) {
-      // Check for common API errors
-      if (error.message?.includes('quota') || error.message?.includes('OVER_QUERY_LIMIT')) {
-        setMapError(new Error('QUOTA_EXCEEDED: Google Maps API quota limit reached'));
-      } else if (error.message?.includes('API key')) {
-        setMapError(new Error('API_KEY_ERROR: Invalid or missing API key'));
-      } else {
-        setMapError(error);
-      }
-      return;
-    }
-
-    // Add click listener
-    mapInstance.addListener('click', (event) => {
-      if (onMapClick) {
+      
+      // Add click listener
+      mapInstance.addListener('click', (event) => {
+        if (onMapClick) {
         // Reverse geocode to get place name and check for water
         const geocoder = new window.google.maps.Geocoder();
         geocoder.geocode({ location: event.latLng }, (results, status) => {
@@ -149,6 +138,17 @@ const MapComponent = ({
         });
       }
     });
+    } catch (error) {
+      // Check for common API errors
+      if (error.message?.includes('quota') || error.message?.includes('OVER_QUERY_LIMIT')) {
+        setMapError(new Error('QUOTA_EXCEEDED: Google Maps API quota limit reached'));
+      } else if (error.message?.includes('API key')) {
+        setMapError(new Error('API_KEY_ERROR: Invalid or missing API key'));
+      } else {
+        setMapError(error);
+      }
+      return;
+    }
 
   }, [onMapClick, center]);
 
