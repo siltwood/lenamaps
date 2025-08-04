@@ -8,7 +8,7 @@ import { isMobileDevice } from '../../utils/deviceDetection';
 import './RouteAnimator.css';
 
 const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile = false }) => {
-  const [isMinimized, setIsMinimized] = useState(false); // Start open
+  const [isMinimized, setIsMinimized] = useState(true); // Start minimized
   const [isAnimating, setIsAnimatingState] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '', type: 'info' });
@@ -414,7 +414,12 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
             break;
           case 'car':
           case 'bus': // Treat bus as driving for reliable routes
+          case 'train': // Treat train as driving for reliable routes
             travelMode = window.google.maps.TravelMode.DRIVING;
+            break;
+          case 'walk':
+          default:
+            travelMode = window.google.maps.TravelMode.WALKING;
             break;
         }
         

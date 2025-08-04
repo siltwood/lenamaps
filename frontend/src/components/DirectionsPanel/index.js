@@ -32,7 +32,7 @@ const DirectionsPanel = ({
   const [position, setPosition] = useState({ x: 10, y: 200 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [isMinimized, setIsMinimized] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(true); // Start minimized
   const panelRef = useRef(null);
   
   // Store position before minimizing
