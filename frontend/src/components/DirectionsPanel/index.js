@@ -3,6 +3,7 @@ import LocationSearch from '../LocationSearch';
 import DirectionsHeader from './DirectionsHeader';
 import { getLocationLabel } from '../../utils/routeCalculations';
 import TRANSPORTATION_MODES from '../../constants/transportationModes';
+import '../../styles/unified-icons.css';
 
 const DirectionsPanel = ({ 
   onDirectionsCalculated, 
@@ -403,11 +404,11 @@ const DirectionsPanel = ({
         }}
       >
         <button 
-          className="expand-button"
+          className="unified-icon primary"
           onClick={handleExpand}
           title="Plan Your Route"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
             <circle cx="6" cy="6" r="3" />
             <circle cx="18" cy="18" r="3" />
             <path d="M9 9l6 6" />

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import LocationSearch from '../LocationSearch';
 import { getLocationLabel } from '../../utils/routeCalculations';
 import TRANSPORTATION_MODES from '../../constants/transportationModes';
+import '../../styles/unified-icons.css';
 import './MobileControls.css';
 
 const MobileControls = ({ 
@@ -294,11 +295,12 @@ const MobileControls = ({
         {/* Show animation button if route exists */}
         {directionsRoute && !showAnimationControls && (
           <button 
-            className="mobile-fab secondary play"
+            className="unified-icon animation"
             onClick={handlePlayPause}
             aria-label="Animate Route"
+            style={{ position: 'fixed', right: '20px', bottom: '90px' }}
           >
-            <svg width="25" height="25" viewBox="0 0 24 24" fill="currentColor">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
               <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
             </svg>
           </button>
@@ -306,12 +308,20 @@ const MobileControls = ({
         
         {/* Main FAB for route planning */}
         <button 
-          className={`mobile-fab primary ${showCard ? 'secondary' : ''}`}
+          className="unified-icon primary"
           onClick={() => setShowCard(!showCard)}
           aria-label="Plan Route"
-          style={{ fontSize: '25px' }}
+          style={{ position: 'fixed', right: '20px', bottom: '20px' }}
         >
-          {showCard ? '×' : '🗺'}
+          {showCard ? (
+            <span style={{ fontSize: '28px', lineHeight: '1' }}>×</span>
+          ) : (
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
+              <circle cx="6" cy="6" r="3" />
+              <circle cx="18" cy="18" r="3" />
+              <path d="M9 9l6 6" />
+            </svg>
+          )}
         </button>
       </div>
     </div>
