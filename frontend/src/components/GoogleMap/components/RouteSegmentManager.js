@@ -404,6 +404,14 @@ const RouteSegmentManager = ({
               break;
           }
           
+          // Validate locations before making request
+          if (!segmentOrigin || !segmentDestination || 
+              segmentOrigin.lat == null || segmentOrigin.lng == null ||
+              segmentDestination.lat == null || segmentDestination.lng == null) {
+            console.warn('Invalid segment locations, skipping segment', i);
+            continue;
+          }
+          
           const request = {
             origin: new window.google.maps.LatLng(segmentOrigin.lat, segmentOrigin.lng),
             destination: new window.google.maps.LatLng(segmentDestination.lat, segmentDestination.lng),
@@ -420,6 +428,12 @@ const RouteSegmentManager = ({
             // First try the requested mode
             try {
               result = await new Promise((resolve, reject) => {
+                // Extra safety check for travelMode
+                if (!request || !request.travelMode) {
+                  reject('Invalid request: missing travelMode');
+                  return;
+                }
+                
                 directionsService.route(request, (result, status) => {
                   if (status === window.google.maps.DirectionsStatus.OK) {
                     resolve(result);

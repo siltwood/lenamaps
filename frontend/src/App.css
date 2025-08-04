@@ -1560,4 +1560,67 @@ body {
 
 .draggable-route-segment:active {
   cursor: grabbing !important;
+}
+
+/* Mobile header styles */
+@media (max-width: 768px) {
+  .header-mobile {
+    padding: 8px 12px;
+    background: white;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+
+  .header-mobile .header-left {
+    flex: 0 0 auto;
+  }
+
+  .header-mobile .header-left h1 {
+    font-size: 1rem;
+    margin: 0;
+  }
+
+  .header-mobile .header-left h1 span {
+    display: none;
+  }
+
+  .header-mobile .header-left h1::after {
+    content: "LenaMaps";
+    font-weight: 600;
+  }
+
+  .header-mobile .header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    justify-content: flex-end;
+  }
+
+  .header-mobile .header-search {
+    flex: 1;
+    max-width: 200px;
+  }
+
+  .header-mobile .location-search-input,
+  .header-mobile gmp-place-autocomplete::part(input) {
+    padding: 6px 10px;
+    font-size: 14px;
+  }
+
+  .header-mobile .donate-button {
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+
+  .header-mobile .donate-button .heart-icon {
+    font-size: 14px;
+  }
+
+  .main-content {
+    height: calc(100vh - 48px);
+  }
 } 

@@ -14,7 +14,8 @@ const MapComponent = ({
   directionsLocations = [],
   directionsLegModes = [],
   onRouteDragged,
-  onAnimationStateChange
+  onAnimationStateChange,
+  isMobile = false
 }) => {
   const mapRef = useRef();
   const [map, setMap] = useState(null);
@@ -199,6 +200,7 @@ const MapComponent = ({
         map={map}
         directionsRoute={directionsRoute}
         onAnimationStateChange={onAnimationStateChange}
+        isMobile={isMobile}
       />
       
     </div>

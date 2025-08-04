@@ -4,9 +4,10 @@ import { faPlay, faPause, faStop } from '@fortawesome/free-solid-svg-icons';
 import { TRANSPORTATION_COLORS, TRANSPORT_ICONS } from '../GoogleMap/utils/constants';
 import DragHandle from '../common/DragHandle';
 import Modal from './Modal';
+import { isMobileDevice } from '../../utils/deviceDetection';
 import './RouteAnimator.css';
 
-const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
+const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile = false }) => {
   const [isMinimized, setIsMinimized] = useState(false); // Start open
   const [isAnimating, setIsAnimatingState] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -41,19 +42,71 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
   const [zoomLevel, setZoomLevel] = useState('medium'); // 'close', 'medium', 'far'
   const [animationProgress, setAnimationProgress] = useState(0); // 0-100 for timeline
   
-  // Add effect to update zoom during animation
+  // Add effect to update zoom whenever zoom level changes (animation or not)
   useEffect(() => {
-    // If animation is running, update the zoom immediately
-    if (isAnimatingRef.current && map) {
-      let zoomValue = 16; // default medium
+    // Update zoom immediately when changed, whether animating or not
+    if (map) {
       if (zoomLevel === 'close') {
-        zoomValue = 18;
+        map.setZoom(18);
+        // If we have a single location, center on it
+        if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length === 1) {
+          const loc = directionsRoute.allLocations[0];
+          if (loc && loc.lat && loc.lng) {
+            map.setCenter(new window.google.maps.LatLng(loc.lat, loc.lng));
+          }
+        }
+      } else if (zoomLevel === 'medium') {
+        map.setZoom(16);
+        // If we have a single location, center on it
+        if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length === 1) {
+          const loc = directionsRoute.allLocations[0];
+          if (loc && loc.lat && loc.lng) {
+            map.setCenter(new window.google.maps.LatLng(loc.lat, loc.lng));
+          }
+        }
       } else if (zoomLevel === 'far') {
-        zoomValue = 13;
+        // Fit the entire route when "far" is selected
+        // Check if we have a route to show
+        if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length >= 2) {
+          const bounds = new window.google.maps.LatLngBounds();
+          
+          // If we have polyline (during animation), use that
+          if (polylineRef.current) {
+            const path = polylineRef.current.getPath();
+            for (let i = 0; i < path.getLength(); i++) {
+              bounds.extend(path.getAt(i));
+            }
+          } else {
+            // Otherwise use the route locations and segments if available
+            // First add route endpoint locations
+            directionsRoute.allLocations.forEach(loc => {
+              if (loc && loc.lat && loc.lng) {
+                bounds.extend(new window.google.maps.LatLng(loc.lat, loc.lng));
+              }
+            });
+            
+            // Also include segment paths if they exist
+            if (directionsRoute.segments && directionsRoute.segments.length > 0) {
+              directionsRoute.segments.forEach(segment => {
+                if (segment.route && segment.route.overview_path) {
+                  segment.route.overview_path.forEach(point => {
+                    bounds.extend(point);
+                  });
+                }
+              });
+            }
+          }
+          
+          // Fit bounds with padding
+          const padding = { top: 50, right: 50, bottom: 50, left: 50 };
+          map.fitBounds(bounds, padding);
+        } else {
+          // No route, just zoom out to see more
+          map.setZoom(13);
+        }
       }
-      map.setZoom(zoomValue);
     }
-  }, [zoomLevel, map]);
+  }, [zoomLevel, map, directionsRoute]);
   
   // Update speed ref when state changes
   useEffect(() => {
@@ -597,11 +650,18 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
       // Set zoom based on selected level
       let zoomValue = 16; // default medium
       if (zoomLevel === 'close') {
-        zoomValue = 18; // Close but not too close
+        zoomValue = 18; // Street level view
       } else if (zoomLevel === 'far') {
-        zoomValue = 13; // City overview
+        // Fit the entire route in view
+        const bounds = new window.google.maps.LatLngBounds();
+        densifiedPath.forEach(point => bounds.extend(point));
+        map.fitBounds(bounds);
+        // Add some padding so the route isn't at the edge
+        const padding = { top: 50, right: 50, bottom: 50, left: 50 };
+        map.fitBounds(bounds, padding);
+      } else {
+        map.setZoom(zoomValue);
       }
-      map.setZoom(zoomValue);
       
       // Clear any existing camera update interval
       if (cameraUpdateIntervalRef.current) {
@@ -624,6 +684,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
   // Removed createAnimationMarker - using Symbol Animation API
 
   const animateAlongRoute = (isResuming = false) => {
+    const currentZoomLevel = zoomLevel; // Capture current zoom level
     // Initialize count only if starting fresh (not resuming from pause)
     if (!isResuming) {
       // Starting fresh - reset to beginning
@@ -696,7 +757,8 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
                            markerPosition.lng() > ne.lng() - lngBuffer ||
                            markerPosition.lng() < sw.lng() + lngBuffer;
             
-            if (nearEdge) {
+            // Only pan if not in "far" (whole route) view
+            if (nearEdge && currentZoomLevel !== 'far') {
               // Pan ahead of the marker so it has room to travel
               // Look at multiple points ahead to better understand the route direction
               const lookAheadPoints = [];
@@ -707,15 +769,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
               }
               
               if (lookAheadPoints.length > 0) {
-                // Calculate the average position of look-ahead points
-                let avgLat = 0, avgLng = 0;
-                lookAheadPoints.forEach(point => {
-                  avgLat += point.lat();
-                  avgLng += point.lng();
-                });
-                avgLat /= lookAheadPoints.length;
-                avgLng /= lookAheadPoints.length;
-                
                 // Create a bounding box that includes current position and look-ahead points
                 const allPoints = [markerPosition, ...lookAheadPoints];
                 let minLat = allPoints[0].lat(), maxLat = allPoints[0].lat();
@@ -871,6 +924,11 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, [isMinimized]);
 
+  // Don't render the panel on mobile
+  if (isMobile || isMobileDevice()) {
+    return null;
+  }
+
   // Render minimized state
   if (isMinimized) {
     return (
@@ -1011,8 +1069,8 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange }) => {
                     checked={zoomLevel === 'far'}
                     onChange={() => setZoomLevel('far')}
                   />
-                  <span>Far</span>
-                  <small>(City view)</small>
+                  <span>Whole Route</span>
+                  <small>(Full view)</small>
                 </label>
               </div>
             </div>

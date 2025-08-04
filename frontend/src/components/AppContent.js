@@ -1,8 +1,10 @@
 import React, { useState, useCallback } from 'react';
 import GoogleMap from './GoogleMap';
 import DirectionsPanel from './DirectionsPanel';
+import MobileControls from './MobileControls/MobileControls';
 import LocationSearch from './LocationSearch';
 import DonateButton from './DonateButton/DonateButton';
+import { useMobileDetection } from '../utils/deviceDetection';
 
 function AppContent() {
   const [directionsRoute, setDirectionsRoute] = useState(null);
@@ -12,6 +14,7 @@ function AppContent() {
   const [directionsLocations, setDirectionsLocations] = useState([null, null]);
   const [directionsLegModes, setDirectionsLegModes] = useState(['walk']);
   const [isAnimating, setIsAnimating] = useState(false);
+  const isMobile = useMobileDetection();
   
   // Undo functionality
   const [history, setHistory] = useState([]);
@@ -19,24 +22,59 @@ function AppContent() {
 
   // Save state to history before making changes
   const saveToHistory = useCallback((action) => {
-    setHistory(prev => [...prev, {
-      locations: directionsLocations,
-      legModes: directionsLegModes,
-      route: directionsRoute,
-      action: action
-    }]);
-    setLastAction(action);
+    // Only save valid states to history
+    if (directionsLocations && directionsLegModes) {
+      setHistory(prev => [...prev, {
+        locations: directionsLocations,
+        legModes: directionsLegModes,
+        // Don't save the full route object - it has Google Maps objects that don't serialize well
+        // Just save the essential data needed to recreate it
+        routeId: directionsRoute?.routeId || null,
+        action: action
+      }]);
+      setLastAction(action);
+    }
   }, [directionsLocations, directionsLegModes, directionsRoute]);
 
   // Undo last action
   const handleUndo = useCallback(() => {
     if (history.length > 0) {
       const previousState = history[history.length - 1];
-      setDirectionsLocations(previousState.locations);
-      setDirectionsLegModes(previousState.legModes);
-      setDirectionsRoute(previousState.route);
-      setHistory(prev => prev.slice(0, -1));
-      setLastAction(null);
+      // Validate state before restoring
+      if (previousState.locations && previousState.legModes) {
+        setDirectionsLocations(previousState.locations);
+        setDirectionsLegModes(previousState.legModes);
+        
+        // Recreate the route from locations and modes
+        const filledLocations = previousState.locations.filter(loc => loc !== null);
+        if (filledLocations.length >= 1) {
+          const segments = [];
+          for (let i = 0; i < filledLocations.length - 1; i++) {
+            segments.push({
+              mode: previousState.legModes[i] || 'walk',
+              startIndex: i,
+              endIndex: i + 1
+            });
+          }
+          
+          const routeData = {
+            origin: filledLocations[0],
+            destination: filledLocations.length > 1 ? filledLocations[filledLocations.length - 1] : null,
+            waypoints: filledLocations.slice(1, -1),
+            mode: previousState.legModes[0] || 'walk',
+            segments,
+            allLocations: previousState.locations,
+            allModes: previousState.legModes,
+            routeId: previousState.routeId || `undo_${Date.now()}`
+          };
+          setDirectionsRoute(routeData);
+        } else {
+          setDirectionsRoute(null);
+        }
+        
+        setHistory(prev => prev.slice(0, -1));
+        setLastAction(null);
+      }
     }
   }, [history]);
 
@@ -127,7 +165,7 @@ function AppContent() {
   return (
     <div className="app">
       {!isAnimating && (
-        <header className="header">
+        <header className={`header ${isMobile ? 'header-mobile' : ''}`}>
         <div className="header-left">
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
             <span>LenaMaps - Animate your Google Maps Route</span>
@@ -169,14 +207,14 @@ function AppContent() {
             directionsLegModes={directionsLegModes}
             onRouteDragged={handleRouteDragged}
             onAnimationStateChange={setIsAnimating}
+            isMobile={isMobile}
           />
         </div>
       </div>
       
-      {!isAnimating && (
-        <DirectionsPanel
-          key="directions-panel"
-          isOpen={true}
+      {isMobile ? (
+        <MobileControls
+          key="mobile-controls"
           onDirectionsCalculated={setDirectionsRoute}
           clickedLocation={clickedLocation}
           onLocationUsed={handleLocationUsed}
@@ -184,11 +222,31 @@ function AppContent() {
           legModes={directionsLegModes}
           onLocationsChange={setDirectionsLocationsWithHistory}
           onLegModesChange={setDirectionsLegModesWithHistory}
+          directionsRoute={directionsRoute}
+          isAnimating={isAnimating}
+          animationProgress={0}
           onUndo={handleUndo}
           onClearHistory={handleClearHistory}
           canUndo={history.length > 0}
-          lastAction={lastAction}
         />
+      ) : (
+        !isAnimating && (
+          <DirectionsPanel
+            key="directions-panel"
+            isOpen={true}
+            onDirectionsCalculated={setDirectionsRoute}
+            clickedLocation={clickedLocation}
+            onLocationUsed={handleLocationUsed}
+            locations={directionsLocations}
+            legModes={directionsLegModes}
+            onLocationsChange={setDirectionsLocationsWithHistory}
+            onLegModesChange={setDirectionsLegModesWithHistory}
+            onUndo={handleUndo}
+            onClearHistory={handleClearHistory}
+            canUndo={history.length > 0}
+            lastAction={lastAction}
+          />
+        )
       )}
     </div>
   );

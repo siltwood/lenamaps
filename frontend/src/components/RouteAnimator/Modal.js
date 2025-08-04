@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faInfoCircle, faExclamationTriangle, faCheckCircle } from '@fortawesome/free-solid-svg-icons';
+import { isMobileDevice } from '../../utils/deviceDetection';
 import './Modal.css';
 
 const Modal = ({ isOpen, onClose, title, message, type = 'info' }) => {
   const [isVisible, setIsVisible] = useState(false);
+  const isMobile = isMobileDevice();
 
   useEffect(() => {
     if (isOpen) {
@@ -17,7 +19,8 @@ const Modal = ({ isOpen, onClose, title, message, type = 'info' }) => {
     }
   }, [isOpen]);
 
-  if (!isOpen) return null;
+  // Don't show modals on mobile
+  if (!isOpen || isMobile) return null;
 
   const getIcon = () => {
     switch (type) {
