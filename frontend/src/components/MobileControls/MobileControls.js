@@ -22,7 +22,7 @@ const MobileControls = ({
   onClearHistory,
   canUndo = false
 }) => {
-  const [showCard, setShowCard] = useState(false);
+  const [showCard, setShowCard] = useState(true); // Start expanded
   const [showAnimationControls, setShowAnimationControls] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [animationSpeed, setAnimationSpeed] = useState('regular');
