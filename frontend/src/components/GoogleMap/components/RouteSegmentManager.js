@@ -392,7 +392,7 @@ const RouteSegmentManager = ({
           const segmentOrigin = validLocations[i];
           const segmentDestination = validLocations[i + 1];
           
-          // Determine travel mode (bus and train use DRIVING for reliability)
+          // Determine travel mode (bus uses DRIVING for reliability)
           let travelMode = window.google.maps.TravelMode.WALKING;
           switch (segmentMode) {
             case 'bike':
@@ -400,7 +400,6 @@ const RouteSegmentManager = ({
               break;
             case 'car':
             case 'bus': // Treat bus as driving for reliable routes
-            case 'train': // Treat train as driving for reliable routes
               travelMode = window.google.maps.TravelMode.DRIVING;
               break;
             case 'walk':
