@@ -9,7 +9,16 @@ import '../../styles/unified-icons.css';
 import './RouteAnimator.css';
 
 const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile = false, forceShow = false, onClose }) => {
-  const [isMinimized, setIsMinimized] = useState(!forceShow); // Start minimized unless forced to show
+  console.log('RouteAnimator rendering - isMobile:', isMobile, 'forceShow:', forceShow, 'directionsRoute:', !!directionsRoute, 'map:', !!map);
+  
+  // On mobile with forceShow, start expanded. Otherwise start minimized.
+  const [isMinimized, setIsMinimized] = useState(() => {
+    if (isMobile && forceShow) {
+      console.log('RouteAnimator initial state - starting expanded on mobile with forceShow');
+      return false;
+    }
+    return !forceShow;
+  });
   const [isAnimating, setIsAnimatingState] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '', type: 'info' });
@@ -29,10 +38,14 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
 
   // Handle forceShow prop for mobile
   useEffect(() => {
+    console.log('RouteAnimator forceShow effect - forceShow:', forceShow, 'current isMinimized:', isMinimized);
     if (forceShow) {
       setIsMinimized(false);
+    } else if (isMobile) {
+      // On mobile, when forceShow becomes false, minimize again
+      setIsMinimized(true);
     }
-  }, [forceShow]);
+  }, [forceShow, isMobile]);
   
   // Helper to show modal
   const showModal = (message, title = '', type = 'info') => {
@@ -938,10 +951,13 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
 
   // On mobile, don't show the minimized button - it's integrated into MobileControls
   if (isMobile || isMobileDevice()) {
+    console.log('RouteAnimator mobile check - isMinimized:', isMinimized, 'forceShow:', forceShow, 'directionsRoute:', !!directionsRoute);
     // Still render the full panel when not minimized
-    if (isMinimized) {
+    if (isMinimized && !forceShow) {
+      console.log('RouteAnimator returning null - isMinimized:', isMinimized, 'forceShow:', forceShow);
       return null;
     }
+    console.log('RouteAnimator continuing to render full panel');
     // Continue to render the full panel below
   }
 

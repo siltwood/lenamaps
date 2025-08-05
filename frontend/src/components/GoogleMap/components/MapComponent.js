@@ -198,14 +198,16 @@ const MapComponent = ({
         onRouteDragged={onRouteDragged}
       />
       
-      <RouteAnimator
-        map={map}
-        directionsRoute={directionsRoute}
-        onAnimationStateChange={onAnimationStateChange}
-        isMobile={isMobile}
-        forceShow={isMobile && showRouteAnimator}
-        onClose={isMobile ? onHideRouteAnimator : undefined}
-      />
+      {directionsRoute && (
+        <RouteAnimator
+          map={map}
+          directionsRoute={directionsRoute}
+          onAnimationStateChange={onAnimationStateChange}
+          isMobile={isMobile}
+          forceShow={isMobile && showRouteAnimator}
+          onClose={isMobile ? onHideRouteAnimator : undefined}
+        />
+      )}
       
     </div>
   );

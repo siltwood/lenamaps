@@ -32,11 +32,8 @@ const MobileControls = ({
         newLocations[emptyIndex] = clickedLocation;
         onLocationsChange(newLocations, 'ADD_LOCATION');
         
-        // Auto-calculate route if we have both locations
-        const filledLocations = newLocations.filter(loc => loc !== null);
-        if (filledLocations.length >= 2) {
-          calculateRoute(newLocations, legModes);
-        }
+        // Calculate route or show marker
+        calculateRoute(newLocations, legModes);
       }
       
       if (onLocationUsed) {
@@ -215,10 +212,12 @@ const MobileControls = ({
               className="mobile-action-btn primary"
               onClick={() => {
                 console.log('Camera button clicked - directionsRoute:', !!directionsRoute, 'onShowAnimator:', !!onShowAnimator);
+                console.log('directionsRoute details:', directionsRoute);
                 if (directionsRoute && onShowAnimator) {
                   onShowAnimator();
                   setShowCard(false); // Hide the card when showing animator
                 } else {
+                  console.log('No route, calculating new route...');
                   calculateRoute(locations, legModes);
                 }
               }}

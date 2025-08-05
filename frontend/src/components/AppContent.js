@@ -210,7 +210,10 @@ function AppContent() {
             onAnimationStateChange={setIsAnimating}
             isMobile={isMobile}
             showRouteAnimator={showRouteAnimator}
-            onHideRouteAnimator={() => setShowRouteAnimator(false)}
+            onHideRouteAnimator={() => {
+              console.log('onHideRouteAnimator called - hiding RouteAnimator');
+              setShowRouteAnimator(false);
+            }}
           />
         </div>
       </div>
@@ -230,7 +233,7 @@ function AppContent() {
           onClearHistory={handleClearHistory}
           canUndo={history.length > 0}
           onShowAnimator={() => {
-            console.log('onShowAnimator called from MobileControls');
+            console.log('onShowAnimator called from MobileControls - current showRouteAnimator:', showRouteAnimator);
             setShowRouteAnimator(true);
           }}
           isAnimating={isAnimating}

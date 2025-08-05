@@ -17,6 +17,7 @@
     left: 10px !important;
     right: 10px !important;
     top: 60px !important;
+    z-index: 9999 !important;
   }
 }
 
