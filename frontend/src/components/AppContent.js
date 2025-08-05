@@ -14,6 +14,7 @@ function AppContent() {
   const [directionsLocations, setDirectionsLocations] = useState([null, null]);
   const [directionsLegModes, setDirectionsLegModes] = useState(['walk']);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [showRouteAnimator, setShowRouteAnimator] = useState(false); // Control RouteAnimator visibility
   const isMobile = useMobileDetection();
   
   // Undo functionality
@@ -208,6 +209,8 @@ function AppContent() {
             onRouteDragged={handleRouteDragged}
             onAnimationStateChange={setIsAnimating}
             isMobile={isMobile}
+            showRouteAnimator={showRouteAnimator}
+            onHideRouteAnimator={() => setShowRouteAnimator(false)}
           />
         </div>
       </div>
@@ -223,11 +226,11 @@ function AppContent() {
           onLocationsChange={setDirectionsLocationsWithHistory}
           onLegModesChange={setDirectionsLegModesWithHistory}
           directionsRoute={directionsRoute}
-          isAnimating={isAnimating}
-          animationProgress={0}
           onUndo={handleUndo}
           onClearHistory={handleClearHistory}
           canUndo={history.length > 0}
+          onShowAnimator={() => setShowRouteAnimator(true)}
+          isAnimating={isAnimating}
         />
       ) : (
         !isAnimating && (

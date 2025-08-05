@@ -16,7 +16,9 @@ const MobileControls = ({
   directionsRoute,
   onUndo,
   onClearHistory,
-  canUndo = false
+  canUndo = false,
+  onShowAnimator,
+  isAnimating
 }) => {
   const [showCard, setShowCard] = useState(true); // Start expanded
 
@@ -198,8 +200,15 @@ const MobileControls = ({
             </button>
             <button 
               className="mobile-action-btn primary"
-              onClick={() => calculateRoute(locations, legModes)}
+              onClick={() => {
+                if (directionsRoute && onShowAnimator) {
+                  onShowAnimator();
+                } else {
+                  calculateRoute(locations, legModes);
+                }
+              }}
               disabled={locations.filter(l => l).length < 2}
+              title={directionsRoute ? "Animate Route" : "Calculate Route"}
             >
               <svg width="25" height="25" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>

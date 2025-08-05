@@ -8,8 +8,8 @@ import { isMobileDevice } from '../../utils/deviceDetection';
 import '../../styles/unified-icons.css';
 import './RouteAnimator.css';
 
-const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile = false }) => {
-  const [isMinimized, setIsMinimized] = useState(false); // Start open
+const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile = false, forceShow = false, onClose }) => {
+  const [isMinimized, setIsMinimized] = useState(!forceShow); // Start minimized unless forced to show
   const [isAnimating, setIsAnimatingState] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [modalState, setModalState] = useState({ isOpen: false, title: '', message: '', type: 'info' });
@@ -26,6 +26,13 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
   useEffect(() => {
     mapRef.current = map;
   }, [map]);
+
+  // Handle forceShow prop for mobile
+  useEffect(() => {
+    if (forceShow) {
+      setIsMinimized(false);
+    }
+  }, [forceShow]);
   
   // Helper to show modal
   const showModal = (message, title = '', type = 'info') => {
@@ -929,10 +936,17 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     return () => window.removeEventListener('resize', handleResize);
   }, [isMinimized]);
 
-  // RouteAnimator works on both desktop and mobile now
+  // On mobile, don't show the minimized button - it's integrated into MobileControls
+  if (isMobile || isMobileDevice()) {
+    // Still render the full panel when not minimized
+    if (isMinimized) {
+      return null;
+    }
+    // Continue to render the full panel below
+  }
 
-  // Render minimized state
-  if (isMinimized) {
+  // Render minimized state (desktop only)
+  if (isMinimized && !isMobile && !isMobileDevice()) {
     return (
       <div 
         className="route-animator-minimized"
@@ -963,17 +977,28 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       onMouseDown={handleMouseDown}
     >
       <div className="route-animator-header">
-        <DragHandle />
+        {!isMobile && <DragHandle />}
         <h4>Route Animator</h4>
         <div className="header-actions">
-          <button className="minimize-button" onClick={() => {
-            savedPositionRef.current = { ...position };
-            setIsMinimized(true);
-          }} title="Minimize panel">
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M4 9h8v1H4z"/>
-            </svg>
-          </button>
+          {isMobile && onClose ? (
+            <button className="close-button" onClick={onClose} title="Close">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M1 1l14 14M15 1L1 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </button>
+          ) : (
+            <button className="minimize-button" onClick={() => {
+              savedPositionRef.current = { ...position };
+              setIsMinimized(true);
+              if (isMobile && onClose) {
+                onClose();
+              }
+            }} title="Minimize panel">
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M4 9h8v1H4z"/>
+              </svg>
+            </button>
+          )}
         </div>
       </div>
       

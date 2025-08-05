@@ -15,7 +15,9 @@ const MapComponent = ({
   directionsLegModes = [],
   onRouteDragged,
   onAnimationStateChange,
-  isMobile = false
+  isMobile = false,
+  showRouteAnimator,
+  onHideRouteAnimator
 }) => {
   const mapRef = useRef();
   const [map, setMap] = useState(null);
@@ -201,6 +203,8 @@ const MapComponent = ({
         directionsRoute={directionsRoute}
         onAnimationStateChange={onAnimationStateChange}
         isMobile={isMobile}
+        forceShow={isMobile && showRouteAnimator}
+        onClose={isMobile ? onHideRouteAnimator : undefined}
       />
       
     </div>
