@@ -15,6 +15,7 @@ function AppContent() {
   const [directionsLegModes, setDirectionsLegModes] = useState(['walk']);
   const [isAnimating, setIsAnimating] = useState(false);
   const [showRouteAnimator, setShowRouteAnimator] = useState(false); // Control RouteAnimator visibility
+  const [mapInstance, setMapInstance] = useState(null); // Store map instance for MobileControls
   
   console.log('AppContent render - showRouteAnimator:', showRouteAnimator);
   const isMobile = useMobileDetection();

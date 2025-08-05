@@ -22,6 +22,13 @@ const MobileControls = ({
 }) => {
   const [showCard, setShowCard] = useState(true); // Start expanded
 
+  // Show card again when animation ends
+  useEffect(() => {
+    if (!isAnimating && !showCard) {
+      setShowCard(true);
+    }
+  }, [isAnimating]);
+
   // Handle clicked location from map - ONLY when card is open (like desktop)
   useEffect(() => {
     if (clickedLocation && showCard) {
