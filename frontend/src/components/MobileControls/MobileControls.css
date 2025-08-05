@@ -68,7 +68,7 @@
   padding: 8px;
   margin-bottom: 8px;
   pointer-events: auto;
-  max-height: 180px;
+  max-height: 240px;
   overflow-y: auto;
   transition: all 0.3s ease;
   width: calc(100% - 16px);
