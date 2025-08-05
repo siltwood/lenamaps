@@ -929,10 +929,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     return () => window.removeEventListener('resize', handleResize);
   }, [isMinimized]);
 
-  // Don't render the panel on mobile
-  if (isMobile || isMobileDevice()) {
-    return null;
-  }
+  // RouteAnimator works on both desktop and mobile now
 
   // Render minimized state
   if (isMinimized) {

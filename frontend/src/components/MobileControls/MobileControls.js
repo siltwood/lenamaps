@@ -14,22 +14,15 @@ const MobileControls = ({
   onLocationsChange,
   onLegModesChange,
   directionsRoute,
-  isAnimating,
-  onStartAnimation,
-  onStopAnimation,
-  animationProgress = 0,
   onUndo,
   onClearHistory,
   canUndo = false
 }) => {
   const [showCard, setShowCard] = useState(true); // Start expanded
-  const [showAnimationControls, setShowAnimationControls] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [animationSpeed, setAnimationSpeed] = useState('regular');
 
-  // Handle clicked location from map
+  // Handle clicked location from map - ONLY when card is open (like desktop)
   useEffect(() => {
-    if (clickedLocation) {
+    if (clickedLocation && showCard) {
       const newLocations = [...locations];
       const emptyIndex = newLocations.findIndex(loc => !loc);
       
@@ -42,9 +35,6 @@ const MobileControls = ({
         if (filledLocations.length >= 2) {
           calculateRoute(newLocations, legModes);
         }
-        
-        // Show the card when location is added
-        setShowCard(true);
       }
       
       if (onLocationUsed) {
@@ -55,26 +45,45 @@ const MobileControls = ({
 
   const calculateRoute = (locs, modes) => {
     const filledLocations = locs.filter(loc => loc !== null);
-    if (filledLocations.length >= 2 && onDirectionsCalculated) {
-      const segments = [{
-        mode: modes[0] || 'walk',
-        startIndex: 0,
-        endIndex: 1
-      }];
-      
-      const routeData = {
-        origin: filledLocations[0],
-        destination: filledLocations[1],
-        waypoints: [],
-        mode: modes[0],
-        segments,
-        allLocations: filledLocations,
-        allModes: modes,
-        routeId: filledLocations.map(loc => `${loc.lat},${loc.lng}`).join('_') + '_' + modes.join('-')
-      };
-      
-      onDirectionsCalculated(routeData);
-      setShowCard(false); // Hide card after calculating route
+    if (filledLocations.length >= 1 && onDirectionsCalculated) {
+      if (filledLocations.length === 1) {
+        // Single location - just show marker
+        const routeData = {
+          origin: filledLocations[0],
+          destination: null,
+          waypoints: [],
+          mode: modes[0] || 'walk',
+          segments: [],
+          allLocations: locs,
+          allModes: modes,
+          routeId: filledLocations.map(loc => `${loc.lat},${loc.lng}`).join('_') + '_' + modes.join('-')
+        };
+        onDirectionsCalculated(routeData);
+      } else {
+        // Multiple locations - create route with all segments
+        const segments = [];
+        for (let i = 0; i < filledLocations.length - 1; i++) {
+          segments.push({
+            mode: modes[i] || 'walk',
+            startIndex: i,
+            endIndex: i + 1
+          });
+        }
+        
+        const routeData = {
+          origin: filledLocations[0],
+          destination: filledLocations[filledLocations.length - 1],
+          waypoints: filledLocations.slice(1, -1),
+          mode: modes[0],
+          segments,
+          allLocations: locs,
+          allModes: modes,
+          routeId: filledLocations.map(loc => `${loc.lat},${loc.lng}`).join('_') + '_' + modes.join('-')
+        };
+        
+        onDirectionsCalculated(routeData);
+        // Don't hide card - let user add more waypoints if they want
+      }
     }
   };
 
@@ -115,25 +124,6 @@ const MobileControls = ({
     }
   };
 
-  const handlePlayPause = () => {
-    if (isAnimating) {
-      setIsPaused(!isPaused);
-      // TODO: Connect to actual pause functionality
-    } else {
-      setShowAnimationControls(true);
-      if (onStartAnimation) {
-        onStartAnimation();
-      }
-    }
-  };
-
-  const handleStop = () => {
-    setShowAnimationControls(false);
-    setIsPaused(false);
-    if (onStopAnimation) {
-      onStopAnimation();
-    }
-  };
 
   return (
     <div className="mobile-controls-container">
@@ -219,94 +209,9 @@ const MobileControls = ({
         </div>
       </div>
 
-      {/* Animation Controls (when animating) */}
-      {showAnimationControls && (
-        <div className="mobile-animation-controls">
-          <div className="mobile-animation-header">
-            <span className="mobile-animation-title">
-              <svg width="25" height="25" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
-              </svg>
-            </span>
-            <button 
-              className="mobile-animation-close"
-              onClick={handleStop}
-              style={{ fontSize: '25px' }}
-            >
-              ×
-            </button>
-          </div>
 
-          <div className="mobile-playback-controls">
-            <button 
-              className={`mobile-playback-btn ${isPaused ? 'play' : 'pause'}`}
-              onClick={handlePlayPause}
-              style={{ fontSize: '25px' }}
-            >
-              {isPaused ? '▶' : '⏸'}
-            </button>
-            <button 
-              className="mobile-playback-btn stop"
-              onClick={handleStop}
-              style={{ fontSize: '25px' }}
-            >
-              ⏹
-            </button>
-          </div>
-
-          <div className="mobile-timeline">
-            <div className="mobile-timeline-label">
-              <span>Progress</span>
-              <span>{Math.round(animationProgress)}%</span>
-            </div>
-            <div className="mobile-timeline-track">
-              <div 
-                className="mobile-timeline-progress"
-                style={{ width: `${animationProgress}%` }}
-              />
-            </div>
-          </div>
-
-          <div className="mobile-speed-selector">
-            <button 
-              className={`mobile-speed-btn ${animationSpeed === 'slow' ? 'active' : ''}`}
-              onClick={() => setAnimationSpeed('slow')}
-            >
-              Slow
-            </button>
-            <button 
-              className={`mobile-speed-btn ${animationSpeed === 'regular' ? 'active' : ''}`}
-              onClick={() => setAnimationSpeed('regular')}
-            >
-              Regular
-            </button>
-            <button 
-              className={`mobile-speed-btn ${animationSpeed === 'fast' ? 'active' : ''}`}
-              onClick={() => setAnimationSpeed('fast')}
-            >
-              Fast
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Floating Action Buttons */}
+      {/* Main FAB for route planning */}
       <div className="mobile-fab-container">
-        {/* Show animation button if route exists */}
-        {directionsRoute && !showAnimationControls && (
-          <button 
-            className="unified-icon animation"
-            onClick={handlePlayPause}
-            aria-label="Animate Route"
-            style={{ position: 'fixed', right: '20px', bottom: '90px' }}
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
-              <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
-            </svg>
-          </button>
-        )}
-        
-        {/* Main FAB for route planning */}
         <button 
           className="unified-icon primary"
           onClick={() => setShowCard(!showCard)}
