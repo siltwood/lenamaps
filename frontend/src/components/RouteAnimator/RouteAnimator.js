@@ -955,7 +955,12 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     // Still render the full panel when not minimized
     if (isMinimized && !forceShow) {
       console.log('RouteAnimator returning null - isMinimized:', isMinimized, 'forceShow:', forceShow);
-      return null;
+      // Instead of returning null, render but hide with display: none
+      return (
+        <div style={{ display: 'none' }}>
+          {/* Hidden but still mounted */}
+        </div>
+      );
     }
     console.log('RouteAnimator continuing to render full panel');
     // Continue to render the full panel below

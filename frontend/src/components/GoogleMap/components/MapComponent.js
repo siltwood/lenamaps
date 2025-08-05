@@ -204,12 +204,12 @@ const MapComponent = ({
         onRouteDragged={onRouteDragged}
       />
       
-      {directionsRoute && (() => {
+      {directionsRoute && map && (() => {
         const forceShowValue = !!(isMobile && showRouteAnimator);
         console.log('MapComponent RouteAnimator render - showRouteAnimator:', showRouteAnimator, 'isMobile:', isMobile, 'forceShow will be:', forceShowValue);
         return (
           <RouteAnimator
-            key={`route-animator-${showRouteAnimator}-${isMobile}`}
+            key={`route-animator-${showRouteAnimator ? 'show' : 'hide'}-${isMobile}`}
             map={map}
             directionsRoute={directionsRoute}
             onAnimationStateChange={onAnimationStateChange}
@@ -231,6 +231,8 @@ export default React.memo(MapComponent, (prevProps, nextProps) => {
     JSON.stringify(prevProps.center) === JSON.stringify(nextProps.center) &&
     prevProps.shouldCenterMap === nextProps.shouldCenterMap &&
     // Use stable routeId for comparison
-    prevProps.directionsRoute?.routeId === nextProps.directionsRoute?.routeId
+    prevProps.directionsRoute?.routeId === nextProps.directionsRoute?.routeId &&
+    prevProps.showRouteAnimator === nextProps.showRouteAnimator &&
+    prevProps.isMobile === nextProps.isMobile
   );
 });
