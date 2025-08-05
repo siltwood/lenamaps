@@ -65,8 +65,8 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
   
   // Add effect to update zoom whenever zoom level changes (animation or not)
   useEffect(() => {
-    // Update zoom immediately when changed, whether animating or not
-    if (map) {
+    // Only update zoom when RouteAnimator is visible/expanded
+    if (map && !isMinimized) {
       if (zoomLevel === 'close') {
         map.setZoom(18);
         // If we have a single location, center on it
@@ -127,7 +127,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         }
       }
     }
-  }, [zoomLevel, map, directionsRoute]);
+  }, [zoomLevel, map, directionsRoute, isMinimized]);
   
   // Update speed ref when state changes
   useEffect(() => {
