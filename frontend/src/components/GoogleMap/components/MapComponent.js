@@ -199,17 +199,21 @@ const MapComponent = ({
         onRouteDragged={onRouteDragged}
       />
       
-      {directionsRoute && (
-        <RouteAnimator
-          key={`route-animator-${showRouteAnimator}`}
-          map={map}
-          directionsRoute={directionsRoute}
-          onAnimationStateChange={onAnimationStateChange}
-          isMobile={isMobile}
-          forceShow={isMobile && showRouteAnimator}
-          onClose={isMobile ? onHideRouteAnimator : undefined}
-        />
-      )}
+      {directionsRoute && (() => {
+        const forceShowValue = !!(isMobile && showRouteAnimator);
+        console.log('MapComponent RouteAnimator render - showRouteAnimator:', showRouteAnimator, 'isMobile:', isMobile, 'forceShow will be:', forceShowValue);
+        return (
+          <RouteAnimator
+            key={`route-animator-${showRouteAnimator}-${isMobile}`}
+            map={map}
+            directionsRoute={directionsRoute}
+            onAnimationStateChange={onAnimationStateChange}
+            isMobile={isMobile}
+            forceShow={forceShowValue}
+            onClose={isMobile ? onHideRouteAnimator : undefined}
+          />
+        );
+      })()}
       
     </div>
   );

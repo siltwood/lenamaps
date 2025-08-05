@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import GoogleMap from './GoogleMap';
 import DirectionsPanel from './DirectionsPanel';
 import MobileControls from './MobileControls/MobileControls';
@@ -15,6 +15,8 @@ function AppContent() {
   const [directionsLegModes, setDirectionsLegModes] = useState(['walk']);
   const [isAnimating, setIsAnimating] = useState(false);
   const [showRouteAnimator, setShowRouteAnimator] = useState(false); // Control RouteAnimator visibility
+  
+  console.log('AppContent render - showRouteAnimator:', showRouteAnimator);
   const isMobile = useMobileDetection();
   
   // Undo functionality
