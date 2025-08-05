@@ -19,6 +19,7 @@ const MapComponent = ({
   showRouteAnimator,
   onHideRouteAnimator
 }) => {
+  console.log('MapComponent render - showRouteAnimator:', showRouteAnimator, 'isMobile:', isMobile);
   const mapRef = useRef();
   const [map, setMap] = useState(null);
   const [directionsService, setDirectionsService] = useState(null);
@@ -200,6 +201,7 @@ const MapComponent = ({
       
       {directionsRoute && (
         <RouteAnimator
+          key={`route-animator-${showRouteAnimator}`}
           map={map}
           directionsRoute={directionsRoute}
           onAnimationStateChange={onAnimationStateChange}
