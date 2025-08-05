@@ -116,13 +116,17 @@ const MobileControls = ({
   };
 
   const handleClear = () => {
-    if (onLocationsChange && onLegModesChange) {
-      onLocationsChange([null, null], null);
-      onLegModesChange(['walk']);
-      onDirectionsCalculated(null);
-      if (onClearHistory) {
-        onClearHistory();
+    try {
+      if (onLocationsChange && onLegModesChange) {
+        onLocationsChange([null, null], null);
+        onLegModesChange(['walk']);
+        onDirectionsCalculated(null);
+        if (onClearHistory) {
+          onClearHistory();
+        }
       }
+    } catch (error) {
+      console.error('Clear error:', error);
     }
   };
 
@@ -185,7 +189,16 @@ const MobileControls = ({
           <div className="mobile-actions">
             <button 
               className="mobile-action-btn secondary"
-              onClick={onUndo}
+              onClick={() => {
+                console.log('Undo button clicked, canUndo:', canUndo);
+                if (onUndo) {
+                  try {
+                    onUndo();
+                  } catch (error) {
+                    console.error('Undo error:', error);
+                  }
+                }
+              }}
               disabled={!canUndo}
               style={{ fontSize: '25px' }}
             >
@@ -201,6 +214,7 @@ const MobileControls = ({
             <button 
               className="mobile-action-btn primary"
               onClick={() => {
+                console.log('Camera button clicked - directionsRoute:', !!directionsRoute, 'onShowAnimator:', !!onShowAnimator);
                 if (directionsRoute && onShowAnimator) {
                   onShowAnimator();
                   setShowCard(false); // Hide the card when showing animator

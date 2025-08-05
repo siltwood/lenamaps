@@ -229,7 +229,10 @@ function AppContent() {
           onUndo={handleUndo}
           onClearHistory={handleClearHistory}
           canUndo={history.length > 0}
-          onShowAnimator={() => setShowRouteAnimator(true)}
+          onShowAnimator={() => {
+            console.log('onShowAnimator called from MobileControls');
+            setShowRouteAnimator(true);
+          }}
           isAnimating={isAnimating}
         />
       ) : (
