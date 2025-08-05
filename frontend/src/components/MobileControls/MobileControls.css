@@ -181,11 +181,15 @@
 .mobile-action-btn {
   flex: 1;
   padding: 8px;
+  height: 30px;
   border-radius: 10px;
   border: none;
   font-size: 13px;
   font-weight: 600;
   transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .mobile-action-btn.primary {

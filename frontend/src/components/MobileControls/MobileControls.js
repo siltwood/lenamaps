@@ -203,6 +203,7 @@ const MobileControls = ({
               onClick={() => {
                 if (directionsRoute && onShowAnimator) {
                   onShowAnimator();
+                  setShowCard(false); // Hide the card when showing animator
                 } else {
                   calculateRoute(locations, legModes);
                 }

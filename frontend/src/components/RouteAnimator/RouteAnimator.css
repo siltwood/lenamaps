@@ -8,6 +8,18 @@
   width: 400px;
 }
 
+/* Mobile styles */
+@media (max-width: 768px) {
+  .route-animator {
+    width: calc(100vw - 20px);
+    max-width: 100%;
+    position: fixed !important;
+    left: 10px !important;
+    right: 10px !important;
+    top: 60px !important;
+  }
+}
+
 .route-animator-header {
   padding: 1.25rem 1.5rem;
   display: flex;
@@ -38,7 +50,8 @@
 }
 
 .minimize-button,
-.collapse-button {
+.collapse-button,
+.close-button {
   background: none;
   border: none;
   cursor: pointer;
@@ -49,7 +62,8 @@
 }
 
 .minimize-button:hover,
-.collapse-button:hover {
+.collapse-button:hover,
+.close-button:hover {
   background: #e9ecef;
   color: #333;
 }
