@@ -197,16 +197,20 @@ const MobileControls = ({
                 }
               }}
               disabled={!canUndo}
-              style={{ fontSize: '25px' }}
+              style={{ height: '60px' }}
             >
-              ↶
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/>
+              </svg>
             </button>
             <button 
               className="mobile-action-btn secondary"
               onClick={handleClear}
-              style={{ fontSize: '25px' }}
+              style={{ height: '60px' }}
             >
-              ⟲
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
+              </svg>
             </button>
             <button 
               className="mobile-action-btn primary"
@@ -223,6 +227,7 @@ const MobileControls = ({
               }}
               disabled={locations.filter(l => l).length < 2}
               title={directionsRoute ? "Animate Route" : "Calculate Route"}
+              style={{ height: '60px' }}
             >
               <svg width="25" height="25" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>

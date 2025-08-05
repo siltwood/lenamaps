@@ -24,6 +24,11 @@ const MapComponent = ({
   const [map, setMap] = useState(null);
   const [directionsService, setDirectionsService] = useState(null);
   const [mapError, setMapError] = useState(null);
+  
+  // Track showRouteAnimator changes
+  useEffect(() => {
+    console.log('MapComponent showRouteAnimator changed to:', showRouteAnimator);
+  }, [showRouteAnimator]);
 
   // Initialize map
   const initMap = useCallback(() => {
