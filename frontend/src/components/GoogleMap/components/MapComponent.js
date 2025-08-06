@@ -204,9 +204,11 @@ const MapComponent = ({
         onRouteDragged={onRouteDragged}
       />
       
-      {directionsRoute && map && (() => {
-        const forceShowValue = !!(isMobile && showRouteAnimator);
-        console.log('MapComponent RouteAnimator render - showRouteAnimator:', showRouteAnimator, 'isMobile:', isMobile, 'forceShow will be:', forceShowValue);
+      {map && (showRouteAnimator || directionsRoute) && (() => {
+        // Show on desktop when showRouteAnimator is true (even without route)
+        // Show on mobile only when both showRouteAnimator and route exist
+        const forceShowValue = isMobile ? showRouteAnimator : false;
+        console.log('MapComponent RouteAnimator render - showRouteAnimator:', showRouteAnimator, 'isMobile:', isMobile, 'directionsRoute:', !!directionsRoute, 'forceShow will be:', forceShowValue);
         return (
           <RouteAnimator
             key={`route-animator-${showRouteAnimator ? 'show' : 'hide'}-${isMobile}`}

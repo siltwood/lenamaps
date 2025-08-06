@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlay, faPause, faStop } from '@fortawesome/free-solid-svg-icons';
-import { TRANSPORTATION_COLORS, TRANSPORT_ICONS } from '../GoogleMap/utils/constants';
+import { TRANSPORTATION_COLORS, TRANSPORT_ICONS } from '../../constants/transportationModes';
 import DragHandle from '../common/DragHandle';
 import Modal from './Modal';
 import { isMobileDevice } from '../../utils/deviceDetection';

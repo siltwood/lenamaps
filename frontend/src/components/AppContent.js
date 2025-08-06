@@ -14,11 +14,11 @@ function AppContent() {
   const [directionsLocations, setDirectionsLocations] = useState([null, null]);
   const [directionsLegModes, setDirectionsLegModes] = useState(['walk']);
   const [isAnimating, setIsAnimating] = useState(false);
-  const [showRouteAnimator, setShowRouteAnimator] = useState(false); // Control RouteAnimator visibility
+  const isMobile = useMobileDetection();
+  const [showRouteAnimator, setShowRouteAnimator] = useState(!isMobile); // Show on desktop by default, hide on mobile
   const [mapInstance, setMapInstance] = useState(null); // Store map instance for MobileControls
   
   console.log('AppContent render - showRouteAnimator:', showRouteAnimator);
-  const isMobile = useMobileDetection();
   
   // Undo functionality
   const [history, setHistory] = useState([]);
