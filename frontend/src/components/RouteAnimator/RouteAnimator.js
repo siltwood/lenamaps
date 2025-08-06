@@ -13,12 +13,15 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
   
   // Start expanded on desktop, minimized on mobile (unless forceShow)
   const [isMinimized, setIsMinimized] = useState(() => {
+    console.log('RouteAnimator initial state - isMobile:', isMobile, 'forceShow:', forceShow);
     if (isMobile && forceShow) {
       console.log('RouteAnimator initial state - starting expanded on mobile with forceShow');
       return false;
     }
     // Desktop starts expanded, mobile starts minimized
-    return isMobile ? !forceShow : false;
+    const initialMinimized = isMobile ? !forceShow : false;
+    console.log('RouteAnimator initial isMinimized:', initialMinimized);
+    return initialMinimized;
   });
   const [isAnimating, setIsAnimatingState] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -39,13 +42,14 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
 
   // Handle forceShow prop for mobile
   useEffect(() => {
-    console.log('RouteAnimator forceShow effect - forceShow:', forceShow, 'current isMinimized:', isMinimized);
+    console.log('RouteAnimator forceShow effect - forceShow:', forceShow, 'current isMinimized:', isMinimized, 'isMobile:', isMobile);
     if (forceShow) {
       setIsMinimized(false);
     } else if (isMobile) {
       // On mobile, when forceShow becomes false, minimize again
       setIsMinimized(true);
     }
+    // Don't change desktop state based on forceShow
   }, [forceShow, isMobile]);
   
   // Helper to show modal
@@ -968,7 +972,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
   }
 
   // Render minimized state (desktop only)
-  if (isMinimized && !isMobile && !isMobileDevice()) {
+  if (isMinimized && !isMobile) {
     return (
       <div 
         className="route-animator-minimized"
