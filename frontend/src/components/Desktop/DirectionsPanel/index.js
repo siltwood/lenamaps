@@ -27,7 +27,9 @@ const DirectionsPanel = ({
   canUndo = false,
   isEditing = false,
   editingTrip = null,
-  lastAction = null
+  lastAction = null,
+  routeDraggingEnabled = false,
+  onRouteDraggingToggle
 }) => {
   const [transportationModes] = useState(TRANSPORTATION_MODES);
   const [position, setPosition] = useState({ x: 10, y: 200 });
@@ -525,6 +527,51 @@ const DirectionsPanel = ({
           >
             <span>➕ Add Next Location ({getLocationLabel(locations.length)})</span>
           </button>
+
+          {/* Route Dragging Toggle */}
+          <div style={{ 
+            marginTop: '16px',
+            padding: '12px',
+            borderTop: '1px solid #e5e7eb',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between'
+          }}>
+            <label style={{ 
+              fontSize: '13px',
+              color: '#4b5563',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px'
+            }}>
+              <span>Allow route dragging</span>
+            </label>
+            <button
+              onClick={() => onRouteDraggingToggle && onRouteDraggingToggle(!routeDraggingEnabled)}
+              style={{
+                width: '42px',
+                height: '24px',
+                borderRadius: '12px',
+                backgroundColor: routeDraggingEnabled ? '#2563eb' : '#d1d5db',
+                border: 'none',
+                position: 'relative',
+                cursor: 'pointer',
+                transition: 'background-color 0.2s'
+              }}
+            >
+              <span style={{
+                position: 'absolute',
+                top: '2px',
+                left: routeDraggingEnabled ? '20px' : '2px',
+                width: '20px',
+                height: '20px',
+                borderRadius: '50%',
+                backgroundColor: 'white',
+                boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+                transition: 'left 0.2s'
+              }}/>
+            </button>
+          </div>
 
         </div>
 

@@ -6,7 +6,9 @@ const RouteSegmentManager = ({
   map, 
   directionsService, 
   directionsRoute,
-  onRouteDragged 
+  onRouteDragged,
+  isMobile = false,
+  routeDraggingEnabled = false 
 }) => {
   const segmentsRef = useRef([]);
   const currentRouteIdRef = useRef(null);
@@ -488,7 +490,7 @@ const RouteSegmentManager = ({
             const rendererOptions = {
               suppressMarkers: true,
               polylineOptions: polylineOptions,
-              draggable: true,
+              draggable: routeDraggingEnabled, // Only enable if toggle is on
               preserveViewport: true,
               suppressInfoWindows: true,
               suppressBicyclingLayer: true
@@ -721,7 +723,7 @@ const RouteSegmentManager = ({
                 const segmentRenderer = new window.google.maps.DirectionsRenderer({
                   suppressMarkers: true,
                   polylineOptions: polylineOptions, // Still use bus colors
-                  draggable: true,
+                  draggable: routeDraggingEnabled, // Only enable if toggle is on
                   preserveViewport: true,
                   suppressInfoWindows: true,
                   suppressBicyclingLayer: true

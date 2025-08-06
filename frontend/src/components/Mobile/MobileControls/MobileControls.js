@@ -20,10 +20,13 @@ const MobileControls = ({
   onClearHistory,
   canUndo = false,
   onShowAnimator,
+  onHideAnimator,
   isAnimating,
   showRouteAnimator,
   map,
-  onAnimationStateChange
+  onAnimationStateChange,
+  routeDraggingEnabled = false,
+  onRouteDraggingToggle
 }) => {
   const [showCard, setShowCard] = useState(true);
   const [showSearchA, setShowSearchA] = useState(false);
@@ -168,27 +171,30 @@ const MobileControls = ({
     }
   };
 
-  // Handle drag events
-  const handleTouchStart = (e) => {
+  // Handle drag events (both touch and mouse for testing)
+  const handleDragStart = (e) => {
     if (e.target.closest('.drag-handle')) {
       setIsDragging(true);
-      const touch = e.touches[0];
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
       setDragStart({
-        x: touch.clientX - cardPosition.x,
-        y: touch.clientY - cardPosition.y
+        x: clientX - cardPosition.x,
+        y: clientY - cardPosition.y
       });
     }
   };
 
-  const handleTouchMove = useCallback((e) => {
+  const handleDragMove = useCallback((e) => {
     if (!isDragging) return;
-    const touch = e.touches[0];
-    const newX = touch.clientX - dragStart.x;
-    const newY = touch.clientY - dragStart.y;
+    e.preventDefault();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const newX = clientX - dragStart.x;
+    const newY = clientY - dragStart.y;
     
     // Keep card within viewport bounds
     const maxX = window.innerWidth - (cardRef.current?.offsetWidth || 320);
-    const maxY = window.innerHeight - (cardRef.current?.offsetHeight || 220);
+    const maxY = window.innerHeight - (cardRef.current?.offsetHeight || 240);
     
     setCardPosition({
       x: Math.max(0, Math.min(newX, maxX)),
@@ -196,20 +202,25 @@ const MobileControls = ({
     });
   }, [isDragging, dragStart]);
 
-  const handleTouchEnd = useCallback(() => {
+  const handleDragEnd = useCallback(() => {
     setIsDragging(false);
   }, []);
 
   useEffect(() => {
     if (isDragging) {
-      document.addEventListener('touchmove', handleTouchMove);
-      document.addEventListener('touchend', handleTouchEnd);
+      // Add both touch and mouse listeners
+      document.addEventListener('touchmove', handleDragMove, { passive: false });
+      document.addEventListener('touchend', handleDragEnd);
+      document.addEventListener('mousemove', handleDragMove);
+      document.addEventListener('mouseup', handleDragEnd);
       return () => {
-        document.removeEventListener('touchmove', handleTouchMove);
-        document.removeEventListener('touchend', handleTouchEnd);
+        document.removeEventListener('touchmove', handleDragMove);
+        document.removeEventListener('touchend', handleDragEnd);
+        document.removeEventListener('mousemove', handleDragMove);
+        document.removeEventListener('mouseup', handleDragEnd);
       };
     }
-  }, [isDragging, handleTouchMove, handleTouchEnd]);
+  }, [isDragging, handleDragMove, handleDragEnd]);
 
   // Render animator view
   const renderAnimator = () => (
@@ -223,6 +234,10 @@ const MobileControls = ({
             onClick={() => {
               setViewMode('planner');
               stopAnimation();
+              // Hide the actual RouteAnimator component
+              if (onHideAnimator) {
+                onHideAnimator();
+              }
             }}
             title="Back to Route"
           >
@@ -414,16 +429,25 @@ const MobileControls = ({
                     {location.name?.split(',')[0] || `Location ${String.fromCharCode(65 + index)}`}
                   </div>
                 )}
-                {/* Remove button for waypoints */}
+                {/* Remove button for locations after B */}
                 {index > 1 && (
                   <button
                     className="mobile-remove-btn"
                     onClick={() => {
+                      // Remove location and adjust transport modes
                       const newLocations = locations.filter((_, i) => i !== index);
-                      const newModes = legModes.filter((_, i) => i !== index - 1);
-                      onLocationsChange(newLocations);
+                      // Remove the transport mode that leads TO this location
+                      const newModes = [...legModes];
+                      if (index - 1 < newModes.length) {
+                        newModes.splice(index - 1, 1);
+                      }
+                      onLocationsChange(newLocations, 'REMOVE_LOCATION');
                       onLegModesChange(newModes);
-                      calculateRoute(newLocations, newModes);
+                      
+                      // Recalculate route if we still have enough locations
+                      if (newLocations.filter(l => l).length >= 2) {
+                        calculateRoute(newLocations, newModes);
+                      }
                     }}
                   >
                     ×
@@ -456,18 +480,63 @@ const MobileControls = ({
             </div>
           ))}
           
-          {/* Add waypoint button */}
+          {/* Add next location button */}
           <button
             className="mobile-add-waypoint-btn"
             onClick={() => {
-              const newLocations = [...locations];
-              newLocations.splice(locations.length - 1, 0, null);
+              // Add a new location at the end (like desktop)
+              const newLocations = [...locations, null];
               const newModes = [...legModes, 'walk'];
-              onLocationsChange(newLocations);
+              onLocationsChange(newLocations, 'ADD_DESTINATION');
               onLegModesChange(newModes);
             }}
           >
-            + Add waypoint
+            + Add Next Location ({String.fromCharCode(65 + locations.length)})
+          </button>
+        </div>
+
+        {/* Route Dragging Toggle */}
+        <div className="mobile-route-drag-toggle" style={{ 
+          padding: '12px 16px',
+          borderTop: '1px solid #e5e7eb',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between'
+        }}>
+          <label style={{ 
+            fontSize: '14px',
+            color: '#374151',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}>
+            <span>Allow route dragging</span>
+          </label>
+          <button
+            className={`mobile-toggle-btn ${routeDraggingEnabled ? 'active' : ''}`}
+            onClick={() => onRouteDraggingToggle && onRouteDraggingToggle(!routeDraggingEnabled)}
+            style={{
+              width: '48px',
+              height: '28px',
+              borderRadius: '14px',
+              backgroundColor: routeDraggingEnabled ? '#2563eb' : '#d1d5db',
+              border: 'none',
+              position: 'relative',
+              cursor: 'pointer',
+              transition: 'background-color 0.2s'
+            }}
+          >
+            <span style={{
+              position: 'absolute',
+              top: '3px',
+              left: routeDraggingEnabled ? '23px' : '3px',
+              width: '22px',
+              height: '22px',
+              borderRadius: '50%',
+              backgroundColor: 'white',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
+              transition: 'left 0.2s'
+            }}/>
           </button>
         </div>
 
@@ -522,14 +591,15 @@ const MobileControls = ({
       {/* Single Modal Card */}
       <div 
         ref={cardRef}
-        className={`mobile-card ${!showCard ? 'collapsed' : ''}`}
-        style={showCard && !isDragging ? {
+        className={`mobile-card ${!showCard ? 'collapsed' : ''} ${isDragging ? 'dragging' : ''}`}
+        style={showCard ? {
           position: 'fixed',
           left: `${cardPosition.x}px`,
-          bottom: `${window.innerHeight - cardPosition.y - 220}px`,
-          transition: 'none'
+          bottom: `${window.innerHeight - cardPosition.y - 240}px`,
+          transition: isDragging ? 'none' : undefined
         } : {}}
-        onTouchStart={handleTouchStart}
+        onTouchStart={handleDragStart}
+        onMouseDown={handleDragStart}
       >
         {viewMode === 'animator' ? renderAnimator() : renderPlanner()}
       </div>

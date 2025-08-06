@@ -17,7 +17,8 @@ const MapComponent = ({
   onAnimationStateChange,
   isMobile = false,
   showRouteAnimator,
-  onHideRouteAnimator
+  onHideRouteAnimator,
+  routeDraggingEnabled = false
 }) => {
   const mapRef = useRef();
   const [map, setMap] = useState(null);
@@ -197,6 +198,8 @@ const MapComponent = ({
         directionsService={directionsService}
         directionsRoute={directionsRoute}
         onRouteDragged={onRouteDragged}
+        isMobile={isMobile}
+        routeDraggingEnabled={routeDraggingEnabled}
       />
       
       {/* Show RouteAnimator for both desktop and mobile, but with different props */}

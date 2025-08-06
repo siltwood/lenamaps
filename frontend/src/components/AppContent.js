@@ -14,6 +14,7 @@ function AppContent() {
   const [isAnimating, setIsAnimating] = useState(false);
   const isMobile = useMobileDetection();
   const [showRouteAnimator, setShowRouteAnimator] = useState(!isMobile); // Show on desktop by default, hide on mobile
+  const [routeDraggingEnabled, setRouteDraggingEnabled] = useState(false); // Default off for both mobile and desktop
   const mapRef = useRef(null); // Store map instance reference
   
   // Undo functionality
@@ -212,6 +213,7 @@ function AppContent() {
             onHideRouteAnimator={() => {
               setShowRouteAnimator(false);
             }}
+            routeDraggingEnabled={routeDraggingEnabled}
           />
         </div>
       </div>
@@ -233,8 +235,13 @@ function AppContent() {
           onShowAnimator={() => {
             setShowRouteAnimator(true);
           }}
+          onHideAnimator={() => {
+            setShowRouteAnimator(false);
+          }}
           isAnimating={isAnimating}
           showRouteAnimator={showRouteAnimator}
+          routeDraggingEnabled={routeDraggingEnabled}
+          onRouteDraggingToggle={setRouteDraggingEnabled}
         />
       ) : (
         !isAnimating && (
@@ -252,6 +259,8 @@ function AppContent() {
             onClearHistory={handleClearHistory}
             canUndo={history.length > 0}
             lastAction={lastAction}
+            routeDraggingEnabled={routeDraggingEnabled}
+            onRouteDraggingToggle={setRouteDraggingEnabled}
           />
         )
       )}
