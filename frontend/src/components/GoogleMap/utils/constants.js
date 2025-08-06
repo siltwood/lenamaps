@@ -24,27 +24,6 @@ export const MAP_CONFIG = {
   streetViewControl: true,
   fullscreenControl: true,
   zoomControl: true,
-  clickableIcons: false,
-  styles: [
-    {
-      featureType: "transit",
-      elementType: "labels.icon",
-      stylers: [{ visibility: "off" }]
-    },
-    {
-      featureType: "transit.station",
-      elementType: "all",
-      stylers: [{ visibility: "off" }]
-    },
-    {
-      featureType: "transit.station.bus",
-      elementType: "all",
-      stylers: [{ visibility: "off" }]
-    },
-    {
-      featureType: "transit.line",
-      elementType: "labels",
-      stylers: [{ visibility: "off" }]
-    }
-  ]
+  clickableIcons: false
+  // Styles removed - using mapId controls styles via cloud console
 };
