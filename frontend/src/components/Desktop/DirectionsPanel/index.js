@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import LocationSearch from '../LocationSearch';
+import LocationSearch from '../../Shared/LocationSearch';
 import DirectionsHeader from './DirectionsHeader';
-import { getLocationLabel } from '../../utils/routeCalculations';
-import TRANSPORTATION_MODES from '../../constants/transportationModes';
-import '../../styles/unified-icons.css';
+import { getLocationLabel } from '../../../utils/routeCalculations';
+import TRANSPORTATION_MODES from '../../../constants/transportationModes';
+import '../../../styles/unified-icons.css';
 
 const DirectionsPanel = ({ 
   onDirectionsCalculated, 

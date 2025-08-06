@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import ReactDOM from 'react-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faTimes, faInfoCircle, faExclamationTriangle, faCheckCircle } from '@fortawesome/free-solid-svg-icons';
-import { isMobileDevice } from '../../utils/deviceDetection';
+import { isMobileDevice } from '../../../utils/deviceDetection';
 import './Modal.css';
 
 const Modal = ({ isOpen, onClose, title, message, type = 'info' }) => {

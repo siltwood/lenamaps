@@ -85,7 +85,6 @@ const LocationSearch = ({ onLocationSelect, placeholder = "Search for a city or 
 
   const selectPlace = (placeId, description) => {
     if (!placesService.current) {
-      console.error('Places service not initialized');
       return;
     }
 
@@ -115,7 +114,7 @@ const LocationSearch = ({ onLocationSelect, placeholder = "Search for a city or 
             onLocationSelect(location);
           }
         } else {
-          console.error('Failed to get place details:', status);
+          // Failed to get place details
         }
       }
     );

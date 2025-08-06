@@ -1,9 +1,7 @@
 import React, { useState, useCallback, useRef } from 'react';
-import GoogleMap from './GoogleMap';
-import DirectionsPanel from './DirectionsPanel';
-import MobileControls from './MobileControls/MobileControls';
-import LocationSearch from './LocationSearch';
-import DonateButton from './DonateButton/DonateButton';
+import { GoogleMap, LocationSearch, DonateButton } from './Shared';
+import { DirectionsPanel } from './Desktop';
+import { MobileControls } from './Mobile';
 import { useMobileDetection } from '../utils/deviceDetection';
 
 function AppContent() {
@@ -16,9 +14,7 @@ function AppContent() {
   const [isAnimating, setIsAnimating] = useState(false);
   const isMobile = useMobileDetection();
   const [showRouteAnimator, setShowRouteAnimator] = useState(!isMobile); // Show on desktop by default, hide on mobile
-  const [mapInstance, setMapInstance] = useState(null); // Store map instance for MobileControls
-  
-  console.log('AppContent render - showRouteAnimator:', showRouteAnimator);
+  const mapRef = useRef(null); // Store map instance reference
   
   // Undo functionality
   const [history, setHistory] = useState([]);
@@ -214,7 +210,6 @@ function AppContent() {
             isMobile={isMobile}
             showRouteAnimator={showRouteAnimator}
             onHideRouteAnimator={() => {
-              console.log('onHideRouteAnimator called - hiding RouteAnimator');
               setShowRouteAnimator(false);
             }}
           />
@@ -236,10 +231,10 @@ function AppContent() {
           onClearHistory={handleClearHistory}
           canUndo={history.length > 0}
           onShowAnimator={() => {
-            console.log('onShowAnimator called from MobileControls - current showRouteAnimator:', showRouteAnimator);
             setShowRouteAnimator(true);
           }}
           isAnimating={isAnimating}
+          showRouteAnimator={showRouteAnimator}
         />
       ) : (
         !isAnimating && (

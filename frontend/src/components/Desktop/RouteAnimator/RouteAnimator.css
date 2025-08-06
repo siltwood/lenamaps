@@ -16,7 +16,7 @@
     position: fixed !important;
     left: 8px !important;
     right: auto !important;
-    bottom: 20px !important;
+    bottom: 90px !important;  /* Moved up to not block FAB */
     top: auto !important;
     z-index: 2000 !important;
     max-height: 240px;
@@ -45,7 +45,6 @@
   color: #1e293b;
   flex: 1;
   text-align: left;
-  margin-left: 12px;
 }
 
 

@@ -412,7 +412,7 @@ const RouteSegmentManager = ({
           if (!segmentOrigin || !segmentDestination || 
               segmentOrigin.lat == null || segmentOrigin.lng == null ||
               segmentDestination.lat == null || segmentDestination.lng == null) {
-            console.warn('Invalid segment locations, skipping segment', i);
+            // Invalid segment locations, skip this segment
             continue;
           }
           

@@ -1,5 +1,5 @@
 import React from 'react';
-import DragHandle from '../common/DragHandle';
+import DragHandle from '../../common/DragHandle';
 
 const DirectionsHeader = ({ 
   isEditing, 

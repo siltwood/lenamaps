@@ -18,16 +18,19 @@ const MobileControls = ({
   onClearHistory,
   canUndo = false,
   onShowAnimator,
-  isAnimating
+  isAnimating,
+  showRouteAnimator
 }) => {
-  const [showCard, setShowCard] = useState(true); // Start expanded
+  const [showCard, setShowCard] = useState(true);
+  const [showSearchA, setShowSearchA] = useState(false);
+  const [showSearchB, setShowSearchB] = useState(false);
 
-  // Show card again when animation ends
+  // Hide card when route animator is shown
   useEffect(() => {
-    if (!isAnimating && !showCard) {
-      setShowCard(true);
+    if (showRouteAnimator) {
+      setShowCard(false);
     }
-  }, [isAnimating]);
+  }, [showRouteAnimator]);
 
   // Handle clicked location from map - ONLY when card is open (like desktop)
   useEffect(() => {
@@ -135,24 +138,66 @@ const MobileControls = ({
   };
 
 
+  // Don't render anything if route animator is showing
+  if (showRouteAnimator) {
+    return null;
+  }
+
   return (
     <div className="mobile-controls-container">
       {/* Compact Route Card */}
       <div className={`mobile-card ${!showCard ? 'collapsed' : ''}`}>
+        <div className="mobile-card-header">
+          <h4>Plan Your Route</h4>
+          <button 
+            className="mobile-card-close"
+            onClick={() => setShowCard(false)}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+              <path d="M4 9h8v1H4z"/>
+            </svg>
+          </button>
+        </div>
         <div className="mobile-quick-route">
           {/* Start Location */}
           <div className="mobile-route-row">
             <div className="mobile-route-marker start">A</div>
-            {!locations[0] ? (
+            {showSearchA ? (
+              <div className="mobile-search-container">
+                <LocationSearch
+                  onLocationSelect={(location) => {
+                    const newLocations = [...locations];
+                    newLocations[0] = location;
+                    onLocationsChange(newLocations);
+                    setShowSearchA(false);
+                    
+                    // If we have both locations, calculate route
+                    if (newLocations[1]) {
+                      calculateRoute(newLocations, legModes);
+                    }
+                  }}
+                  placeholder="Search for point A..."
+                />
+                <button 
+                  className="mobile-search-cancel"
+                  onClick={() => setShowSearchA(false)}
+                >
+                  ×
+                </button>
+              </div>
+            ) : !locations[0] ? (
               <input 
                 type="text"
                 placeholder="Tap map or search..."
                 className="mobile-route-input"
-                onClick={() => {/* Will implement search */}}
+                onClick={() => setShowSearchA(true)}
                 readOnly
               />
             ) : (
-              <div className="mobile-route-input filled">
+              <div 
+                className="mobile-route-input filled"
+                onClick={() => setShowSearchA(true)}
+              >
                 {locations[0].name?.split(',')[0] || 'Location A'}
               </div>
             )}
@@ -161,16 +206,42 @@ const MobileControls = ({
           {/* End Location */}
           <div className="mobile-route-row">
             <div className="mobile-route-marker end">B</div>
-            {!locations[1] ? (
+            {showSearchB ? (
+              <div className="mobile-search-container">
+                <LocationSearch
+                  onLocationSelect={(location) => {
+                    const newLocations = [...locations];
+                    newLocations[1] = location;
+                    onLocationsChange(newLocations);
+                    setShowSearchB(false);
+                    
+                    // If we have both locations, calculate route
+                    if (newLocations[0]) {
+                      calculateRoute(newLocations, legModes);
+                    }
+                  }}
+                  placeholder="Search for point B..."
+                />
+                <button 
+                  className="mobile-search-cancel"
+                  onClick={() => setShowSearchB(false)}
+                >
+                  ×
+                </button>
+              </div>
+            ) : !locations[1] ? (
               <input 
                 type="text"
                 placeholder="Tap map for end..."
                 className="mobile-route-input"
-                onClick={() => {/* Will implement search */}}
+                onClick={() => setShowSearchB(true)}
                 readOnly
               />
             ) : (
-              <div className="mobile-route-input filled">
+              <div 
+                className="mobile-route-input filled"
+                onClick={() => setShowSearchB(true)}
+              >
                 {locations[1].name?.split(',')[0] || 'Location B'}
               </div>
             )}
@@ -194,7 +265,6 @@ const MobileControls = ({
             <button 
               className="mobile-action-btn secondary"
               onClick={() => {
-                console.log('Undo button clicked, canUndo:', canUndo);
                 if (onUndo) {
                   try {
                     onUndo();
@@ -204,39 +274,39 @@ const MobileControls = ({
                 }
               }}
               disabled={!canUndo}
-              style={{ height: '60px' }}
+              style={{ height: '44px' }}
+              title="Undo"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12.5 8c-2.65 0-5.05.99-6.9 2.6L2 7v9h9l-3.62-3.62c1.39-1.16 3.16-1.88 5.12-1.88 3.54 0 6.55 2.31 7.6 5.5l2.37-.78C21.08 11.03 17.15 8 12.5 8z"/>
               </svg>
             </button>
             <button 
               className="mobile-action-btn secondary"
               onClick={handleClear}
-              style={{ height: '60px' }}
+              disabled={!canUndo && locations.filter(l => l).length === 0}
+              style={{ height: '44px' }}
+              title="Clear All"
             >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z"/>
               </svg>
             </button>
             <button 
               className="mobile-action-btn primary"
               onClick={() => {
-                console.log('Camera button clicked - directionsRoute:', !!directionsRoute, 'onShowAnimator:', !!onShowAnimator);
-                console.log('directionsRoute details:', directionsRoute);
                 if (directionsRoute && onShowAnimator) {
                   onShowAnimator();
-                  setShowCard(false); // Hide the card when showing animator
+                  // Card will auto-hide via useEffect when showRouteAnimator changes
                 } else {
-                  console.log('No route, calculating new route...');
                   calculateRoute(locations, legModes);
                 }
               }}
               disabled={locations.filter(l => l).length < 2}
               title={directionsRoute ? "Animate Route" : "Calculate Route"}
-              style={{ height: '60px' }}
+              style={{ height: '44px' }}
             >
-              <svg width="25" height="25" viewBox="0 0 24 24" fill="currentColor">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
                 <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
               </svg>
             </button>
@@ -245,25 +315,23 @@ const MobileControls = ({
       </div>
 
 
-      {/* Main FAB for route planning */}
-      <div className="mobile-fab-container">
-        <button 
-          className="unified-icon primary"
-          onClick={() => setShowCard(!showCard)}
-          aria-label="Plan Route"
-          style={{ position: 'fixed', right: '20px', bottom: '20px' }}
-        >
-          {showCard ? (
-            <span style={{ fontSize: '28px', lineHeight: '1' }}>×</span>
-          ) : (
+      {/* Main FAB for route planning - only show when card is closed */}
+      {!showCard && (
+        <div className="mobile-fab-container">
+          <button 
+            className="unified-icon primary"
+            onClick={() => setShowCard(true)}
+            aria-label="Plan Route"
+            style={{ position: 'fixed', left: '20px', bottom: '20px' }}
+          >
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
               <circle cx="6" cy="6" r="3" />
               <circle cx="18" cy="18" r="3" />
               <path d="M9 9l6 6" />
             </svg>
-          )}
-        </button>
-      </div>
+          </button>
+        </div>
+      )}
     </div>
   );
 };

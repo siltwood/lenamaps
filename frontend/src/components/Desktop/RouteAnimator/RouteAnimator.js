@@ -1,27 +1,19 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlay, faPause, faStop } from '@fortawesome/free-solid-svg-icons';
-import { TRANSPORTATION_COLORS, TRANSPORT_ICONS } from '../../constants/transportationModes';
-import DragHandle from '../common/DragHandle';
+import { TRANSPORTATION_COLORS, TRANSPORT_ICONS } from '../../../constants/transportationModes';
+import DragHandle from '../../common/DragHandle';
 import Modal from './Modal';
-import { isMobileDevice } from '../../utils/deviceDetection';
-import '../../styles/unified-icons.css';
+import { isMobileDevice } from '../../../utils/deviceDetection';
+import '../../../styles/unified-icons.css';
 import './RouteAnimator.css';
 
 const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile = false, forceShow = false, onClose }) => {
-  console.log('RouteAnimator rendering - isMobile:', isMobile, 'forceShow:', forceShow, 'directionsRoute:', !!directionsRoute, 'map:', !!map);
   
-  // Start expanded on desktop, minimized on mobile (unless forceShow)
+  // Start expanded on desktop, minimized on mobile
   const [isMinimized, setIsMinimized] = useState(() => {
-    console.log('RouteAnimator initial state - isMobile:', isMobile, 'forceShow:', forceShow);
-    if (isMobile && forceShow) {
-      console.log('RouteAnimator initial state - starting expanded on mobile with forceShow');
-      return false;
-    }
     // Desktop starts expanded, mobile starts minimized
-    const initialMinimized = isMobile ? !forceShow : false;
-    console.log('RouteAnimator initial isMinimized:', initialMinimized);
-    return initialMinimized;
+    return isMobile;
   });
   const [isAnimating, setIsAnimatingState] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -40,17 +32,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     mapRef.current = map;
   }, [map]);
 
-  // Handle forceShow prop for mobile
-  useEffect(() => {
-    console.log('RouteAnimator forceShow effect - forceShow:', forceShow, 'current isMinimized:', isMinimized, 'isMobile:', isMobile);
-    if (forceShow) {
-      setIsMinimized(false);
-    } else if (isMobile) {
-      // On mobile, when forceShow becomes false, minimize again
-      setIsMinimized(true);
-    }
-    // Don't change desktop state based on forceShow
-  }, [forceShow, isMobile]);
+
   
   // Helper to show modal
   const showModal = (message, title = '', type = 'info') => {
@@ -711,6 +693,17 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     }
   };
 
+  // Auto-start animation on mobile when forceShow becomes true
+  useEffect(() => {
+    if (isMobile && forceShow && !isAnimatingRef.current && directionsRoute) {
+      // Small delay to ensure everything is ready
+      const timer = setTimeout(() => {
+        startAnimation();
+      }, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [forceShow, isMobile, directionsRoute]);
+
   // Removed createAnimationMarker - using Symbol Animation API
 
   const animateAlongRoute = (isResuming = false) => {
@@ -954,40 +947,41 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     return () => window.removeEventListener('resize', handleResize);
   }, [isMinimized]);
 
-  // On mobile, don't show the minimized button - it's integrated into MobileControls
-  if (isMobile || isMobileDevice()) {
-    console.log('RouteAnimator mobile check - isMinimized:', isMinimized, 'forceShow:', forceShow, 'directionsRoute:', !!directionsRoute);
-    // Still render the full panel when not minimized
-    if (isMinimized && !forceShow) {
-      console.log('RouteAnimator returning null - isMinimized:', isMinimized, 'forceShow:', forceShow);
-      // Instead of returning null, render but hide with display: none
+  // Render minimized state 
+  if (isMinimized) {
+    // On mobile, always show camera icon FAB when minimized (ignore forceShow)
+    if (isMobile || isMobileDevice()) {
       return (
-        <div style={{ display: 'none' }}>
-          {/* Hidden but still mounted */}
+        <div className="route-animator-minimized mobile">
+          <button 
+            className="unified-icon animation"
+            onClick={() => setIsMinimized(false)}
+            title="Show Animation Controls"
+            style={{ position: 'fixed', left: '20px', bottom: '20px' }}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+              <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c .55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+            </svg>
+          </button>
         </div>
       );
     }
-    console.log('RouteAnimator continuing to render full panel');
-    // Continue to render the full panel below
-  }
-
-  // Render minimized state (desktop only)
-  if (isMinimized && !isMobile) {
-    return (
-      <div 
-        className="route-animator-minimized"
-      >
-        <button 
-          className="unified-icon animation"
-          onClick={() => setIsMinimized(false)}
-          title="Show Animation Controls"
-        >
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
-            <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c.55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
-          </svg>
-        </button>
-      </div>
-    );
+    // Desktop minimized state - keep the same as before
+    if (!forceShow) {
+      return (
+        <div className="route-animator-minimized">
+          <button 
+            className="unified-icon animation"
+            onClick={() => setIsMinimized(false)}
+            title="Show Animation Controls"
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="white">
+              <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c .55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+            </svg>
+          </button>
+        </div>
+      );
+    }
   }
 
   return (
@@ -1007,18 +1001,31 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         <h4>Route Animator</h4>
         <div className="header-actions">
           {isMobile && onClose ? (
-            <button className="close-button" onClick={onClose} title="Close">
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M1 1l14 14M15 1L1 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-              </svg>
-            </button>
+            <>
+              <button className="minimize-button" onClick={() => {
+                savedPositionRef.current = { ...position };
+                setIsMinimized(true);
+              }} title="Minimize">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M4 9h8v1H4z"/>
+                </svg>
+              </button>
+              <button className="close-button" onClick={() => {
+                // Stop animation if running to clean up markers
+                if (isAnimating) {
+                  stopAnimation();
+                }
+                onClose();
+              }} title="Back to Route">
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                  <path d="M15 7H3.83l5.59-5.59L8 0 0 8l8 8 1.41-1.41L3.83 9H15V7z"/>
+                </svg>
+              </button>
+            </>
           ) : (
             <button className="minimize-button" onClick={() => {
               savedPositionRef.current = { ...position };
               setIsMinimized(true);
-              if (isMobile && onClose) {
-                onClose();
-              }
             }} title="Minimize panel">
               <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                 <path d="M4 9h8v1H4z"/>

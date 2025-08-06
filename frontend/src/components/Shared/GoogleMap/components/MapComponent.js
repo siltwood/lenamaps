@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { DEFAULT_CENTER, MAP_CONFIG } from '../utils/constants';
 import { createMarkerContent, clearAdvancedMarker } from '../utils/mapHelpers';
 import RouteSegmentManager from './RouteSegmentManager';
-import RouteAnimator from '../../RouteAnimator';
+import RouteAnimator from '../../../Desktop/RouteAnimator';
 import MapErrorBoundary from '../MapErrorBoundary';
 
 const MapComponent = ({ 
@@ -19,16 +19,11 @@ const MapComponent = ({
   showRouteAnimator,
   onHideRouteAnimator
 }) => {
-  console.log('MapComponent render - showRouteAnimator:', showRouteAnimator, 'isMobile:', isMobile);
   const mapRef = useRef();
   const [map, setMap] = useState(null);
   const [directionsService, setDirectionsService] = useState(null);
   const [mapError, setMapError] = useState(null);
   
-  // Track showRouteAnimator changes
-  useEffect(() => {
-    console.log('MapComponent showRouteAnimator changed to:', showRouteAnimator);
-  }, [showRouteAnimator]);
 
   // Initialize map
   const initMap = useCallback(() => {
@@ -204,23 +199,18 @@ const MapComponent = ({
         onRouteDragged={onRouteDragged}
       />
       
-      {map && (showRouteAnimator || directionsRoute) && (() => {
-        // Show on desktop when showRouteAnimator is true (even without route)
-        // Show on mobile only when both showRouteAnimator and route exist
-        const forceShowValue = isMobile ? showRouteAnimator : false;
-        console.log('MapComponent RouteAnimator render - showRouteAnimator:', showRouteAnimator, 'isMobile:', isMobile, 'directionsRoute:', !!directionsRoute, 'forceShow will be:', forceShowValue);
-        return (
-          <RouteAnimator
-            key={`route-animator-${showRouteAnimator ? 'show' : 'hide'}-${isMobile}`}
-            map={map}
-            directionsRoute={directionsRoute}
-            onAnimationStateChange={onAnimationStateChange}
-            isMobile={isMobile}
-            forceShow={forceShowValue}
-            onClose={isMobile ? onHideRouteAnimator : undefined}
-          />
-        );
-      })()}
+      {/* Show RouteAnimator for both desktop and mobile, but with different props */}
+      {map && (showRouteAnimator || (!isMobile && directionsRoute)) && (
+        <RouteAnimator
+          key={`route-animator-${showRouteAnimator ? 'show' : 'hide'}-${isMobile ? 'mobile' : 'desktop'}`}
+          map={map}
+          directionsRoute={directionsRoute}
+          onAnimationStateChange={onAnimationStateChange}
+          isMobile={isMobile}
+          forceShow={isMobile && showRouteAnimator}
+          onClose={isMobile ? onHideRouteAnimator : undefined}
+        />
+      )}
       
     </div>
   );
