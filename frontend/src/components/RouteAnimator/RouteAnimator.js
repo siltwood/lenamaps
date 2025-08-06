@@ -11,13 +11,14 @@ import './RouteAnimator.css';
 const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile = false, forceShow = false, onClose }) => {
   console.log('RouteAnimator rendering - isMobile:', isMobile, 'forceShow:', forceShow, 'directionsRoute:', !!directionsRoute, 'map:', !!map);
   
-  // On mobile with forceShow, start expanded. Otherwise start minimized.
+  // Start expanded on desktop, minimized on mobile (unless forceShow)
   const [isMinimized, setIsMinimized] = useState(() => {
     if (isMobile && forceShow) {
       console.log('RouteAnimator initial state - starting expanded on mobile with forceShow');
       return false;
     }
-    return !forceShow;
+    // Desktop starts expanded, mobile starts minimized
+    return isMobile ? !forceShow : false;
   });
   const [isAnimating, setIsAnimatingState] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -65,8 +66,8 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
   
   // Add effect to update zoom whenever zoom level changes (animation or not)
   useEffect(() => {
-    // Only update zoom when RouteAnimator is visible/expanded
-    if (map && !isMinimized) {
+    // Only update zoom when RouteAnimator is visible/expanded AND we're animating
+    if (map && !isMinimized && isAnimating) {
       if (zoomLevel === 'close') {
         map.setZoom(18);
         // If we have a single location, center on it
@@ -127,7 +128,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         }
       }
     }
-  }, [zoomLevel, map, directionsRoute, isMinimized]);
+  }, [zoomLevel, map, directionsRoute, isMinimized, isAnimating]);
   
   // Update speed ref when state changes
   useEffect(() => {
