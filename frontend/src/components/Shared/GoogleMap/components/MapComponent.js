@@ -22,7 +22,6 @@ const MapComponent = ({
   const [map, setMap] = useState(null);
   const [directionsService, setDirectionsService] = useState(null);
   const [mapError, setMapError] = useState(null);
-  const userLocationMarkerRef = useRef(null);
   
 
   // Initialize map
@@ -174,81 +173,6 @@ const MapComponent = ({
       }
     }
   }, [map, center, shouldCenterMap, onMapCentered]);
-
-  // Add user location marker
-  useEffect(() => {
-    if (map) {
-      // Get user's current location to show marker
-      if ('geolocation' in navigator) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            const userLat = position.coords.latitude;
-            const userLng = position.coords.longitude;
-            
-            // Remove old marker if exists
-            if (userLocationMarkerRef.current) {
-              if (window.google?.maps?.marker?.AdvancedMarkerElement) {
-                userLocationMarkerRef.current.map = null;
-              } else {
-                userLocationMarkerRef.current.setMap(null);
-              }
-            }
-            
-            // Create new user location marker
-            if (window.google?.maps?.marker?.AdvancedMarkerElement) {
-              // Create blue dot for user location
-              const userLocationContent = document.createElement('div');
-              userLocationContent.style.cssText = `
-                width: 16px;
-                height: 16px;
-                background: #4285F4;
-                border: 3px solid white;
-                border-radius: 50%;
-                box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-              `;
-              
-              userLocationMarkerRef.current = new window.google.maps.marker.AdvancedMarkerElement({
-                map: map,
-                position: { lat: userLat, lng: userLng },
-                content: userLocationContent,
-                title: 'Your Location'
-              });
-            } else {
-              // Fallback to regular marker
-              userLocationMarkerRef.current = new window.google.maps.Marker({
-                map: map,
-                position: { lat: userLat, lng: userLng },
-                icon: {
-                  path: window.google.maps.SymbolPath.CIRCLE,
-                  scale: 8,
-                  fillColor: '#4285F4',
-                  fillOpacity: 1,
-                  strokeColor: 'white',
-                  strokeWeight: 3
-                },
-                title: 'Your Location'
-              });
-            }
-          },
-          (error) => {
-            // Silently fail - don't show marker if location denied
-            console.log('Could not get user location for marker:', error.message);
-          }
-        );
-      }
-    }
-    
-    // Cleanup on unmount
-    return () => {
-      if (userLocationMarkerRef.current) {
-        if (window.google?.maps?.marker?.AdvancedMarkerElement) {
-          userLocationMarkerRef.current.map = null;
-        } else {
-          userLocationMarkerRef.current.setMap(null);
-        }
-      }
-    };
-  }, [map]); // Only recreate when map changes
 
   // Show error boundary if there's an error
   if (mapError) {
