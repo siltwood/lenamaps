@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { GoogleMap, LocationSearch, DonateButton } from './Shared';
 import { DirectionsPanel } from './Desktop';
 import { MobileControls } from './Mobile';
@@ -6,7 +6,7 @@ import { useMobileDetection } from '../utils/deviceDetection';
 
 function AppContent() {
   const [directionsRoute, setDirectionsRoute] = useState(null);
-  const [mapCenter, setMapCenter] = useState({ lat: 48.1181, lng: -123.4307 }); // Port Angeles, WA
+  const [mapCenter, setMapCenter] = useState({ lat: 48.1181, lng: -123.4307 }); // Default: Port Angeles, WA
   const [shouldCenterMap, setShouldCenterMap] = useState(false);
   const [clickedLocation, setClickedLocation] = useState(null);
   const [directionsLocations, setDirectionsLocations] = useState([null, null]);
@@ -19,6 +19,31 @@ function AppContent() {
   // Undo functionality
   const [history, setHistory] = useState([]);
   const [lastAction, setLastAction] = useState(null);
+  
+  // Get user's current location on mount
+  useEffect(() => {
+    if ('geolocation' in navigator) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const userLocation = {
+            lat: position.coords.latitude,
+            lng: position.coords.longitude
+          };
+          setMapCenter(userLocation);
+          setShouldCenterMap(true);
+        },
+        (error) => {
+          // Silently fail - use default location
+          console.log('Geolocation error:', error.message);
+        },
+        {
+          enableHighAccuracy: false,
+          timeout: 5000,
+          maximumAge: 0
+        }
+      );
+    }
+  }, []); // Run only once on mount
 
   // Save state to history before making changes
   const saveToHistory = useCallback((action) => {
