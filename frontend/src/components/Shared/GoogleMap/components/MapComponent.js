@@ -199,7 +199,7 @@ const MapComponent = ({
       />
       
       {/* Show RouteAnimator for desktop always, for mobile only when explicitly shown */}
-      {map && (!isMobile ? directionsRoute : (directionsRoute && showRouteAnimator)) && (
+      {map && (!isMobile || (directionsRoute && showRouteAnimator)) && (
         <RouteAnimator
           key={`route-animator-${showRouteAnimator ? 'show' : 'hide'}-${isMobile ? 'mobile' : 'desktop'}`}
           map={map}
