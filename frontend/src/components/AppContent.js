@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
-import { GoogleMap, LocationSearch, DonateButton } from './Shared';
+import { GoogleMap, LocationSearch } from './Shared';
 import { DirectionsPanel } from './Desktop';
 import { MobileControls } from './Mobile';
 import { useMobileDetection } from '../utils/deviceDetection';
@@ -194,7 +194,6 @@ function AppContent() {
             </div>
           )}
           </div>
-          <DonateButton />
         </div>
         </header>
       )}
