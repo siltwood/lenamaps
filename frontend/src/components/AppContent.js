@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { GoogleMap, LocationSearch } from './Shared';
 import { DirectionsPanel } from './Desktop';
 import { MobileControls } from './Mobile';
@@ -14,7 +14,7 @@ function AppContent() {
   const [isAnimating, setIsAnimating] = useState(false);
   const isMobile = useMobileDetection();
   const [showRouteAnimator, setShowRouteAnimator] = useState(!isMobile); // Show on desktop by default, hide on mobile
-  const mapRef = useRef(null); // Store map instance reference
+  const [mapInstance, setMapInstance] = useState(null); // Store map instance
   
   // Undo functionality
   const [history, setHistory] = useState([]);
@@ -34,7 +34,7 @@ function AppContent() {
         },
         (error) => {
           // Silently fail - use default location
-          console.log('Geolocation error:', error.message);
+          // Geolocation error - silently fail
         },
         {
           enableHighAccuracy: false,
@@ -171,7 +171,7 @@ function AppContent() {
         <header className={`header ${isMobile ? 'header-mobile' : ''}`}>
         <div className="header-left">
           <h1 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <span>LenaMaps - Animate your Google Maps Route</span>
+            <span>💋 LenaMaps - Animate your Google Maps Route</span>
           </h1>
         </div>
         <div className="header-right">
@@ -213,6 +213,7 @@ function AppContent() {
             onHideRouteAnimator={() => {
               setShowRouteAnimator(false);
             }}
+            onMapReady={setMapInstance}
           />
         </div>
       </div>
@@ -239,6 +240,8 @@ function AppContent() {
           }}
           isAnimating={isAnimating}
           showRouteAnimator={showRouteAnimator}
+          map={mapInstance}
+          onAnimationStateChange={setIsAnimating}
         />
       ) : (
         !isAnimating && (

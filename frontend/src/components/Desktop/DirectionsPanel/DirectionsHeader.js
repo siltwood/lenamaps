@@ -9,6 +9,7 @@ const DirectionsHeader = ({
   onClose,
   onMinimize,
   canUndo,
+  canClear = false,
   getUndoTooltip,
   lastAction
 }) => {
@@ -28,6 +29,7 @@ const DirectionsHeader = ({
         <button 
           className="header-action-btn clear-btn" 
           onClick={onClear}
+          disabled={!canClear}
           title="Reset route"
         >
           🔄

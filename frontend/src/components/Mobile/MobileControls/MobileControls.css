@@ -67,14 +67,12 @@
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
   padding: 0;
   pointer-events: auto;
-  max-height: 320px;
+  max-height: 50vh; /* Use 50% of viewport height - half the screen */
   overflow: hidden;
   transition: transform 0.3s ease, opacity 0.3s ease;
   width: calc(100% - 16px);
   max-width: 320px;
   position: fixed;
-  bottom: 20px;
-  left: 8px;
   z-index: 2000;
 }
 
@@ -120,8 +118,9 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: 260px;
+  max-height: calc(50vh - 60px); /* Adjust for header */
   overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Playback Section */
@@ -362,7 +361,7 @@
 /* Mobile Planner Content */
 .mobile-planner-content {
   padding: 8px;
-  max-height: 260px;
+  max-height: calc(50vh - 60px); /* Adjust for header */
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
@@ -741,7 +740,7 @@
 }
 
 .header-mobile .header-left h1::after {
-  content: "LenaMaps";
+  content: "💋 LenaMaps";
 }
 
 .header-mobile .header-right {

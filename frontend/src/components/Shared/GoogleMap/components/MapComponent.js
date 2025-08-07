@@ -16,7 +16,8 @@ const MapComponent = ({
   onAnimationStateChange,
   isMobile = false,
   showRouteAnimator,
-  onHideRouteAnimator
+  onHideRouteAnimator,
+  onMapReady
 }) => {
   const mapRef = useRef();
   const [map, setMap] = useState(null);
@@ -49,6 +50,11 @@ const MapComponent = ({
       
       setMap(mapInstance);
       setDirectionsService(directionsServiceInstance);
+      
+      // Notify parent that map is ready
+      if (onMapReady) {
+        onMapReady(mapInstance);
+      }
       
       // Add click listener
       mapInstance.addListener('click', (event) => {
@@ -197,16 +203,14 @@ const MapComponent = ({
         isMobile={isMobile}
       />
       
-      {/* Show RouteAnimator for desktop always, for mobile only when explicitly shown */}
-      {map && (!isMobile || (directionsRoute && showRouteAnimator)) && (
+      {/* Show RouteAnimator for desktop only - mobile handles it differently */}
+      {map && !isMobile && (
         <RouteAnimator
-          key={`route-animator-${showRouteAnimator ? 'show' : 'hide'}-${isMobile ? 'mobile' : 'desktop'}`}
+          key="route-animator-desktop"
           map={map}
           directionsRoute={directionsRoute}
           onAnimationStateChange={onAnimationStateChange}
-          isMobile={isMobile}
-          forceShow={isMobile && showRouteAnimator}
-          onClose={isMobile ? onHideRouteAnimator : undefined}
+          isMobile={false}
         />
       )}
       

@@ -452,6 +452,7 @@ const DirectionsPanel = ({
         onClose={onClose}
         onMinimize={handleMinimize}
         canUndo={canUndo}
+        canClear={locations.some(loc => loc !== null) || canUndo}
         getUndoTooltip={getUndoTooltip}
         lastAction={lastAction}
       />

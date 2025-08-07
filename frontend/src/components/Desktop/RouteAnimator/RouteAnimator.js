@@ -8,12 +8,12 @@ import { isMobileDevice } from '../../../utils/deviceDetection';
 import '../../../styles/unified-icons.css';
 import './RouteAnimator.css';
 
-const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile = false, forceShow = false, onClose }) => {
+const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile = false, forceShow = false, onClose, embeddedInModal = false, onMinimize }) => {
   
-  // Start expanded on desktop, minimized on mobile
+  // Start expanded on desktop and when forceShow is true on mobile
   const [isMinimized, setIsMinimized] = useState(() => {
-    // Desktop starts expanded, mobile starts minimized
-    return isMobile;
+    // Desktop starts expanded, mobile with forceShow starts expanded too
+    return false; // Always start expanded when shown
   });
   const [isAnimating, setIsAnimatingState] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -418,7 +418,9 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     
     // Save current position and minimize the panel when animation starts
     savedPositionRef.current = { ...position };
-    setIsMinimized(true);
+    if (!embeddedInModal) {
+      setIsMinimized(true);
+    }
     
     // Disable map interactions during animation to prevent user from panning away
     map.setOptions({
@@ -727,16 +729,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     }
   };
 
-  // Auto-start animation on mobile when forceShow becomes true
-  useEffect(() => {
-    if (isMobile && forceShow && !isAnimatingRef.current && directionsRoute) {
-      // Small delay to ensure everything is ready
-      const timer = setTimeout(() => {
-        startAnimation();
-      }, 100);
-      return () => clearTimeout(timer);
-    }
-  }, [forceShow, isMobile, directionsRoute]);
+  // Removed auto-start on mobile - let user control it
 
   // Removed createAnimationMarker - using Symbol Animation API
 
@@ -981,6 +974,225 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     return () => window.removeEventListener('resize', handleResize);
   }, [isMinimized]);
 
+  // When embedded in modal on mobile, just render the controls
+  if (embeddedInModal) {
+    return (
+      <>
+        <div className="mobile-card-header">
+          <DragHandle />
+          <h4>Route Animator</h4>
+          <div className="mobile-header-actions">
+            <button 
+              className="minimize-button"
+              onClick={() => {
+                // Call minimize callback if provided
+                if (onMinimize) {
+                  onMinimize();
+                }
+              }}
+              title="Minimize"
+              style={{ marginRight: '8px' }}
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M4 9h8v1H4z"/>
+              </svg>
+            </button>
+            <button 
+              className="mobile-header-btn"
+              onClick={() => {
+                if (isAnimating) {
+                  stopAnimation();
+                }
+                if (onClose) {
+                  onClose();
+                }
+              }}
+              title="Back to Route"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M15 7H3.83l5.59-5.59L8 0 0 8l8 8 1.41-1.41L3.83 9H15V7z"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+        <div className="mobile-animator-controls">
+          <div className="controls-section">
+            <div className="playback-controls">
+              {!isAnimating ? (
+                <button onClick={startAnimation} className="control-btn play">
+                  <FontAwesomeIcon icon={faPlay} /> Play
+                </button>
+              ) : (
+                <>
+                  {isPaused ? (
+                    <button onClick={resumeAnimation} className="control-btn play">
+                      <FontAwesomeIcon icon={faPlay} /> Resume
+                    </button>
+                  ) : (
+                    <button onClick={pauseAnimation} className="control-btn pause">
+                      <FontAwesomeIcon icon={faPause} /> Pause
+                    </button>
+                  )}
+                  <button onClick={stopAnimation} className="control-btn stop">
+                    <FontAwesomeIcon icon={faStop} /> Exit Animation
+                  </button>
+                </>
+              )}
+            </div>
+            
+            <div className="speed-control">
+              <label>Animation Speed</label>
+              <div className="speed-radio-group">
+                <label className={`speed-radio ${animationSpeed === 1 ? 'active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="speed"
+                    value="1"
+                    checked={animationSpeed === 1}
+                    onChange={() => setAnimationSpeed(1)}
+                  />
+                  <span>Slow</span>
+                </label>
+                <label className={`speed-radio ${animationSpeed === 3 ? 'active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="speed"
+                    value="3"
+                    checked={animationSpeed === 3}
+                    onChange={() => setAnimationSpeed(3)}
+                  />
+                  <span>Regular</span>
+                </label>
+                <label className={`speed-radio ${animationSpeed === 6 ? 'active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="speed"
+                    value="6"
+                    checked={animationSpeed === 6}
+                    onChange={() => setAnimationSpeed(6)}
+                  />
+                  <span>Fast</span>
+                </label>
+              </div>
+            </div>
+            
+            <div className="zoom-control">
+              <label>Zoom Level (Camera Distance)</label>
+              <div className="zoom-radio-group">
+                <label className={`zoom-radio ${zoomLevel === 'close' ? 'active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="zoom"
+                    value="close"
+                    checked={zoomLevel === 'close'}
+                    onChange={() => setZoomLevel('close')}
+                  />
+                  <span>Close</span>
+                  <small>(Street level)</small>
+                </label>
+                <label className={`zoom-radio ${zoomLevel === 'medium' ? 'active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="zoom"
+                    value="medium"
+                    checked={zoomLevel === 'medium'}
+                    onChange={() => setZoomLevel('medium')}
+                  />
+                  <span>Medium</span>
+                  <small>(Neighborhood)</small>
+                </label>
+                <label className={`zoom-radio ${zoomLevel === 'far' ? 'active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="zoom"
+                    value="far"
+                    checked={zoomLevel === 'far'}
+                    onChange={() => setZoomLevel('far')}
+                  />
+                  <span>Whole Route</span>
+                  <small>(Full view)</small>
+                </label>
+              </div>
+            </div>
+            
+            <div className="timeline-control">
+              <label>Timeline Scrubber</label>
+              <div className="timeline-container">
+                <div className="timeline-track">
+                  <div 
+                    className="timeline-progress" 
+                    style={{ 
+                      width: `${animationProgress}%`,
+                      transition: 'none'
+                    }}
+                    key={`progress-${Math.floor(animationProgress)}`}
+                  ></div>
+                </div>
+                <input
+                  type="range"
+                  min="0"
+                  max="100"
+                  value={animationProgress}
+                  onChange={(e) => {
+                    const newProgress = parseFloat(e.target.value);
+                    setAnimationProgress(newProgress);
+                    
+                    // Update animation position
+                    countRef.current = newProgress * 2;
+                    offsetRef.current = newProgress;
+                    
+                    // Update visual position if animating
+                    if (polylineRef.current) {
+                      const icons = polylineRef.current.get('icons');
+                      if (icons && icons.length > 0) {
+                        icons[0].offset = newProgress + '%';
+                        polylineRef.current.set('icons', icons);
+                      }
+                      
+                      // Pan to new position
+                      const path = polylineRef.current.getPath();
+                      const numPoints = path.getLength();
+                      const floatIndex = (newProgress / 100) * (numPoints - 1);
+                      const currentIndex = Math.floor(floatIndex);
+                      
+                      if (currentIndex < numPoints) {
+                        const currentPos = path.getAt(currentIndex);
+                        if (currentPos && map) {
+                          map.panTo(currentPos);
+                        }
+                      }
+                    }
+                    
+                    // Pause if playing
+                    if (isAnimating && !isPaused) {
+                      pauseAnimation();
+                    }
+                  }}
+                  className="timeline-slider"
+                />
+                <div className="timeline-labels">
+                  <span>0%</span>
+                  <span>{Math.round(animationProgress)}%</span>
+                  <span>100%</span>
+                </div>
+              </div>
+              <div className="timeline-tips">
+                💡 <small>Click anywhere on the blue route to jump to that spot!</small>
+              </div>
+            </div>
+          </div>
+        </div>
+        <Modal
+          isOpen={modalState.isOpen}
+          onClose={() => setModalState({ ...modalState, isOpen: false })}
+          title={modalState.title}
+          message={modalState.message}
+          type={modalState.type}
+        />
+      </>
+    );
+  }
+  
   // Render minimized state 
   if (isMinimized) {
     // On mobile, always show camera icon FAB when minimized (ignore forceShow)
