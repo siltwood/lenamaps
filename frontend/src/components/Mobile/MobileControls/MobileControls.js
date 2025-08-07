@@ -24,9 +24,7 @@ const MobileControls = ({
   isAnimating,
   showRouteAnimator,
   map,
-  onAnimationStateChange,
-  routeDraggingEnabled = false,
-  onRouteDraggingToggle
+  onAnimationStateChange
 }) => {
   const [showCard, setShowCard] = useState(true);
   const [showSearchA, setShowSearchA] = useState(false);
@@ -44,8 +42,9 @@ const MobileControls = ({
   // Drag state
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [cardPosition, setCardPosition] = useState({ x: 8, y: window.innerHeight - 280 });
+  const [cardPosition, setCardPosition] = useState({ x: 8, y: window.innerHeight - 260 });
   const cardRef = useRef(null);
+  const animatorControlsRef = useRef(null);
   
   // Switch to animator view when requested
   useEffect(() => {
@@ -232,12 +231,14 @@ const MobileControls = ({
           <button 
             className="mobile-header-btn"
             onClick={() => {
-              setViewMode('planner');
-              stopAnimation();
-              // Hide the actual RouteAnimator component
+              // First hide the RouteAnimator component which will clean up the animation
               if (onHideAnimator) {
                 onHideAnimator();
               }
+              // Then switch back to planner view
+              setViewMode('planner');
+              // Reset local animation state
+              stopAnimation();
             }}
             title="Back to Route"
           >
@@ -245,18 +246,9 @@ const MobileControls = ({
               <path d="M15 7H3.83l5.59-5.59L8 0 0 8l8 8 1.41-1.41L3.83 9H15V7z"/>
             </svg>
           </button>
-          <button 
-            className="mobile-header-btn minimize"
-            onClick={() => setShowCard(false)}
-            title="Minimize"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M4 9h8v1H4z"/>
-            </svg>
-          </button>
         </div>
       </div>
-      <div className="mobile-animator-controls">
+      <div className="mobile-animator-controls" ref={animatorControlsRef}>
         {/* Main Playback Controls */}
         <div className="mobile-playback-section">
           <div className="mobile-playback-btns">
@@ -369,15 +361,6 @@ const MobileControls = ({
         <DragHandle />
         <h4>Plan Your Route</h4>
         <div className="mobile-header-actions">
-          <button 
-            className="mobile-header-btn minimize"
-            onClick={() => setShowCard(false)}
-            title="Minimize"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M4 9h8v1H4z"/>
-            </svg>
-          </button>
         </div>
       </div>
       <div className="mobile-planner-content">
@@ -495,50 +478,6 @@ const MobileControls = ({
           </button>
         </div>
 
-        {/* Route Dragging Toggle */}
-        <div className="mobile-route-drag-toggle" style={{ 
-          padding: '12px 16px',
-          borderTop: '1px solid #e5e7eb',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between'
-        }}>
-          <label style={{ 
-            fontSize: '14px',
-            color: '#374151',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px'
-          }}>
-            <span>Allow route dragging</span>
-          </label>
-          <button
-            className={`mobile-toggle-btn ${routeDraggingEnabled ? 'active' : ''}`}
-            onClick={() => onRouteDraggingToggle && onRouteDraggingToggle(!routeDraggingEnabled)}
-            style={{
-              width: '48px',
-              height: '28px',
-              borderRadius: '14px',
-              backgroundColor: routeDraggingEnabled ? '#2563eb' : '#d1d5db',
-              border: 'none',
-              position: 'relative',
-              cursor: 'pointer',
-              transition: 'background-color 0.2s'
-            }}
-          >
-            <span style={{
-              position: 'absolute',
-              top: '3px',
-              left: routeDraggingEnabled ? '23px' : '3px',
-              width: '22px',
-              height: '22px',
-              borderRadius: '50%',
-              backgroundColor: 'white',
-              boxShadow: '0 1px 3px rgba(0,0,0,0.2)',
-              transition: 'left 0.2s'
-            }}/>
-          </button>
-        </div>
 
         {/* Action Buttons */}
         <div className="mobile-actions">
@@ -595,7 +534,7 @@ const MobileControls = ({
         style={showCard ? {
           position: 'fixed',
           left: `${cardPosition.x}px`,
-          bottom: `${window.innerHeight - cardPosition.y - 240}px`,
+          bottom: `20px`,
           transition: isDragging ? 'none' : undefined
         } : {}}
         onTouchStart={handleDragStart}

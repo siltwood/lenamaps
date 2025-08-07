@@ -14,7 +14,6 @@ function AppContent() {
   const [isAnimating, setIsAnimating] = useState(false);
   const isMobile = useMobileDetection();
   const [showRouteAnimator, setShowRouteAnimator] = useState(!isMobile); // Show on desktop by default, hide on mobile
-  const [routeDraggingEnabled, setRouteDraggingEnabled] = useState(false); // Default off for both mobile and desktop
   const mapRef = useRef(null); // Store map instance reference
   
   // Undo functionality
@@ -140,28 +139,6 @@ function AppContent() {
     setDirectionsLegModes(newModes);
   }, [saveToHistory]);
 
-  const handleRouteDragged = useCallback((draggedRoute) => {
-    // Handle segment-specific dragging
-    if (draggedRoute.segmentIndex !== undefined && draggedRoute.draggedPath) {
-      // Save to history
-      saveToHistory({
-        type: 'route_drag',
-        index: draggedRoute.segmentIndex
-      });
-      
-      const newRoute = {
-        ...directionsRoute,
-        draggedSegments: {
-          ...(directionsRoute?.draggedSegments || {}),
-          [draggedRoute.segmentIndex]: {
-            path: draggedRoute.draggedPath,
-            mode: draggedRoute.segmentMode
-          }
-        }
-      };
-      setDirectionsRoute(newRoute);
-    }
-  }, [directionsRoute, saveToHistory]);
 
   return (
     <div className="app">
@@ -206,14 +183,12 @@ function AppContent() {
             onMapClick={handleMapClick}
             directionsLocations={directionsLocations}
             directionsLegModes={directionsLegModes}
-            onRouteDragged={handleRouteDragged}
             onAnimationStateChange={setIsAnimating}
             isMobile={isMobile}
             showRouteAnimator={showRouteAnimator}
             onHideRouteAnimator={() => {
               setShowRouteAnimator(false);
             }}
-            routeDraggingEnabled={routeDraggingEnabled}
           />
         </div>
       </div>
@@ -240,8 +215,6 @@ function AppContent() {
           }}
           isAnimating={isAnimating}
           showRouteAnimator={showRouteAnimator}
-          routeDraggingEnabled={routeDraggingEnabled}
-          onRouteDraggingToggle={setRouteDraggingEnabled}
         />
       ) : (
         !isAnimating && (
@@ -259,8 +232,6 @@ function AppContent() {
             onClearHistory={handleClearHistory}
             canUndo={history.length > 0}
             lastAction={lastAction}
-            routeDraggingEnabled={routeDraggingEnabled}
-            onRouteDraggingToggle={setRouteDraggingEnabled}
           />
         )
       )}

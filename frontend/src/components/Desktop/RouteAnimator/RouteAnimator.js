@@ -310,6 +310,40 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     };
   }, [map, updateMarkerScale]);
 
+  // Clean up animation when component unmounts or is hidden on mobile
+  useEffect(() => {
+    return () => {
+      // When component unmounts, ensure animation is stopped
+      if (isAnimatingRef.current) {
+        // Clean up animation
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current);
+          animationRef.current = null;
+        }
+        
+        // Clean up polyline
+        if (polylineRef.current) {
+          polylineRef.current.setMap(null);
+          polylineRef.current = null;
+        }
+        
+        // Clean up marker
+        if (markerRef.current) {
+          if (window.google?.maps?.marker?.AdvancedMarkerElement && markerRef.current.map !== undefined) {
+            markerRef.current.map = null;
+          } else {
+            markerRef.current.setMap(null);
+          }
+          markerRef.current = null;
+        }
+        
+        // Reset state
+        isAnimatingRef.current = false;
+        isPausedRef.current = false;
+      }
+    };
+  }, []);
+
   // Densify path by adding intermediate points for smoother animation
   const densifyPath = (originalPath) => {
     const densifiedPath = [];

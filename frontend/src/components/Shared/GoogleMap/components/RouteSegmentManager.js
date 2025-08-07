@@ -6,9 +6,7 @@ const RouteSegmentManager = ({
   map, 
   directionsService, 
   directionsRoute,
-  onRouteDragged,
-  isMobile = false,
-  routeDraggingEnabled = false 
+  isMobile = false
 }) => {
   const segmentsRef = useRef([]);
   const currentRouteIdRef = useRef(null);
@@ -490,7 +488,7 @@ const RouteSegmentManager = ({
             const rendererOptions = {
               suppressMarkers: true,
               polylineOptions: polylineOptions,
-              draggable: routeDraggingEnabled, // Only enable if toggle is on
+              draggable: false, // Dragging disabled
               preserveViewport: true,
               suppressInfoWindows: true,
               suppressBicyclingLayer: true
@@ -627,30 +625,6 @@ const RouteSegmentManager = ({
             // Store reference to hover polyline
             segmentRenderer._hoverPolyline = hoverPolyline;
             
-            // Listen for route changes when dragged
-            segmentRenderer.addListener('directions_changed', () => {
-              const newDirections = segmentRenderer.getDirections();
-              if (onRouteDragged && newDirections.routes[0]) {
-                const route = newDirections.routes[0];
-                const newWaypoints = [];
-                
-                if (route.overview_path && route.overview_path.length > 2) {
-                  const midIndex = Math.floor(route.overview_path.length / 2);
-                  const midPoint = route.overview_path[midIndex];
-                  newWaypoints.push({
-                    location: {
-                      lat: midPoint.lat(),
-                      lng: midPoint.lng()
-                    }
-                  });
-                }
-                
-                onRouteDragged({
-                  segmentIndex: i,
-                  waypoints: newWaypoints
-                });
-              }
-            });
             
             // Store the complete segment
             const segment = {
@@ -723,7 +697,7 @@ const RouteSegmentManager = ({
                 const segmentRenderer = new window.google.maps.DirectionsRenderer({
                   suppressMarkers: true,
                   polylineOptions: polylineOptions, // Still use bus colors
-                  draggable: routeDraggingEnabled, // Only enable if toggle is on
+                  draggable: false, // Dragging disabled
                   preserveViewport: true,
                   suppressInfoWindows: true,
                   suppressBicyclingLayer: true
@@ -814,7 +788,7 @@ const RouteSegmentManager = ({
         cleanupTimeoutRef.current = null;
       }
     };
-  }, [map, directionsRoute, directionsService, onRouteDragged, clearAllSegments]);
+  }, [map, directionsRoute, directionsService, clearAllSegments]);
 
   // Cleanup on unmount
   useEffect(() => {
