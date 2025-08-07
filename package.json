@@ -2,9 +2,9 @@
   "name": "lenamaps",
   "version": "1.0.0",
   "description": "Transportation trip mapping application",
-  "main": "backend/server.js",
+  "main": "server.js",
   "scripts": {
-    "start": "node backend/server.js",
+    "start": "node server.js",
     "dev": "concurrently \"npm run server\" \"npm run client\"",
     "server": "cd backend && npm run dev",
     "client": "cd frontend && npm start",
