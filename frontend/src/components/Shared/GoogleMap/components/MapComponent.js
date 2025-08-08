@@ -37,7 +37,7 @@ const MapComponent = ({
       }
 
       const mapInstance = new window.google.maps.Map(mapRef.current, {
-        mapId: 'eb5a26e3f8eb70b4dec5041c', // Your Google Cloud Map ID
+        mapId: 'eb5a26e3f8eb70b4848cf4bd', // Your Google Cloud Map ID
         zoom: MAP_CONFIG.zoom,
         center: center || DEFAULT_CENTER,
         ...MAP_CONFIG
@@ -58,7 +58,6 @@ const MapComponent = ({
       
       // Add click listener
       mapInstance.addListener('click', (event) => {
-        console.log('Map clicked at:', event.latLng.lat(), event.latLng.lng());
         if (onMapClick) {
         // Reverse geocode to get place name and check for water
         const geocoder = new window.google.maps.Geocoder();
@@ -197,13 +196,6 @@ const MapComponent = ({
       <div ref={mapRef} style={{ height: '100%', width: '100%' }} />
       
       {/* Render child components */}
-      {console.log('MapComponent passing to RouteSegmentManager:', {
-        hasMap: !!map,
-        hasDirectionsService: !!directionsService,
-        directionsLocations,
-        directionsLegModes,
-        directionsRoute: directionsRoute?.routeId || 'none'
-      })}
       <RouteSegmentManager
         map={map}
         directionsService={directionsService}
@@ -242,12 +234,6 @@ export default React.memo(MapComponent, (prevProps, nextProps) => {
     JSON.stringify(prevProps.directionsLocations) === JSON.stringify(nextProps.directionsLocations) &&
     JSON.stringify(prevProps.directionsLegModes) === JSON.stringify(nextProps.directionsLegModes)
   );
-  
-  console.log('MapComponent memo check:', {
-    shouldSkipRender,
-    prevLocations: prevProps.directionsLocations,
-    nextLocations: nextProps.directionsLocations
-  });
   
   return shouldSkipRender;
 });

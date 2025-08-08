@@ -59,31 +59,22 @@ const DirectionsPanel = ({
 
   // Handle clicked location from map
   useEffect(() => {
-    console.log('DirectionsPanel effect: clickedLocation=', clickedLocation, 'isOpen=', isOpen, 'activeInput=', activeInput);
     if (clickedLocation && isOpen) {
-      console.log('Processing clicked location, current locations:', locations);
-      console.log('Current activeInput value:', activeInput);
       if (onLocationsChange) {
         const newLocations = [...locations];
         
         // If there's an active input (edit mode), replace that specific location
         if (activeInput !== null && activeInput !== undefined) {
-          console.log('EDIT MODE: Replacing location at index', activeInput);
-          console.log('Old location:', locations[activeInput]);
-          console.log('New location:', clickedLocation);
           newLocations[activeInput] = clickedLocation;
           // Clear active input to exit edit mode and show the updated location
           setActiveInput(null);
         } else {
           // Otherwise, find the first empty slot
-          console.log('NORMAL MODE: Finding first empty slot');
           const emptyIndex = newLocations.findIndex(loc => !loc);
           if (emptyIndex !== -1) {
-            console.log('Filling empty slot at index', emptyIndex);
             newLocations[emptyIndex] = clickedLocation;
           }
         }
-        console.log('Calling onLocationsChange with:', newLocations);
         onLocationsChange(newLocations, 'ADD_LOCATION');
         
         // Auto-calculate route or show marker for single location
@@ -200,7 +191,6 @@ const DirectionsPanel = ({
   };
 
   const updateLocation = (index, location) => {
-    console.log('Updating location', index, 'to:', location);
     if (onLocationsChange) {
       const newLocations = [...locations];
       newLocations[index] = location;
@@ -231,11 +221,9 @@ const DirectionsPanel = ({
             allModes: legModes,
             routeId: filledLocations.map(loc => `${loc.lat},${loc.lng}`).join('_') + '_' + legModes.join('-')
           };
-          console.log('Calculating route with', filledLocations.length, 'locations');
           onDirectionsCalculated(routeData);
         } else {
           // Single location - don't calculate route, just let the marker show
-          console.log('Single location, clearing route to show marker');
           onDirectionsCalculated(null);
         }
       } else {
@@ -483,7 +471,6 @@ const DirectionsPanel = ({
                   <div 
                     className={`selected-location ${activeInput === index ? 'active' : ''}`}
                     onClick={() => {
-                      console.log('Entering edit mode for input', index);
                       setActiveInput(index);
                       // Don't clear the location immediately - just mark it as active for editing
                     }}

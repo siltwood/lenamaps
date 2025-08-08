@@ -44,12 +44,10 @@ const MobileControls = ({
   // Handle clicked location from map - ONLY when card is open and in planner mode
   useEffect(() => {
     if (clickedLocation && showCard && viewMode === 'planner') {
-      console.log('Mobile: Clicked location received, activeInput:', activeInput);
       const newLocations = [...locations];
       
       // If there's an active input (edit mode), replace that specific location
       if (activeInput !== null) {
-        console.log('Mobile: Replacing location at index', activeInput, 'with clicked location');
         newLocations[activeInput] = clickedLocation;
         // Clear active input and close search box to show the updated location
         const indexToClose = activeInput; // Capture the value before clearing
@@ -68,7 +66,6 @@ const MobileControls = ({
       // ALWAYS recalculate route if we have at least 2 locations (even in edit mode)
       const filledCount = newLocations.filter(l => l).length;
       if (filledCount >= 2) {
-        console.log('Recalculating route after location change');
         calculateRoute(newLocations, legModes);
       }
       
@@ -265,7 +262,6 @@ const MobileControls = ({
                   <div 
                     className={`mobile-route-input filled ${activeInput === index ? 'active' : ''}`}
                     onClick={() => {
-                      console.log('Entering edit mode for mobile input', index);
                       setActiveInput(index);
                       // Don't clear the location immediately - just mark it as active for editing
                       setShowSearchInputs(prev => ({ ...prev, [index]: true }));

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>API Key Test</title>
+</head>
+<body>
+    <h1>Testing Google Maps API Key</h1>
+    <div id="map" style="height: 400px; width: 100%;"></div>
+    <div id="status"></div>
+    <div id="referer"></div>
+    
+    <script>
+        // Show the current referer
+        document.getElementById('referer').innerHTML = 'Current URL: ' + window.location.href + '<br>Origin: ' + window.location.origin;
+        
+        function initMap() {
+            document.getElementById('status').innerHTML = '✅ API Key is working! Map loaded successfully.';
+            const map = new google.maps.Map(document.getElementById('map'), {
+                center: { lat: 37.7749, lng: -122.4194 },
+                zoom: 12
+            });
+        }
+        
+        window.gm_authFailure = function() {
+            document.getElementById('status').innerHTML = '❌ API Key failed - check console for details';
+        };
+    </script>
+    <script async defer 
+        src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDeWzcu8J_CWPk7rbQoO4A5azs0bMCtjlY&callback=initMap"
+        onerror="document.getElementById('status').innerHTML = '❌ Failed to load Maps API'">
+    </script>
+</body>
+</html>

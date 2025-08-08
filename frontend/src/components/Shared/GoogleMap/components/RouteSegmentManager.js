@@ -10,7 +10,6 @@ const RouteSegmentManager = ({
   directionsLegModes = [],
   isMobile = false
 }) => {
-  console.log('RouteSegmentManager render - map:', !!map, 'locations:', directionsLocations);
   const segmentsRef = useRef([]);
   const currentRouteIdRef = useRef(null);
   const cleanupTimeoutRef = useRef(null);
@@ -56,7 +55,6 @@ const RouteSegmentManager = ({
 
   // Helper function to clear all segments
   const clearAllSegments = useCallback(() => {
-    console.log('clearAllSegments called - clearing', segmentsRef.current.length, 'segments');
     segmentsRef.current.forEach((segment, index) => {
       clearSegment(segment);
     });
@@ -65,15 +63,12 @@ const RouteSegmentManager = ({
 
   // Create a marker
   const createMarker = useCallback((location, icon, color, title, zIndex = 5000, isBusStop = false) => {
-    console.log('createMarker called with:', { location, icon, title, map: !!map });
     
     if (!map) {
-      console.error('Map not available for createMarker');
       return null;
     }
     
     if (!window.google?.maps?.marker?.AdvancedMarkerElement) {
-      console.error('AdvancedMarkerElement not available');
       return null;
     }
     
@@ -110,7 +105,6 @@ const RouteSegmentManager = ({
       collisionBehavior: window.google.maps.CollisionBehavior.REQUIRED
     });
     
-    console.log('Marker created successfully with position:', offsetLocation, 'and added to map');
     
     // Store the base icon and color for updates
     marker._icon = icon;
@@ -231,8 +225,6 @@ const RouteSegmentManager = ({
 
   // Main effect to render route segments with their markers
   useEffect(() => {
-    console.log('=== MAIN ROUTE EFFECT START ===');
-    console.log('directionsRoute:', directionsRoute);
     
     // Clear any pending cleanup
     if (cleanupTimeoutRef.current) {
@@ -241,20 +233,17 @@ const RouteSegmentManager = ({
     }
 
     if (!map || !directionsService) {
-      console.log('No map or directionsService, clearing all');
       clearAllSegments();
       return;
     }
     
     // If no directionsRoute, don't clear - let the marker effect handle single locations
     if (!directionsRoute) {
-      console.log('No directionsRoute, skipping');
       return;
     }
     
     // Handle empty route (used for clearing)
     if (directionsRoute.routeId === 'empty' || !directionsRoute.allLocations || directionsRoute.allLocations.length === 0) {
-      console.log('Empty route, clearing all');
       clearAllSegments();
       return;
     }
@@ -401,7 +390,6 @@ const RouteSegmentManager = ({
     const routeId = Date.now();
     currentRouteIdRef.current = routeId;
     
-    console.log('Rendering route with', validLocations.length, 'locations');
     
     // Clear ALL existing segments when route changes
     // This is simple and fast enough for typical use (2-10 locations)
@@ -446,7 +434,6 @@ const RouteSegmentManager = ({
           const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
           const distance = R * c; // Distance in km
           
-          console.log(`Distance for segment ${i}: ${distance.toFixed(2)} km`);
           
           // Determine travel mode (bus uses DRIVING for reliability)
           let travelMode = window.google.maps.TravelMode.WALKING;
@@ -454,7 +441,6 @@ const RouteSegmentManager = ({
           
           // For long distances (>30km), secretly use driving mode for walk/bike but keep their colors
           if (distance > 30 && (segmentMode === 'walk' || segmentMode === 'bike')) {
-            console.log(`Distance too long for ${segmentMode} (${distance.toFixed(2)}km), secretly using driving but keeping ${segmentMode} appearance`);
             travelMode = window.google.maps.TravelMode.DRIVING;
             actualModeUsed = 'car'; // Secretly a car ride
           } else {
@@ -499,7 +485,6 @@ const RouteSegmentManager = ({
             
             // First try the requested mode
             try {
-              console.log(`Requesting route: ${segmentMode} mode from`, segmentOrigin, 'to', segmentDestination);
               result = await new Promise((resolve, reject) => {
                 // Extra safety check for travelMode
                 if (!request || !request.travelMode) {
@@ -509,23 +494,19 @@ const RouteSegmentManager = ({
                 
                 directionsService.route(request, (result, status) => {
                   if (status === window.google.maps.DirectionsStatus.OK) {
-                    console.log(`Route found for segment ${i} using ${segmentMode}`);
                     resolve(result);
                   } else {
-                    console.error(`Route request failed for segment ${i}: ${status}`);
                     reject(status);
                   }
                 });
               });
               routeFound = true;
             } catch (err) {
-              console.error(`Primary route failed for ${segmentMode}:`, err);
               // If bike mode fails, try walking or driving as fallback
               if (segmentMode === 'bike') {
                 try {
                   // For short distances try walking, for long distances try driving
                   const fallbackMode = distance > 30 ? 'DRIVING' : 'WALKING';
-                  console.log(`Trying ${fallbackMode} as fallback for bike route`);
                   const altRequest = {
                     origin: request.origin,
                     destination: request.destination,
@@ -537,10 +518,8 @@ const RouteSegmentManager = ({
                   result = await new Promise((resolve, reject) => {
                     directionsService.route(altRequest, (result, status) => {
                       if (status === window.google.maps.DirectionsStatus.OK) {
-                        console.log(`${fallbackMode} fallback successful (but keeping bike appearance)`);
                         resolve(result);
                       } else {
-                        console.error(`${fallbackMode} fallback failed:`, status);
                         reject(status);
                       }
                     });
@@ -548,12 +527,10 @@ const RouteSegmentManager = ({
                   
                   routeFound = true;
                 } catch (altErr) {
-                  console.error('All fallbacks failed:', altErr);
                 }
               } else if (segmentMode === 'walk' && distance > 30) {
                 // For long walking routes, try driving
                 try {
-                  console.log('Trying driving as fallback for long walk route');
                   const altRequest = {
                     origin: request.origin,
                     destination: request.destination,
@@ -563,10 +540,8 @@ const RouteSegmentManager = ({
                   result = await new Promise((resolve, reject) => {
                     directionsService.route(altRequest, (result, status) => {
                       if (status === window.google.maps.DirectionsStatus.OK) {
-                        console.log('Driving fallback successful (but keeping walk appearance)');
                         resolve(result);
                       } else {
-                        console.error('Driving fallback failed:', status);
                         reject(status);
                       }
                     });
@@ -574,13 +549,11 @@ const RouteSegmentManager = ({
                   
                   routeFound = true;
                 } catch (altErr) {
-                  console.error('Driving fallback also failed:', altErr);
                 }
               }
             }
             
             if (!routeFound) {
-              console.error('No route found with any travel mode for segment', i);
               throw new Error('No route found with any travel mode');
             }
             
@@ -885,10 +858,8 @@ const RouteSegmentManager = ({
         }
     };
     
-    console.log('Calling renderSegments() to draw route');
     renderSegments();
 
-    console.log('=== MAIN ROUTE EFFECT END ===');
     
     // Cleanup function
     return () => {
@@ -901,64 +872,49 @@ const RouteSegmentManager = ({
 
   // Handle showing markers for individual locations (before route is calculated)
   useEffect(() => {
-    console.log('=== MARKER EFFECT START ===');
-    console.log('directionsLocations:', directionsLocations);
-    console.log('directionsLegModes:', directionsLegModes);
-    console.log('directionsRoute:', directionsRoute);
-    console.log('map exists?', !!map);
     
     if (!map) {
-      console.log('No map yet, skipping');
       return;
     }
     
     if (!directionsLocations) {
-      console.log('No locations array, skipping');
       return;
     }
     
     // Filter out null locations FIRST to check if we have any real locations
     const validLocations = directionsLocations.filter(loc => loc !== null);
-    console.log('Valid locations count:', validLocations.length);
-    console.log('Valid locations:', validLocations);
     
     // Skip only if we have a real route (2+ locations with calculated segments) 
     // AND the route matches our current locations
     if (directionsRoute && directionsRoute.allLocations && 
         directionsRoute.allLocations.filter(l => l).length >= 2 &&
         validLocations.length >= 2) {
-      console.log('Have full route for multiple locations, skipping marker placement');
       return;
     }
     
     // Show marker for single location (point A)
     if (validLocations.length === 1) {
-      console.log('Single location detected, creating marker...');
       const location = validLocations[0];
       const mode = directionsLegModes[0] || 'walk';
       
       // Check if we already have this exact marker
       const existingMarker = segmentsRef.current.find(s => s.id === 'single-marker');
-      console.log('Existing marker?', !!existingMarker);
       
       if (existingMarker && 
           existingMarker.startLocation.lat === location.lat && 
           existingMarker.startLocation.lng === location.lng &&
           existingMarker.mode === mode) {
-        console.log('Same marker already exists, keeping it');
         return; // Same marker already exists
       }
       
       // Clear any existing markers only if location changed
       if (existingMarker) {
-        console.log('Clearing old marker');
         clearAllSegments();
       }
       
       const modeIcon = TRANSPORT_ICONS[mode] || '🚶';
       const modeColor = getTransportationColor(mode);
       
-      console.log('Creating new marker at:', location, 'with mode:', mode, 'icon:', modeIcon);
       
       try {
         const marker = createMarker(
@@ -970,7 +926,6 @@ const RouteSegmentManager = ({
           mode === 'bus'
         );
         
-        console.log('Marker created successfully:', marker);
         
         segmentsRef.current = [{
           id: 'single-marker',
@@ -979,19 +934,14 @@ const RouteSegmentManager = ({
           mode: mode
         }];
         
-        console.log('Marker stored in segmentsRef');
       } catch (error) {
-        console.error('Error creating marker:', error);
       }
     } else if (validLocations.length === 0) {
       // Clear markers if no locations
-      console.log('No valid locations, clearing all markers');
       clearAllSegments();
     } else {
-      console.log('Multiple locations but no route yet, count:', validLocations.length);
     }
     
-    console.log('=== MARKER EFFECT END ===');
   }, [map, directionsLocations, directionsLegModes, directionsRoute, createMarker, clearAllSegments]);
 
   // Cleanup on unmount

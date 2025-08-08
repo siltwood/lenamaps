@@ -37,7 +37,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
   // Helper to show modal
   const showModal = (message, title = '', type = 'info') => {
     setModalState({ isOpen: true, title, message, type });
-  };
+  }
   
   // Wrapper to notify parent when animation state changes
   const setIsAnimating = (value) => {
@@ -45,7 +45,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     if (onAnimationStateChange) {
       onAnimationStateChange(value);
     }
-  };
+  }
   const [animationSpeed, setAnimationSpeed] = useState(3);
   const [zoomLevel, setZoomLevel] = useState('medium'); // 'close', 'medium', 'far'
   const [animationProgress, setAnimationProgress] = useState(0); // 0-100 for timeline
@@ -155,7 +155,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     // Scale decreases as you zoom out
     const scaleFactor = Math.pow(2, (zoom - baseZoom) * 0.15);
     return Math.max(minScale, Math.min(maxScale, scaleFactor));
-  };
+  }
 
   // Update marker with new scale
   const updateMarkerScale = useCallback(() => {
@@ -377,7 +377,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     // Add the last point
     densifiedPath.push(originalPath[originalPath.length - 1]);
     return densifiedPath;
-  };
+  }
 
   // Get the interpolated position along the route
   const getInterpolatedPosition = (path, distance) => {
@@ -404,7 +404,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     
     // Return last position if we've exceeded the path
     return path[path.length - 1];
-  };
+  }
 
   const startAnimation = async () => {
     if (!directionsRoute || !directionsRoute.allLocations || directionsRoute.allLocations.length < 2) {
@@ -740,7 +740,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       showModal('Failed to start the animation. Please try again.', 'Animation Error', 'error');
       setIsAnimating(false);
     }
-  };
+  }
 
   // Removed auto-start on mobile - let user control it
 
@@ -766,13 +766,31 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       const deltaTime = timestamp - lastTimestamp;
       lastTimestamp = timestamp;
       
-      // Increment based on animation speed and delta time
-      // Use a consistent base speed regardless of route distance
-      // This ensures the animation takes a similar amount of time regardless of distance
-      const baseSpeed = 0.005; // Consistent speed for all distances
+      // IMPORTANT: Clamp deltaTime to prevent huge jumps when tab loses focus or frames are delayed
+      // Maximum deltaTime is 100ms (10 fps minimum)
+      const clampedDeltaTime = Math.min(deltaTime, 100);
       
-      const speedMultiplier = animationSpeedRef.current * baseSpeed;
-      countRef.current = countRef.current + (speedMultiplier * deltaTime);
+      // Log huge delta times that might cause jumps
+      if (deltaTime > 100) {
+      }
+      
+      // Increment based on animation speed and delta time
+      // SIMPLE CONSTANT SPEEDS - not based on distance!
+      // Just like the old version but with proper deltaTime handling
+      
+      let baseSpeed;
+      if (animationSpeedRef.current === 0.5) {
+        baseSpeed = 0.003; // Slow speed
+      } else if (animationSpeedRef.current === 1) {
+        baseSpeed = 0.006; // Normal speed  
+      } else if (animationSpeedRef.current === 2) {
+        baseSpeed = 0.012; // Fast speed
+      } else {
+        baseSpeed = 0.006 * animationSpeedRef.current; // Fallback for other values
+      }
+      
+      // Simple increment based on speed and time
+      countRef.current = countRef.current + (baseSpeed * clampedDeltaTime);
       if (countRef.current >= 200) countRef.current = 200;
       
       // Update symbol position
@@ -786,9 +804,42 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       const newProgress = countRef.current / 2;
       setAnimationProgress(newProgress);
       
+      // Check if we need to change the transport mode icon
+      if (segmentPathsRef.current && pathRef.current) {
+        const progress = offsetRef.current / 100;
+        const currentPointIndex = Math.floor(progress * (pathRef.current.length - 1));
+        
+        // Find which segment we're in
+        let currentSegment = null;
+        for (const segment of segmentPathsRef.current) {
+          if (currentPointIndex >= segment.startIndex && currentPointIndex < segment.endIndex) {
+            currentSegment = segment;
+            break;
+          }
+        }
+        
+        // Update icon color if mode changed
+        if (currentSegment && polylineRef.current) {
+          const icons = polylineRef.current.get('icons');
+          if (icons && icons[0]) {
+            const currentMode = currentSegment.mode;
+            icons[0].icon = {
+              path: window.google.maps.SymbolPath.CIRCLE,
+              scale: 8,
+              fillColor: TRANSPORTATION_COLORS[currentMode],
+              fillOpacity: 1,
+              strokeColor: '#FFFFFF',
+              strokeWeight: 2
+            };
+            polylineRef.current.set('icons', icons);
+          }
+        }
+      }
+      
       // Smart camera panning - pan when marker approaches edge of screen
-      const path = polylineRef.current.getPath();
-      const numPoints = path.getLength();
+      // Use the stored densified path for accurate position
+      const path = pathRef.current;
+      const numPoints = path.length;
       const progress = offsetRef.current / 100;
       
       // Use floating point index for smoother interpolation
@@ -797,15 +848,14 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       const nextIndex = Math.min(currentIndex + 1, numPoints - 1);
       const interpolationFactor = floatIndex - currentIndex;
       
-      if (currentIndex < numPoints) {
-        const currentPos = path.getAt(currentIndex);
-        const nextPos = path.getAt(nextIndex);
+      if (currentIndex < numPoints && path[currentIndex] && path[nextIndex]) {
+        const currentPos = path[currentIndex];
+        const nextPos = path[nextIndex];
         
-        if (currentPos && nextPos) {
-          // Interpolate between points for smoother movement
-          const lat = currentPos.lat() + (nextPos.lat() - currentPos.lat()) * interpolationFactor;
-          const lng = currentPos.lng() + (nextPos.lng() - currentPos.lng()) * interpolationFactor;
-          const markerPosition = new window.google.maps.LatLng(lat, lng);
+        // Interpolate between points for smoother movement
+        const lat = currentPos.lat() + (nextPos.lat() - currentPos.lat()) * interpolationFactor;
+        const lng = currentPos.lng() + (nextPos.lng() - currentPos.lng()) * interpolationFactor;
+        const markerPosition = new window.google.maps.LatLng(lat, lng);
           
           // Get map bounds and check if marker is near edge
           const bounds = map.getBounds();
@@ -830,7 +880,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
               const lookAheadPoints = [];
               for (let i = 5; i <= 40; i += 5) {
                 const idx = Math.min(floatIndex + i, numPoints - 1);
-                const point = path.getAt(Math.floor(idx));
+                const point = path[Math.floor(idx)];
                 if (point) lookAheadPoints.push(point);
               }
               
@@ -860,7 +910,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
             }
           }
         }
-      }
 
       // Check if animation is complete
       if (countRef.current >= 198) {
@@ -874,8 +923,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     
     // Start animation
     animationRef.current = requestAnimationFrame(animate);
-  };
-  
+  }
 
   const pauseAnimation = () => {
     setIsPaused(true);
@@ -884,14 +932,14 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current);
     }
-  };
+  }
 
   const resumeAnimation = () => {
     setIsPaused(false);
     isPausedRef.current = false;
     // Resume the animation from where it left off - countRef already has the position
     animateAlongRoute(true); // Pass true to indicate we're resuming
-  };
+  }
 
 
 
@@ -905,7 +953,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       });
       e.preventDefault();
     }
-  };
+  }
 
   const handleMouseMove = useCallback((e) => {
     if (!isDragging) return;

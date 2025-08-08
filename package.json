@@ -12,7 +12,12 @@
     "build": "cd frontend && npm run build",
     "heroku-postbuild": "cd frontend && npm install && npm run build"
   },
-  "keywords": ["maps", "transportation", "trips", "visualization"],
+  "keywords": [
+    "maps",
+    "transportation",
+    "trips",
+    "visualization"
+  ],
   "author": "",
   "license": "MIT",
   "engines": {
@@ -23,6 +28,8 @@
     "concurrently": "^8.2.2"
   },
   "dependencies": {
+    "axios": "^1.11.0",
+    "cors": "^2.8.5",
     "express": "^4.18.2"
   }
-} 
+}
