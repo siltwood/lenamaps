@@ -59,6 +59,8 @@ const RouteSegmentManager = ({
       clearSegment(segment);
     });
     segmentsRef.current = [];
+    // Also clear global segments
+    window._routeSegments = [];
   }, []);
 
   // Create a marker
@@ -705,7 +707,7 @@ const RouteSegmentManager = ({
             segmentRenderer._hoverPolyline = hoverPolyline;
             
             
-            // Store the complete segment
+            // Store the complete segment WITH THE ROUTE DATA
             const segment = {
               id: `segment-${i}`,
               index: i,
@@ -713,7 +715,11 @@ const RouteSegmentManager = ({
               startLocation: segmentOrigin,
               endLocation: segmentDestination,
               routeRenderer: segmentRenderer,
-              markers: markers
+              markers: markers,
+              // Store the actual route data for animation
+              route: result,
+              distance: result.routes[0].legs[0].distance,
+              duration: result.routes[0].legs[0].duration
             };
             
             // Insert at the correct index to maintain order
@@ -830,7 +836,7 @@ const RouteSegmentManager = ({
                   );
                 }
                 
-                // Store the complete segment
+                // Store the complete segment WITH ROUTE DATA
                 const segment = {
                   id: `segment-${i}`,
                   index: i,
@@ -839,7 +845,11 @@ const RouteSegmentManager = ({
                   endLocation: segmentDestination,
                   routeRenderer: segmentRenderer,
                   markers: markers,
-                  isFallback: true // Mark as fallback route
+                  isFallback: true, // Mark as fallback route
+                  // Store the actual route data for animation
+                  route: fallbackResult,
+                  distance: fallbackResult.routes[0].legs[0].distance,
+                  duration: fallbackResult.routes[0].legs[0].duration
                 };
                 
                 // Insert at the correct index to maintain order
@@ -855,6 +865,11 @@ const RouteSegmentManager = ({
         // Only update if this is still the current route
         if (currentRouteIdRef.current === routeId) {
           segmentsRef.current = newSegments;
+          
+          // IMPORTANT: Store segments globally so RouteAnimator can access them
+          // This ensures animation follows the EXACT displayed route
+          window._routeSegments = newSegments.filter(s => s && s.route);
+          console.log('Stored route segments globally for animation:', window._routeSegments);
         }
     };
     

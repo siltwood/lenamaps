@@ -1349,6 +1349,16 @@ body {
   position: absolute !important;
 }
 
+/* Fix z-index for overlapping inputs */
+.input-group {
+  position: relative;
+  z-index: auto;
+}
+
+.input-group:focus-within {
+  z-index: 100;
+}
+
 .location-search-dropdown {
   position: absolute;
   top: 100%;

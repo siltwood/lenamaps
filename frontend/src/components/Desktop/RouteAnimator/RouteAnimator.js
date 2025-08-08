@@ -50,14 +50,29 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
   const [zoomLevel, setZoomLevel] = useState('medium'); // 'close', 'medium', 'far'
   const [animationProgress, setAnimationProgress] = useState(0); // 0-100 for timeline
   
-  // Add effect to update zoom whenever zoom level changes (animation or not)
+  // Add effect to update zoom whenever zoom level changes
   useEffect(() => {
-    // Only update zoom when RouteAnimator is visible/expanded AND we're animating
-    if (map && !isMinimized && isAnimating) {
+    // Update the ref for animation loop access
+    zoomLevelRef.current = zoomLevel;
+    
+    // Update zoom when RouteAnimator is visible/expanded
+    // Remove the isAnimating requirement so zoom works even when paused/stopped
+    if (map && !isMinimized) {
       if (zoomLevel === 'close') {
         map.setZoom(18);
-        // If we have a single location, center on it
-        if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length === 1) {
+        // Center on current animation position if available, or first location
+        if (polylineRef.current && isAnimating && offsetRef) {
+          const path = polylineRef.current.getPath();
+          const progress = offsetRef.current / 100;
+          const currentIndex = Math.floor(progress * (path.getLength() - 1));
+          if (currentIndex < path.getLength()) {
+            const currentPos = path.getAt(currentIndex);
+            if (currentPos) {
+              map.setCenter(currentPos);
+            }
+          }
+        } else if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length > 0) {
+          // Not animating, center on first location
           const loc = directionsRoute.allLocations[0];
           if (loc && loc.lat && loc.lng) {
             map.setCenter(new window.google.maps.LatLng(loc.lat, loc.lng));
@@ -65,8 +80,19 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         }
       } else if (zoomLevel === 'medium') {
         map.setZoom(16);
-        // If we have a single location, center on it
-        if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length === 1) {
+        // Center on current animation position if available, or first location
+        if (polylineRef.current && isAnimating && offsetRef) {
+          const path = polylineRef.current.getPath();
+          const progress = offsetRef.current / 100;
+          const currentIndex = Math.floor(progress * (path.getLength() - 1));
+          if (currentIndex < path.getLength()) {
+            const currentPos = path.getAt(currentIndex);
+            if (currentPos) {
+              map.setCenter(currentPos);
+            }
+          }
+        } else if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length > 0) {
+          // Not animating, center on first location
           const loc = directionsRoute.allLocations[0];
           if (loc && loc.lat && loc.lng) {
             map.setCenter(new window.google.maps.LatLng(loc.lat, loc.lng));
@@ -74,40 +100,48 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         }
       } else if (zoomLevel === 'far') {
         // Fit the entire route when "far" is selected
-        // Check if we have a route to show
+        // Check if we have a route to show with at least 2 locations
         if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length >= 2) {
           const bounds = new window.google.maps.LatLngBounds();
           
-          // If we have polyline (during animation), use that
+          // Always include all route locations
+          directionsRoute.allLocations.forEach(loc => {
+            if (loc && loc.lat && loc.lng) {
+              bounds.extend(new window.google.maps.LatLng(loc.lat, loc.lng));
+            }
+          });
+          
+          // If we have a polyline (during animation), also include its path
           if (polylineRef.current) {
             const path = polylineRef.current.getPath();
-            for (let i = 0; i < path.getLength(); i++) {
+            // Add a sample of points to get accurate bounds without adding too many
+            const step = Math.max(1, Math.floor(path.getLength() / 50));
+            for (let i = 0; i < path.getLength(); i += step) {
               bounds.extend(path.getAt(i));
             }
-          } else {
-            // Otherwise use the route locations and segments if available
-            // First add route endpoint locations
-            directionsRoute.allLocations.forEach(loc => {
-              if (loc && loc.lat && loc.lng) {
-                bounds.extend(new window.google.maps.LatLng(loc.lat, loc.lng));
+          } else if (directionsRoute.segments && directionsRoute.segments.length > 0) {
+            // Include segment paths if available and not animating
+            directionsRoute.segments.forEach(segment => {
+              if (segment.route && segment.route.overview_path) {
+                // Sample points from segments too
+                const step = Math.max(1, Math.floor(segment.route.overview_path.length / 20));
+                for (let i = 0; i < segment.route.overview_path.length; i += step) {
+                  bounds.extend(segment.route.overview_path[i]);
+                }
               }
             });
-            
-            // Also include segment paths if they exist
-            if (directionsRoute.segments && directionsRoute.segments.length > 0) {
-              directionsRoute.segments.forEach(segment => {
-                if (segment.route && segment.route.overview_path) {
-                  segment.route.overview_path.forEach(point => {
-                    bounds.extend(point);
-                  });
-                }
-              });
-            }
           }
           
           // Fit bounds with padding
           const padding = { top: 50, right: 50, bottom: 50, left: 50 };
           map.fitBounds(bounds, padding);
+        } else if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length === 1) {
+          // Single location, just zoom out to show area
+          const loc = directionsRoute.allLocations[0];
+          if (loc && loc.lat && loc.lng) {
+            map.setCenter(new window.google.maps.LatLng(loc.lat, loc.lng));
+            map.setZoom(13);
+          }
         } else {
           // No route, just zoom out to see more
           map.setZoom(13);
@@ -144,6 +178,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
   const lastSymbolUpdateRef = useRef(0);
   const countRef = useRef(0); // Add ref to persist animation count
   const totalDistanceRef = useRef(0); // Store total route distance in km
+  const zoomLevelRef = useRef(zoomLevel); // Track zoom level in animation
 
   // Calculate marker scale based on zoom level
   const getMarkerScale = (zoom) => {
@@ -348,10 +383,64 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
   // Densify path by adding intermediate points for smoother animation
   const densifyPath = (originalPath) => {
     const densifiedPath = [];
-    const maxSegmentLength = 5; // Smaller segments for smoother movement
+    
+    // Calculate total route distance to determine appropriate segment length
+    let totalDistance = 0;
+    for (let i = 0; i < originalPath.length - 1; i++) {
+      totalDistance += window.google.maps.geometry.spherical.computeDistanceBetween(
+        originalPath[i],
+        originalPath[i + 1]
+      );
+    }
+    
+    // More aggressive optimization for long routes
+    const totalDistanceKm = totalDistance / 1000;
+    let maxSegmentLength;
+    let maxPointsPerSegment;
+    
+    if (totalDistanceKm > 2000) {
+      // Cross-country route (>2000km): Extremely sparse points
+      maxSegmentLength = 50000; // 50km segments
+      maxPointsPerSegment = 1; // Max 1 intermediate point
+    } else if (totalDistanceKm > 1000) {
+      // Very long route (>1000km): Very sparse points
+      maxSegmentLength = 20000; // 20km segments
+      maxPointsPerSegment = 2; // Max 2 intermediate points
+    } else if (totalDistanceKm > 100) {
+      // Long route (100-1000km): Sparse points
+      maxSegmentLength = 5000; // 5km segments  
+      maxPointsPerSegment = 3; // Max 3 intermediate points
+    } else if (totalDistanceKm > 10) {
+      // Medium route (10-100km): Moderate density
+      maxSegmentLength = 500; // 500m segments
+      maxPointsPerSegment = 10; // Max 10 intermediate points
+    } else {
+      // Short route (<10km): High density for smooth animation
+      maxSegmentLength = 100; // 100m segments
+      maxPointsPerSegment = 20; // Max 20 intermediate points
+    }
+    
+    // Much stricter limit for very long routes
+    let maxTotalPoints;
+    if (totalDistanceKm > 2000) {
+      maxTotalPoints = 200; // Only 200 points for cross-country
+    } else if (totalDistanceKm > 1000) {
+      maxTotalPoints = 500; // 500 points for very long routes
+    } else if (totalDistanceKm > 100) {
+      maxTotalPoints = 1000; // 1000 points for long routes
+    } else {
+      maxTotalPoints = Math.min(5000, Math.max(100, totalDistanceKm * 50));
+    }
+    let currentPointCount = 0;
     
     for (let i = 0; i < originalPath.length - 1; i++) {
       densifiedPath.push(originalPath[i]);
+      currentPointCount++;
+      
+      // Stop adding points if we hit the limit
+      if (currentPointCount >= maxTotalPoints) {
+        break;
+      }
       
       const segmentDistance = window.google.maps.geometry.spherical.computeDistanceBetween(
         originalPath[i],
@@ -360,9 +449,14 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       
       // If segment is longer than max, add intermediate points
       if (segmentDistance > maxSegmentLength) {
-        const numIntermediatePoints = Math.ceil(segmentDistance / maxSegmentLength);
+        const numIntermediatePoints = Math.min(maxPointsPerSegment, 
+          Math.ceil(segmentDistance / maxSegmentLength));
         
-        for (let j = 1; j <= numIntermediatePoints; j++) {
+        // Check if adding these points would exceed our limit
+        const pointsToAdd = Math.min(numIntermediatePoints, 
+          maxTotalPoints - currentPointCount);
+        
+        for (let j = 1; j <= pointsToAdd; j++) {
           const fraction = j / (numIntermediatePoints + 1);
           const intermediatePoint = window.google.maps.geometry.spherical.interpolate(
             originalPath[i],
@@ -370,12 +464,18 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
             fraction
           );
           densifiedPath.push(intermediatePoint);
+          currentPointCount++;
         }
       }
     }
     
-    // Add the last point
-    densifiedPath.push(originalPath[originalPath.length - 1]);
+    // Add the last point only if we haven't hit the limit
+    if (currentPointCount < maxTotalPoints && 
+        densifiedPath[densifiedPath.length - 1] !== originalPath[originalPath.length - 1]) {
+      densifiedPath.push(originalPath[originalPath.length - 1]);
+    }
+    
+    console.log(`Route: ${totalDistanceKm.toFixed(1)}km, Points: ${densifiedPath.length}`);
     return densifiedPath;
   }
 
@@ -431,86 +531,54 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       gestureHandling: 'none'
     });
 
-    // No marker cleanup needed - using pure Symbol Animation API
-
-    // Get all DirectionsRenderer instances from the map
-    const renderers = [];
-    map.overlayMapTypes.forEach(() => {});
-    
-    // Access the route segments through a different approach
-    // We'll request the directions again but extract the detailed path
-    const directionsService = new window.google.maps.DirectionsService();
+    // Use the EXISTING route data from directionsRoute instead of fetching new
     const allLocations = directionsRoute.allLocations;
     const allModes = directionsRoute.allModes || [];
-    
     
     let fullPath = [];
     let segmentInfo = [];
     
     try {
-      // Process each segment
-      for (let i = 0; i < allLocations.length - 1; i++) {
-        const mode = allModes[i] || 'walk';
-        let travelMode = window.google.maps.TravelMode.WALKING;
+      // IMPORTANT: We need to get the ACTUAL route that's displayed on the map
+      // The blue line is drawn by DirectionsRenderer objects that have the route data
+      
+      // First check if we have stored route segments with actual route data
+      if (window._routeSegments && window._routeSegments.length > 0) {
+        console.log('Using global route segments (exact match to displayed route)');
         
-        switch (mode) {
-          case 'bike':
-            travelMode = window.google.maps.TravelMode.BICYCLING;
-            break;
-          case 'car':
-          case 'bus': // Treat bus as driving for reliable routes
-            travelMode = window.google.maps.TravelMode.DRIVING;
-            break;
-          case 'walk':
-          default:
-            travelMode = window.google.maps.TravelMode.WALKING;
-            break;
-        }
-        
-        const request = {
-          origin: new window.google.maps.LatLng(allLocations[i].lat, allLocations[i].lng),
-          destination: new window.google.maps.LatLng(allLocations[i + 1].lat, allLocations[i + 1].lng),
-          travelMode: travelMode
-        };
-        
-        try {
-          const result = await new Promise((resolve, reject) => {
-            directionsService.route(request, (result, status) => {
-              if (status === 'OK') {
-                resolve(result);
-              } else {
-                // Any error - create straight line as fallback
-                const straightLineRoute = {
-                  routes: [{
-                    overview_path: [
-                      request.origin,
-                      request.destination
-                    ],
-                    legs: [{
-                      start_location: request.origin,
-                      end_location: request.destination,
-                      steps: [{
-                        path: [request.origin, request.destination]
-                      }]
-                    }]
-                  }]
-                };
-                resolve(straightLineRoute);
-              }
-            });
-          });
+        for (let i = 0; i < window._routeSegments.length; i++) {
+          const segment = window._routeSegments[i];
+          const mode = segment.mode || allModes[i] || 'walk';
           
-          // Extract detailed path from the route
-          if (result.routes && result.routes[0]) {
-            const route = result.routes[0];
+          if (segment.route && segment.route.routes && segment.route.routes[0]) {
+            const route = segment.route.routes[0];
             let segmentPath = [];
             
-            // Get all the detailed steps
-            route.legs.forEach(leg => {
-              leg.steps.forEach(step => {
-                segmentPath = segmentPath.concat(step.path);
+            // Check distance to decide detail level
+            const segmentDistance = segment.distance ? segment.distance.value : 0;
+            
+            if (segmentDistance > 50000 || !route.legs) {
+              // Long segment - use overview_path
+              segmentPath = route.overview_path || [];
+            } else {
+              // Get detailed path from steps for accuracy
+              route.legs.forEach(leg => {
+                if (leg.steps) {
+                  leg.steps.forEach(step => {
+                    if (step.path) {
+                      segmentPath = segmentPath.concat(step.path);
+                    } else if (step.lat_lngs) {
+                      segmentPath = segmentPath.concat(step.lat_lngs);
+                    }
+                  });
+                }
               });
-            });
+              
+              // Fallback to overview_path if no steps
+              if (segmentPath.length === 0) {
+                segmentPath = route.overview_path || [];
+              }
+            }
             
             // Store segment info
             const segmentStartIndex = fullPath.length;
@@ -522,31 +590,40 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
               mode: mode,
               locationIndex: i
             });
-            
           }
-        } catch (err) {
-          // Never fail - always show something
+        }
+        
+        console.log(`Extracted ${fullPath.length} points from ${window._routeSegments.length} segments`);
+      }
+      
+      // Fallback: If no segments or incomplete path, create simple straight lines
+      if (fullPath.length === 0 && allLocations.length >= 2) {
+        console.log('No segments found, creating straight line paths');
+        
+        for (let i = 0; i < allLocations.length - 1; i++) {
           const start = new window.google.maps.LatLng(allLocations[i].lat, allLocations[i].lng);
           const end = new window.google.maps.LatLng(allLocations[i + 1].lat, allLocations[i + 1].lng);
+          const mode = allModes[i] || 'walk';
           
-          // Add many intermediate points for smoother animation
+          // Create interpolated path for smooth animation
           const interpolatedPath = [];
-          const steps = 50; // Many intermediate points for smooth straight lines
+          const distance = window.google.maps.geometry.spherical.computeDistanceBetween(start, end);
+          const steps = Math.min(100, Math.max(10, Math.floor(distance / 1000))); // 1 point per km, max 100
+          
           for (let j = 0; j <= steps; j++) {
             const fraction = j / steps;
-            const lat = start.lat() + (end.lat() - start.lat()) * fraction;
-            const lng = start.lng() + (end.lng() - start.lng()) * fraction;
-            interpolatedPath.push(new window.google.maps.LatLng(lat, lng));
+            interpolatedPath.push(window.google.maps.geometry.spherical.interpolate(start, end, fraction));
           }
           
+          const segmentStartIndex = fullPath.length;
+          fullPath = fullPath.concat(interpolatedPath);
+          
           segmentInfo.push({
-            startIndex: fullPath.length,
-            endIndex: fullPath.length + interpolatedPath.length,
+            startIndex: segmentStartIndex,
+            endIndex: fullPath.length,
             mode: mode,
             locationIndex: i
           });
-          
-          fullPath = fullPath.concat(interpolatedPath);
         }
       }
       
@@ -554,8 +631,63 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         throw new Error('No path generated');
       }
       
-      // Densify the path for smoother animation
-      const densifiedPath = densifyPath(fullPath);
+      // Calculate total distance first
+      let routeDistance = 0;
+      for (let i = 0; i < fullPath.length - 1; i++) {
+        routeDistance += window.google.maps.geometry.spherical.computeDistanceBetween(
+          fullPath[i],
+          fullPath[i + 1]
+        );
+      }
+      const routeDistanceKm = routeDistance / 1000;
+      
+      console.log(`Route distance: ${routeDistanceKm.toFixed(0)}km, Raw path points: ${fullPath.length}`);
+      
+      // Use full path for accuracy, but optimize densification for performance
+      let densifiedPath;
+      
+      // For long routes, use minimal densification
+      if (routeDistanceKm > 500) {
+        // Very long routes - use path as-is if it has enough points
+        if (fullPath.length > 500) {
+          console.log('Using raw path for long route (no densification)');
+          densifiedPath = fullPath;
+        } else {
+          // Add minimal points only where gaps are huge
+          console.log('Minimal densification for long route');
+          densifiedPath = [];
+          for (let i = 0; i < fullPath.length - 1; i++) {
+            densifiedPath.push(fullPath[i]);
+            
+            const segmentDistance = window.google.maps.geometry.spherical.computeDistanceBetween(
+              fullPath[i],
+              fullPath[i + 1]
+            );
+            
+            // Only add points for very long segments (>50km)
+            if (segmentDistance > 50000) {
+              const numPoints = Math.min(5, Math.ceil(segmentDistance / 50000));
+              for (let j = 1; j < numPoints; j++) {
+                const fraction = j / numPoints;
+                const interpolated = window.google.maps.geometry.spherical.interpolate(
+                  fullPath[i],
+                  fullPath[i + 1],
+                  fraction
+                );
+                densifiedPath.push(interpolated);
+              }
+            }
+          }
+          densifiedPath.push(fullPath[fullPath.length - 1]);
+        }
+      } else {
+        // Short/medium routes - normal densification for smooth animation
+        const startDensify = performance.now();
+        densifiedPath = densifyPath(fullPath);
+        console.log(`Densification took ${(performance.now() - startDensify).toFixed(0)}ms`);
+      }
+      
+      console.log(`Final path: ${densifiedPath.length} points`);
       
       // Update segment info indices to match densified path
       const densifiedSegmentInfo = [];
@@ -747,11 +879,15 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
   // Removed createAnimationMarker - using Symbol Animation API
 
   const animateAlongRoute = (isResuming = false) => {
-    const currentZoomLevel = zoomLevel; // Capture current zoom level
+    // Don't capture zoom level - use the current state value directly
     // Initialize count only if starting fresh (not resuming from pause)
     if (!isResuming) {
       // Starting fresh - reset to beginning
       countRef.current = 0;
+      // Reset frame counter for visual updates
+      if (animateRef.current) {
+        animateRef.current.frameCount = 0;
+      }
     }
     // If resuming from pause, countRef.current already has the correct value
     
@@ -791,15 +927,35 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       if (!totalRouteDistance || totalRouteDistance === 0) return;
       
       // Set speed in meters per second based on animation speed setting
-      let metersPerSecond;
-      if (animationSpeedRef.current === 0.5) {
-        metersPerSecond = 100; // Slow: 100 m/s (~220 mph)
-      } else if (animationSpeedRef.current === 1) {
-        metersPerSecond = 200; // Normal: 200 m/s (~450 mph)
-      } else if (animationSpeedRef.current === 2) {
-        metersPerSecond = 400; // Fast: 400 m/s (~900 mph)
+      // Scale speed based on route distance for better experience
+      let baseSpeed;
+      const routeDistanceKm = totalRouteDistance / 1000;
+      
+      // Adaptive base speed based on route length
+      if (routeDistanceKm > 1000) {
+        // Very long routes: Much faster animation
+        baseSpeed = 2000; // 2km/s for cross-country (was 5km/s)
+      } else if (routeDistanceKm > 100) {
+        // Long routes: Faster animation
+        baseSpeed = 500; // 500m/s for long routes (was 1km/s)
+      } else if (routeDistanceKm > 10) {
+        // Medium routes: Moderate speed
+        baseSpeed = 150; // 150m/s for medium routes (was 300m/s)
       } else {
-        metersPerSecond = 200 * animationSpeedRef.current;
+        // Short routes: Slower for detail
+        baseSpeed = 50; // 50m/s for short routes (was 100m/s)
+      }
+      
+      // Apply user's speed multiplier
+      let metersPerSecond;
+      if (animationSpeedRef.current === 1) {
+        metersPerSecond = baseSpeed * 0.7; // Slow (was 0.5)
+      } else if (animationSpeedRef.current === 3) {
+        metersPerSecond = baseSpeed; // Normal
+      } else if (animationSpeedRef.current === 6) {
+        metersPerSecond = baseSpeed * 1.5; // Fast (was 2.0 - too fast!)
+      } else {
+        metersPerSecond = baseSpeed * (animationSpeedRef.current / 3);
       }
       
       // Calculate how much of the total route to cover in this frame
@@ -810,10 +966,22 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       countRef.current = countRef.current + (percentageThisFrame * 2); // *2 because count is 0-200
       if (countRef.current >= 200) countRef.current = 200;
       
-      // Update symbol position
-      const icons = polylineRef.current.get('icons');
-      icons[0].offset = (countRef.current / 2) + '%';
-      polylineRef.current.set('icons', icons);
+      // Optimize visual updates based on route length
+      // Long routes need less frequent updates to stay smooth
+      const visualUpdateFrequency = routeDistanceKm > 1000 ? 10 : 
+                                    routeDistanceKm > 500 ? 5 : 
+                                    routeDistanceKm > 100 ? 3 : 1;
+      
+      // Update symbol position (less frequently for long routes)
+      // Use frame counter instead of progress for modulo check
+      if (!animateRef.current) animateRef.current = { frameCount: 0 };
+      animateRef.current.frameCount++;
+      
+      if (animateRef.current.frameCount % visualUpdateFrequency === 0 || countRef.current >= 198) {
+        const icons = polylineRef.current.get('icons');
+        icons[0].offset = (countRef.current / 2) + '%';
+        polylineRef.current.set('icons', icons);
+      }
       
       // Track progress and update UI
       offsetRef.current = countRef.current / 2;
@@ -821,8 +989,8 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       const newProgress = countRef.current / 2;
       setAnimationProgress(newProgress);
       
-      // Check if we need to change the transport mode icon
-      if (segmentPathsRef.current && pathRef.current) {
+      // Check if we need to change the transport mode icon (less frequently for performance)
+      if (animateRef.current.frameCount % 10 === 0 && segmentPathsRef.current && pathRef.current) {
         const progress = offsetRef.current / 100;
         const currentPointIndex = Math.floor(progress * (pathRef.current.length - 1));
         
@@ -840,15 +1008,19 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
           const icons = polylineRef.current.get('icons');
           if (icons && icons[0]) {
             const currentMode = currentSegment.mode;
-            icons[0].icon = {
-              path: window.google.maps.SymbolPath.CIRCLE,
-              scale: 8,
-              fillColor: TRANSPORTATION_COLORS[currentMode],
-              fillOpacity: 1,
-              strokeColor: '#FFFFFF',
-              strokeWeight: 2
-            };
-            polylineRef.current.set('icons', icons);
+            // Only update if mode actually changed
+            if (!icons[0].icon._lastMode || icons[0].icon._lastMode !== currentMode) {
+              icons[0].icon = {
+                path: window.google.maps.SymbolPath.CIRCLE,
+                scale: 8,
+                fillColor: TRANSPORTATION_COLORS[currentMode],
+                fillOpacity: 1,
+                strokeColor: '#FFFFFF',
+                strokeWeight: 2,
+                _lastMode: currentMode // Track last mode to avoid unnecessary updates
+              };
+              polylineRef.current.set('icons', icons);
+            }
           }
         }
       }
@@ -880,60 +1052,38 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         const lng = currLng + (nextLng - currLng) * interpolationFactor;
         const markerPosition = new window.google.maps.LatLng(lat, lng);
           
-          // Get map bounds and check if marker is near edge
-          const bounds = map.getBounds();
-          if (bounds) {
-            const ne = bounds.getNorthEast();
-            const sw = bounds.getSouthWest();
-            
-            // Calculate buffer zone (20% from edge - triggers when closer to edge)
-            const latBuffer = (ne.lat() - sw.lat()) * 0.2;
-            const lngBuffer = (ne.lng() - sw.lng()) * 0.2;
-            
-            // Check if marker is within buffer zone of any edge
-            const nearEdge = markerPosition.lat() > ne.lat() - latBuffer ||
-                           markerPosition.lat() < sw.lat() + latBuffer ||
-                           markerPosition.lng() > ne.lng() - lngBuffer ||
-                           markerPosition.lng() < sw.lng() + lngBuffer;
-            
-            // Only pan if not in "far" (whole route) view
-            if (nearEdge && currentZoomLevel !== 'far') {
-              // Pan ahead of the marker so it has room to travel
-              // Look at multiple points ahead to better understand the route direction
-              const lookAheadPoints = [];
-              for (let i = 5; i <= 40; i += 5) {
-                const idx = Math.min(floatIndex + i, numPoints - 1);
-                const point = path[Math.floor(idx)];
-                if (point) lookAheadPoints.push(point);
-              }
+          // Camera following - more frequent updates for better tracking
+          // Balance between smooth following and performance
+          const cameraUpdateFrequency = routeDistanceKm > 2000 ? 15 :  // Cross-country: every 15 frames
+                                        routeDistanceKm > 1000 ? 10 :  // Very long: every 10 frames
+                                        routeDistanceKm > 500 ? 8 :    // Long: every 8 frames
+                                        routeDistanceKm > 100 ? 5 :    // Medium: every 5 frames
+                                        3;                             // Short: every 3 frames
+          
+          // Use the ref value which is updated when zoom changes
+          if (zoomLevelRef.current !== 'far' && animateRef.current.frameCount % cameraUpdateFrequency === 0) {
+            const bounds = map.getBounds();
+            if (bounds) {
+              const ne = bounds.getNorthEast();
+              const sw = bounds.getSouthWest();
               
-              if (lookAheadPoints.length > 0) {
-                // Create a bounding box that includes current position and look-ahead points
-                // Convert plain objects to LatLng if needed
-                const convertedLookAhead = lookAheadPoints.map(p => {
-                  if (typeof p.lat === 'function') return p;
-                  return new window.google.maps.LatLng(p.lat, p.lng);
-                });
-                
-                const allPoints = [markerPosition, ...convertedLookAhead];
-                let minLat = allPoints[0].lat(), maxLat = allPoints[0].lat();
-                let minLng = allPoints[0].lng(), maxLng = allPoints[0].lng();
-                
-                allPoints.forEach(point => {
-                  minLat = Math.min(minLat, point.lat());
-                  maxLat = Math.max(maxLat, point.lat());
-                  minLng = Math.min(minLng, point.lng());
-                  maxLng = Math.max(maxLng, point.lng());
-                });
-                
-                // Pan to center of the bounding box
-                const panLat = (minLat + maxLat) / 2;
-                const panLng = (minLng + maxLng) / 2;
-                const panTarget = new window.google.maps.LatLng(panLat, panLng);
-                
-                map.panTo(panTarget);
-              } else {
-                // Fallback to centering on marker position
+              // Use tighter buffer for closer following
+              const latBuffer = (ne.lat() - sw.lat()) * 0.25; // 25% buffer (was 15%)
+              const lngBuffer = (ne.lng() - sw.lng()) * 0.25;
+              
+              // Check if marker is outside the safe zone
+              const outsideBounds = markerPosition.lat() > ne.lat() - latBuffer ||
+                                   markerPosition.lat() < sw.lat() + latBuffer ||
+                                   markerPosition.lng() > ne.lng() - lngBuffer ||
+                                   markerPosition.lng() < sw.lng() + lngBuffer;
+              
+              // For close/medium zoom, always keep centered
+              if (zoomLevelRef.current === 'close' || 
+                  (zoomLevelRef.current === 'medium' && routeDistanceKm < 50)) {
+                // Always center on marker for close views
+                map.panTo(markerPosition);
+              } else if (outsideBounds) {
+                // Pan to keep marker in view for wider views
                 map.panTo(markerPosition);
               }
             }

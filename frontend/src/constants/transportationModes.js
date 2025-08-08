@@ -19,15 +19,4 @@ export const TRANSPORT_ICONS = {
   bus: '🚌'
 };
 
-export const DEFAULT_CENTER = { lat: 40.7505, lng: -73.9934 };
-
-export const MAP_CONFIG = {
-  zoom: 13,
-  mapTypeControl: true,
-  streetViewControl: true,
-  fullscreenControl: true,
-  zoomControl: true,
-  clickableIcons: false
-};
-
 export default TRANSPORTATION_MODES;
