@@ -16,6 +16,59 @@
 
     <title>LenaMaps - Trip Visualization</title>
     
+    <!-- Safari Polyfills -->
+    <script>
+      // Polyfill for requestIdleCallback (Safari doesn't support it)
+      window.requestIdleCallback = window.requestIdleCallback || function(callback) {
+        const start = Date.now();
+        return setTimeout(function() {
+          callback({
+            didTimeout: false,
+            timeRemaining: function() {
+              return Math.max(0, 50 - (Date.now() - start));
+            }
+          });
+        }, 1);
+      };
+      
+      window.cancelIdleCallback = window.cancelIdleCallback || function(id) {
+        clearTimeout(id);
+      };
+      
+      // Polyfill for smooth scroll behavior
+      if (!('scrollBehavior' in document.documentElement.style)) {
+        // Add smooth scroll polyfill for Safari
+        document.addEventListener('DOMContentLoaded', function() {
+          const originalScrollTo = window.scrollTo;
+          window.scrollTo = function(options) {
+            if (options && typeof options === 'object' && options.behavior === 'smooth') {
+              const start = window.pageYOffset;
+              const distance = (options.top || 0) - start;
+              const duration = 500;
+              let startTime = null;
+              
+              function animation(currentTime) {
+                if (!startTime) startTime = currentTime;
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const easeProgress = 0.5 - Math.cos(progress * Math.PI) / 2;
+                
+                window.scrollTo(0, start + distance * easeProgress);
+                
+                if (progress < 1) {
+                  requestAnimationFrame(animation);
+                }
+              }
+              
+              requestAnimationFrame(animation);
+            } else {
+              originalScrollTo.apply(window, arguments);
+            }
+          };
+        });
+      }
+    </script>
+    
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-40BL0MZL5E"></script>
     <script>

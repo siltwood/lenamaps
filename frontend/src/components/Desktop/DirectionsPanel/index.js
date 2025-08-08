@@ -27,13 +27,15 @@ const DirectionsPanel = ({
   canUndo = false,
   isEditing = false,
   editingTrip = null,
-  lastAction = null
+  lastAction = null,
+  map
 }) => {
   const [transportationModes] = useState(TRANSPORTATION_MODES);
   const [position, setPosition] = useState({ x: 10, y: 200 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [isMinimized, setIsMinimized] = useState(false); // Start open
+  const [activeInput, setActiveInput] = useState(null); // Track which input is active
   const panelRef = useRef(null);
   
   // Store position before minimizing
@@ -57,57 +59,62 @@ const DirectionsPanel = ({
 
   // Handle clicked location from map
   useEffect(() => {
+    console.log('DirectionsPanel effect: clickedLocation=', clickedLocation, 'isOpen=', isOpen, 'activeInput=', activeInput);
     if (clickedLocation && isOpen) {
+      console.log('Processing clicked location, current locations:', locations);
+      console.log('Current activeInput value:', activeInput);
       if (onLocationsChange) {
         const newLocations = [...locations];
         
-        // Normal click - add to next empty location slot
-        const emptyIndex = newLocations.findIndex(loc => !loc);
-        if (emptyIndex !== -1) {
-          newLocations[emptyIndex] = clickedLocation;
-          onLocationsChange(newLocations, 'ADD_LOCATION');
+        // If there's an active input (edit mode), replace that specific location
+        if (activeInput !== null && activeInput !== undefined) {
+          console.log('EDIT MODE: Replacing location at index', activeInput);
+          console.log('Old location:', locations[activeInput]);
+          console.log('New location:', clickedLocation);
+          newLocations[activeInput] = clickedLocation;
+          // Clear active input to exit edit mode and show the updated location
+          setActiveInput(null);
+        } else {
+          // Otherwise, find the first empty slot
+          console.log('NORMAL MODE: Finding first empty slot');
+          const emptyIndex = newLocations.findIndex(loc => !loc);
+          if (emptyIndex !== -1) {
+            console.log('Filling empty slot at index', emptyIndex);
+            newLocations[emptyIndex] = clickedLocation;
+          }
+        }
+        console.log('Calling onLocationsChange with:', newLocations);
+        onLocationsChange(newLocations, 'ADD_LOCATION');
+        
+        // Auto-calculate route or show marker for single location
+        const filledLocations = newLocations.filter(loc => loc !== null);
+        if (filledLocations.length >= 1) {
           
-          // Auto-calculate route or show marker for single location
-          const filledLocations = newLocations.filter(loc => loc !== null);
-          if (filledLocations.length >= 1) {
-            
-            if (filledLocations.length >= 2) {
-              // Multiple locations - create route
-              const segments = [];
-              for (let i = 0; i < filledLocations.length - 1; i++) {
-                segments.push({
-                  mode: legModes[i] || 'walk',
-                  startIndex: i,
-                  endIndex: i + 1
-                });
-              }
-              const routeData = {
-                origin: filledLocations[0],
-                destination: filledLocations[filledLocations.length - 1],
-                waypoints: filledLocations.slice(1, -1),
-                mode: legModes[0],
-                segments,
-                allLocations: filledLocations,
-                allModes: legModes,
-                // Add a stable ID based on locations
-                routeId: filledLocations.map(loc => `${loc.lat},${loc.lng}`).join('_') + '_' + legModes.join('-')
-              };
-              onDirectionsCalculated(routeData);
-            } else {
-              // Single location - just show marker
-              const routeData = {
-                origin: filledLocations[0],
-                destination: null,
-                waypoints: [],
-                mode: legModes[0],
-                segments: [],
-                allLocations: filledLocations,
-                allModes: legModes,
-                // Add a stable ID based on locations
-                routeId: filledLocations.map(loc => `${loc.lat},${loc.lng}`).join('_') + '_' + legModes.join('-')
-              };
-              onDirectionsCalculated(routeData);
+          if (filledLocations.length >= 2) {
+            // Multiple locations - create route
+            const segments = [];
+            for (let i = 0; i < filledLocations.length - 1; i++) {
+              segments.push({
+                mode: legModes[i] || 'walk',
+                startIndex: i,
+                endIndex: i + 1
+              });
             }
+            const routeData = {
+              origin: filledLocations[0],
+              destination: filledLocations[filledLocations.length - 1],
+              waypoints: filledLocations.slice(1, -1),
+              mode: legModes[0],
+              segments,
+              allLocations: newLocations, // Pass ALL locations including nulls
+              allModes: legModes,
+              // Add a stable ID based on locations
+              routeId: filledLocations.map(loc => `${loc.lat},${loc.lng}`).join('_') + '_' + legModes.join('-')
+            };
+            onDirectionsCalculated(routeData);
+          } else {
+            // Single location - don't calculate route, just let the marker show
+            onDirectionsCalculated(null);
           }
         }
       }
@@ -117,7 +124,7 @@ const DirectionsPanel = ({
         onLocationUsed();
       }
     }
-  }, [clickedLocation]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [clickedLocation, activeInput, isOpen, locations, onLocationsChange, onLocationUsed, onDirectionsCalculated, legModes]);
   
   // Removed auto-recalculate on mode change to prevent annoying re-renders
 
@@ -193,6 +200,7 @@ const DirectionsPanel = ({
   };
 
   const updateLocation = (index, location) => {
+    console.log('Updating location', index, 'to:', location);
     if (onLocationsChange) {
       const newLocations = [...locations];
       newLocations[index] = location;
@@ -219,24 +227,16 @@ const DirectionsPanel = ({
             waypoints: filledLocations.slice(1, -1),
             mode: legModes[0],
             segments,
-            allLocations: filledLocations,
+            allLocations: newLocations, // Pass ALL locations including nulls
             allModes: legModes,
             routeId: filledLocations.map(loc => `${loc.lat},${loc.lng}`).join('_') + '_' + legModes.join('-')
           };
-            onDirectionsCalculated(routeData);
+          console.log('Calculating route with', filledLocations.length, 'locations');
+          onDirectionsCalculated(routeData);
         } else {
-          // Single location - just show marker
-          const routeData = {
-            origin: filledLocations[0],
-            destination: null,
-            waypoints: [],
-            mode: legModes[0],
-            segments: [],
-            allLocations: filledLocations,
-            allModes: legModes,
-            routeId: filledLocations.map(loc => `${loc.lat},${loc.lng}`).join('_') + '_' + legModes.join('-')
-          };
-            onDirectionsCalculated(routeData);
+          // Single location - don't calculate route, just let the marker show
+          console.log('Single location, clearing route to show marker');
+          onDirectionsCalculated(null);
         }
       } else {
         // No locations - clear everything
@@ -253,19 +253,9 @@ const DirectionsPanel = ({
       
       // Update the route data immediately with new modes (visual update only)
       const filledLocations = locations.filter(loc => loc !== null);
-      if (filledLocations.length === 1 && onDirectionsCalculated) {
-        // Single location - update marker
-        const routeData = {
-          origin: filledLocations[0],
-          destination: null,
-          waypoints: [],
-          mode: newModes[0],
-          segments: [],
-          allLocations: filledLocations,
-          allModes: newModes,
-          routeId: filledLocations.map(loc => `${loc.lat},${loc.lng}`).join('_') + '_' + newModes.join('-')
-        };
-        onDirectionsCalculated(routeData);
+      if (filledLocations.length === 1) {
+        // Single location - don't calculate route, just let the marker show
+        // The marker will be handled by RouteSegmentManager
       } else if (filledLocations.length >= 2 && onDirectionsCalculated) {
         const segments = [];
         for (let i = 0; i < filledLocations.length - 1; i++) {
@@ -466,18 +456,53 @@ const DirectionsPanel = ({
                 <label>
                   Location {getLocationLabel(index)}
                 </label>
-                {!location ? (
+                {!location || activeInput === index ? (
                   <LocationSearch 
-                    onLocationSelect={(loc) => updateLocation(index, loc)}
+                    onLocationSelect={(loc) => {
+                      updateLocation(index, loc);
+                      setActiveInput(null); // Clear active input
+                      // Center map on point A when it's searched (not clicked)
+                      if (index === 0 && map) {
+                        map.panTo({ lat: loc.lat, lng: loc.lng });
+                        map.setZoom(15); // Zoom in to show the location clearly
+                      }
+                    }}
                     placeholder={`Enter location ${getLocationLabel(index)}...`}
+                    onFocus={() => setActiveInput(index)}
+                    onBlur={() => {
+                      // Only clear active input if we're not selecting a location
+                      setTimeout(() => {
+                        if (activeInput === index && location) {
+                          setActiveInput(null);
+                        }
+                      }, 200);
+                    }}
+                    defaultValue={location?.name || location?.address || ''}
                   />
                 ) : (
-                  <div className="selected-location">
+                  <div 
+                    className={`selected-location ${activeInput === index ? 'active' : ''}`}
+                    onClick={() => {
+                      console.log('Entering edit mode for input', index);
+                      setActiveInput(index);
+                      // Don't clear the location immediately - just mark it as active for editing
+                    }}
+                    style={{
+                      ...(activeInput === index ? {
+                        backgroundColor: '#eff6ff',
+                        borderColor: '#3b82f6',
+                        boxShadow: '0 0 0 3px rgba(59, 130, 246, 0.1)'
+                      } : {})
+                    }}
+                  >
                     <span>📍 {location.name || location.address || `${location.lat.toFixed(4)}, ${location.lng.toFixed(4)}`}</span>
                     {index > 1 && (
                       <button 
                         className="remove-location-btn"
-                        onClick={() => removeLocation(index)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          removeLocation(index);
+                        }}
                         title="Remove location"
                       >
                         <svg width="14" height="14" viewBox="0 0 14 14" fill="none">

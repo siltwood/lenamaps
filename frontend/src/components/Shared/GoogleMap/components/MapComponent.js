@@ -58,6 +58,7 @@ const MapComponent = ({
       
       // Add click listener
       mapInstance.addListener('click', (event) => {
+        console.log('Map clicked at:', event.latLng.lat(), event.latLng.lng());
         if (onMapClick) {
         // Reverse geocode to get place name and check for water
         const geocoder = new window.google.maps.Geocoder();
@@ -196,10 +197,19 @@ const MapComponent = ({
       <div ref={mapRef} style={{ height: '100%', width: '100%' }} />
       
       {/* Render child components */}
+      {console.log('MapComponent passing to RouteSegmentManager:', {
+        hasMap: !!map,
+        hasDirectionsService: !!directionsService,
+        directionsLocations,
+        directionsLegModes,
+        directionsRoute: directionsRoute?.routeId || 'none'
+      })}
       <RouteSegmentManager
         map={map}
         directionsService={directionsService}
         directionsRoute={directionsRoute}
+        directionsLocations={directionsLocations}
+        directionsLegModes={directionsLegModes}
         isMobile={isMobile}
       />
       
@@ -221,12 +231,23 @@ const MapComponent = ({
 export default React.memo(MapComponent, (prevProps, nextProps) => {
   // Custom comparison to prevent re-renders
   // Only re-render if specific props change that actually affect the map
-  return (
+  const shouldSkipRender = (
     JSON.stringify(prevProps.center) === JSON.stringify(nextProps.center) &&
     prevProps.shouldCenterMap === nextProps.shouldCenterMap &&
     // Use stable routeId for comparison
     prevProps.directionsRoute?.routeId === nextProps.directionsRoute?.routeId &&
     prevProps.showRouteAnimator === nextProps.showRouteAnimator &&
-    prevProps.isMobile === nextProps.isMobile
+    prevProps.isMobile === nextProps.isMobile &&
+    // IMPORTANT: Also check if directionsLocations changed!
+    JSON.stringify(prevProps.directionsLocations) === JSON.stringify(nextProps.directionsLocations) &&
+    JSON.stringify(prevProps.directionsLegModes) === JSON.stringify(nextProps.directionsLegModes)
   );
+  
+  console.log('MapComponent memo check:', {
+    shouldSkipRender,
+    prevLocations: prevProps.directionsLocations,
+    nextLocations: nextProps.directionsLocations
+  });
+  
+  return shouldSkipRender;
 });

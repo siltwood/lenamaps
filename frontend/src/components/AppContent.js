@@ -128,6 +128,7 @@ function AppContent() {
 
   // Wrapped setters that save to history
   const setDirectionsLocationsWithHistory = useCallback((newLocations, actionType, extraData) => {
+    console.log('Setting directions locations:', newLocations, 'actionType:', actionType);
     // Save current state before changing
     if (actionType) {
       // Find what changed by comparing with current locations
@@ -199,6 +200,11 @@ function AppContent() {
       )}
       <div className="main-content">
         <div className="map-container">
+          {console.log('AppContent rendering GoogleMap with:', {
+            directionsLocations,
+            directionsLegModes,
+            directionsRoute: directionsRoute?.routeId || 'none'
+          })}
           <GoogleMap
             directionsRoute={directionsRoute}
             center={mapCenter}
@@ -259,6 +265,7 @@ function AppContent() {
             onClearHistory={handleClearHistory}
             canUndo={history.length > 0}
             lastAction={lastAction}
+            map={mapInstance}
           />
         )
       )}

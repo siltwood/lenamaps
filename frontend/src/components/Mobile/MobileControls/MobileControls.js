@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import LocationSearch from '../../Shared/LocationSearch';
-import DragHandle from '../../common/DragHandle';
 import TRANSPORTATION_MODES from '../../../constants/transportationModes';
 import RouteAnimator from '../../Desktop/RouteAnimator/RouteAnimator';
 import '../../../styles/unified-icons.css';
@@ -28,11 +27,9 @@ const MobileControls = ({
   const [showCard, setShowCard] = useState(true);
   const [viewMode, setViewMode] = useState('planner'); // 'planner' or 'animator'
   const [showSearchInputs, setShowSearchInputs] = useState({});
+  const [activeInput, setActiveInput] = useState(null); // Track which input is active for clicking
   
-  // Drag state
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
-  const [cardPosition, setCardPosition] = useState({ x: 8, y: window.innerHeight - 400 });
+  // Card ref for animations
   const cardRef = useRef(null);
   
   // Switch view mode when animator is toggled
@@ -47,12 +44,31 @@ const MobileControls = ({
   // Handle clicked location from map - ONLY when card is open and in planner mode
   useEffect(() => {
     if (clickedLocation && showCard && viewMode === 'planner') {
+      console.log('Mobile: Clicked location received, activeInput:', activeInput);
       const newLocations = [...locations];
-      const emptyIndex = newLocations.findIndex(loc => !loc);
       
-      if (emptyIndex !== -1) {
-        newLocations[emptyIndex] = clickedLocation;
-        onLocationsChange(newLocations, 'ADD_LOCATION');
+      // If there's an active input (edit mode), replace that specific location
+      if (activeInput !== null) {
+        console.log('Mobile: Replacing location at index', activeInput, 'with clicked location');
+        newLocations[activeInput] = clickedLocation;
+        // Clear active input and close search box to show the updated location
+        const indexToClose = activeInput; // Capture the value before clearing
+        setActiveInput(null);
+        setShowSearchInputs(prev => ({ ...prev, [indexToClose]: false }));
+      } else {
+        // Otherwise, find the first empty slot
+        const emptyIndex = newLocations.findIndex(loc => !loc);
+        if (emptyIndex !== -1) {
+          newLocations[emptyIndex] = clickedLocation;
+        }
+      }
+      
+      onLocationsChange(newLocations, 'ADD_LOCATION');
+      
+      // ALWAYS recalculate route if we have at least 2 locations (even in edit mode)
+      const filledCount = newLocations.filter(l => l).length;
+      if (filledCount >= 2) {
+        console.log('Recalculating route after location change');
         calculateRoute(newLocations, legModes);
       }
       
@@ -64,42 +80,29 @@ const MobileControls = ({
 
   const calculateRoute = (locs, modes) => {
     const filledLocations = locs.filter(loc => loc !== null);
-    if (filledLocations.length >= 1 && onDirectionsCalculated) {
-      if (filledLocations.length === 1) {
-        const routeData = {
-          origin: filledLocations[0],
-          destination: null,
-          waypoints: [],
-          mode: modes[0] || 'walk',
-          segments: [],
-          allLocations: locs,
-          allModes: modes,
-          routeId: filledLocations.map(loc => `${loc.lat},${loc.lng}`).join('_') + '_' + modes.join('-')
-        };
-        onDirectionsCalculated(routeData);
-      } else {
-        const segments = [];
-        for (let i = 0; i < filledLocations.length - 1; i++) {
-          segments.push({
-            mode: modes[i] || 'walk',
-            startIndex: i,
-            endIndex: i + 1
-          });
-        }
-        
-        const routeData = {
-          origin: filledLocations[0],
-          destination: filledLocations[filledLocations.length - 1],
-          waypoints: filledLocations.slice(1, -1),
-          mode: modes[0],
-          segments,
-          allLocations: locs,
-          allModes: modes,
-          routeId: filledLocations.map(loc => `${loc.lat},${loc.lng}`).join('_') + '_' + modes.join('-')
-        };
-        
-        onDirectionsCalculated(routeData);
+    if (filledLocations.length >= 2 && onDirectionsCalculated) {
+      // Only calculate route when we have at least 2 locations
+      const segments = [];
+      for (let i = 0; i < filledLocations.length - 1; i++) {
+        segments.push({
+          mode: modes[i] || 'walk',
+          startIndex: i,
+          endIndex: i + 1
+        });
       }
+      
+      const routeData = {
+        origin: filledLocations[0],
+        destination: filledLocations[filledLocations.length - 1],
+        waypoints: filledLocations.slice(1, -1),
+        mode: modes[0],
+        segments,
+        allLocations: locs,
+        allModes: modes,
+        routeId: filledLocations.map(loc => `${loc.lat},${loc.lng}`).join('_') + '_' + modes.join('-')
+      };
+      
+      onDirectionsCalculated(routeData);
     }
   };
 
@@ -121,55 +124,6 @@ const MobileControls = ({
 
 
   // Handle drag events (both touch and mouse for testing)
-  const handleDragStart = (e) => {
-    if (e.target.closest('.drag-handle')) {
-      setIsDragging(true);
-      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-      setDragStart({
-        x: clientX - cardPosition.x,
-        y: clientY - cardPosition.y
-      });
-    }
-  };
-
-  const handleDragMove = useCallback((e) => {
-    if (!isDragging) return;
-    e.preventDefault();
-    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
-    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    const newX = clientX - dragStart.x;
-    const newY = clientY - dragStart.y;
-    
-    // Keep card within viewport bounds
-    const maxX = window.innerWidth - (cardRef.current?.offsetWidth || 320);
-    const maxY = window.innerHeight - (cardRef.current?.offsetHeight || 240);
-    
-    setCardPosition({
-      x: Math.max(0, Math.min(newX, maxX)),
-      y: Math.max(20, Math.min(newY, maxY))
-    });
-  }, [isDragging, dragStart]);
-
-  const handleDragEnd = useCallback(() => {
-    setIsDragging(false);
-  }, []);
-
-  useEffect(() => {
-    if (isDragging) {
-      // Add both touch and mouse listeners
-      document.addEventListener('touchmove', handleDragMove, { passive: false });
-      document.addEventListener('touchend', handleDragEnd);
-      document.addEventListener('mousemove', handleDragMove);
-      document.addEventListener('mouseup', handleDragEnd);
-      return () => {
-        document.removeEventListener('touchmove', handleDragMove);
-        document.removeEventListener('touchend', handleDragEnd);
-        document.removeEventListener('mousemove', handleDragMove);
-        document.removeEventListener('mouseup', handleDragEnd);
-      };
-    }
-  }, [isDragging, handleDragMove, handleDragEnd]);
 
   // Render animator controls inline
   const renderAnimator = () => {
@@ -205,7 +159,6 @@ const MobileControls = ({
   const renderPlanner = () => (
     <>
       <div className="mobile-card-header">
-        <DragHandle />
         <h4>Plan Your Route</h4>
         <div className="mobile-header-actions">
           <button 
@@ -236,6 +189,13 @@ const MobileControls = ({
                         newLocations[index] = loc;
                         onLocationsChange(newLocations);
                         setShowSearchInputs(prev => ({ ...prev, [index]: false }));
+                        setActiveInput(null); // Clear active input
+                        
+                        // Center map on point A when it's searched (not clicked)
+                        if (index === 0 && map) {
+                          map.panTo({ lat: loc.lat, lng: loc.lng });
+                          map.setZoom(15); // Zoom in to show the location clearly
+                        }
                         
                         // Calculate route if we have at least 2 locations
                         const filledCount = newLocations.filter(l => l).length;
@@ -247,7 +207,10 @@ const MobileControls = ({
                     />
                     <button 
                       className="mobile-search-cancel"
-                      onClick={() => setShowSearchInputs(prev => ({ ...prev, [index]: false }))}
+                      onClick={() => {
+                        setShowSearchInputs(prev => ({ ...prev, [index]: false }));
+                        setActiveInput(null);
+                      }}
                     >
                       ×
                     </button>
@@ -256,14 +219,57 @@ const MobileControls = ({
                   <input 
                     type="text"
                     placeholder={index === 0 ? "Tap map or search..." : "Tap map or search..."}
-                    className="mobile-route-input"
-                    onClick={() => setShowSearchInputs(prev => ({ ...prev, [index]: true }))}
+                    className={`mobile-route-input ${activeInput === index ? 'active' : ''}`}
+                    onClick={() => {
+                      setActiveInput(index);
+                      setShowSearchInputs(prev => ({ ...prev, [index]: true }));
+                    }}
                     readOnly
                   />
+                ) : activeInput === index && showSearchInputs[index] ? (
+                  <div className="mobile-search-container">
+                    <LocationSearch
+                      onLocationSelect={(loc) => {
+                        const newLocations = [...locations];
+                        newLocations[index] = loc;
+                        onLocationsChange(newLocations);
+                        setShowSearchInputs(prev => ({ ...prev, [index]: false }));
+                        setActiveInput(null); // Clear active input
+                        
+                        // Center map on point A when it's searched (not clicked)
+                        if (index === 0 && map) {
+                          map.panTo({ lat: loc.lat, lng: loc.lng });
+                          map.setZoom(15); // Zoom in to show the location clearly
+                        }
+                        
+                        // Calculate route if we have at least 2 locations
+                        const filledCount = newLocations.filter(l => l).length;
+                        if (filledCount >= 2) {
+                          calculateRoute(newLocations, legModes);
+                        }
+                      }}
+                      placeholder={`Search for point ${String.fromCharCode(65 + index)}...`}
+                      defaultValue={location?.name || location?.address || ''}
+                    />
+                    <button 
+                      className="mobile-search-cancel"
+                      onClick={() => {
+                        setShowSearchInputs(prev => ({ ...prev, [index]: false }));
+                        setActiveInput(null);
+                      }}
+                    >
+                      ×
+                    </button>
+                  </div>
                 ) : (
                   <div 
-                    className="mobile-route-input filled"
-                    onClick={() => setShowSearchInputs(prev => ({ ...prev, [index]: true }))}
+                    className={`mobile-route-input filled ${activeInput === index ? 'active' : ''}`}
+                    onClick={() => {
+                      console.log('Entering edit mode for mobile input', index);
+                      setActiveInput(index);
+                      // Don't clear the location immediately - just mark it as active for editing
+                      setShowSearchInputs(prev => ({ ...prev, [index]: true }));
+                    }}
                   >
                     {location.name?.split(',')[0] || `Location ${String.fromCharCode(65 + index)}`}
                   </div>
@@ -385,15 +391,7 @@ const MobileControls = ({
       {/* Single Modal Card */}
       <div 
         ref={cardRef}
-        className={`mobile-card ${!showCard ? 'collapsed' : ''} ${isDragging ? 'dragging' : ''}`}
-        style={showCard ? {
-          position: 'fixed',
-          left: `${cardPosition.x}px`,
-          top: `${cardPosition.y}px`,
-          transition: isDragging ? 'none' : undefined
-        } : {}}
-        onTouchStart={handleDragStart}
-        onMouseDown={handleDragStart}
+        className={`mobile-card ${!showCard ? 'collapsed' : ''}`}
       >
         {viewMode === 'animator' ? renderAnimator() : renderPlanner()}
       </div>

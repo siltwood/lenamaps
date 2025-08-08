@@ -143,6 +143,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
   const currentZoomRef = useRef(13);
   const lastSymbolUpdateRef = useRef(0);
   const countRef = useRef(0); // Add ref to persist animation count
+  const totalDistanceRef = useRef(0); // Store total route distance in km
 
   // Calculate marker scale based on zoom level
   const getMarkerScale = (zoom) => {
@@ -579,6 +580,18 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       pathRef.current = densifiedPath;
       segmentPathsRef.current = densifiedSegmentInfo;
       
+      // Calculate total route distance for speed adjustment
+      let totalDistance = 0;
+      for (let i = 0; i < densifiedPath.length - 1; i++) {
+        totalDistance += window.google.maps.geometry.spherical.computeDistanceBetween(
+          densifiedPath[i],
+          densifiedPath[i + 1]
+        );
+      }
+      
+      // Store total distance for speed calculation
+      const totalDistanceKm = totalDistance / 1000;
+      totalDistanceRef.current = totalDistanceKm;
       
       // Create polyline with animated symbol
       const initialMode = allModes[0] || 'walk';
@@ -754,8 +767,11 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       lastTimestamp = timestamp;
       
       // Increment based on animation speed and delta time
-      // For video recording: Slow = 0.005, Regular = 0.015, Fast = 0.03
-      const speedMultiplier = animationSpeedRef.current * 0.005; // Much faster for actual use!
+      // Use a consistent base speed regardless of route distance
+      // This ensures the animation takes a similar amount of time regardless of distance
+      const baseSpeed = 0.005; // Consistent speed for all distances
+      
+      const speedMultiplier = animationSpeedRef.current * baseSpeed;
       countRef.current = countRef.current + (speedMultiplier * deltaTime);
       if (countRef.current >= 200) countRef.current = 200;
       
@@ -979,7 +995,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     return (
       <>
         <div className="mobile-card-header">
-          <DragHandle />
+          {!isMobile && <DragHandle />}
           <h4>Route Animator</h4>
           <div className="mobile-header-actions">
             <button 
@@ -1019,21 +1035,21 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
           <div className="controls-section">
             <div className="playback-controls">
               {!isAnimating ? (
-                <button onClick={startAnimation} className="control-btn play">
+                <button onClick={startAnimation} className="mobile-control-btn play">
                   <FontAwesomeIcon icon={faPlay} /> Play
                 </button>
               ) : (
                 <>
                   {isPaused ? (
-                    <button onClick={resumeAnimation} className="control-btn play">
+                    <button onClick={resumeAnimation} className="mobile-control-btn play">
                       <FontAwesomeIcon icon={faPlay} /> Resume
                     </button>
                   ) : (
-                    <button onClick={pauseAnimation} className="control-btn pause">
+                    <button onClick={pauseAnimation} className="mobile-control-btn pause">
                       <FontAwesomeIcon icon={faPause} /> Pause
                     </button>
                   )}
-                  <button onClick={stopAnimation} className="control-btn stop">
+                  <button onClick={stopAnimation} className="mobile-control-btn stop">
                     <FontAwesomeIcon icon={faStop} /> Exit Animation
                   </button>
                 </>
@@ -1176,9 +1192,11 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                   <span>100%</span>
                 </div>
               </div>
-              <div className="timeline-tips">
-                💡 <small>Click anywhere on the blue route to jump to that spot!</small>
-              </div>
+              {!isMobile && (
+                <div className="timeline-tips">
+                  💡 <small>Click anywhere on the blue route to jump to that spot!</small>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -1442,9 +1460,11 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                   <span>100%</span>
                 </div>
               </div>
-              <div className="timeline-tips">
-                💡 <small>Click anywhere on the blue route to jump to that spot!</small>
-              </div>
+              {!isMobile && (
+                <div className="timeline-tips">
+                  💡 <small>Click anywhere on the blue route to jump to that spot!</small>
+                </div>
+              )}
             </div>
             
           </div>

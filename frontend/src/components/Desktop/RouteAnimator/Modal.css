@@ -136,3 +136,60 @@
   transform: translateY(0);
   box-shadow: 0 1px 4px rgba(66, 133, 244, 0.3);
 }
+
+/* Mobile-specific styles for bottom card design */
+@media (max-width: 768px) {
+  .route-modal-overlay {
+    align-items: flex-end;
+    padding: 0;
+  }
+  
+  .route-modal-content {
+    max-width: 100%;
+    width: 100%;
+    border-radius: 20px 20px 0 0;
+    max-height: 85vh;
+    transform: translateY(100%);
+    margin: 0;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+  }
+  
+  .route-modal-overlay.visible .route-modal-content {
+    transform: translateY(0);
+  }
+  
+  /* Add drag handle for mobile */
+  .route-modal-content::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 36px;
+    height: 5px;
+    background: #ccc;
+    border-radius: 3px;
+  }
+  
+  .route-modal-body {
+    padding: 40px 24px 24px;
+    max-height: calc(85vh - 80px);
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+  
+  /* Adjust for iOS Safari with viewport height */
+  @supports (-webkit-touch-callout: none) {
+    .route-modal-content {
+      max-height: calc(85vh - env(safe-area-inset-bottom));
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+    
+    .route-modal-body {
+      max-height: calc(85vh - 80px - env(safe-area-inset-bottom));
+    }
+  }
+}

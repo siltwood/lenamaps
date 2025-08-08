@@ -19,8 +19,8 @@ const Modal = ({ isOpen, onClose, title, message, type = 'info' }) => {
     }
   }, [isOpen]);
 
-  // Don't show modals on mobile
-  if (!isOpen || isMobile) return null;
+  // Don't render if not open
+  if (!isOpen) return null;
 
   const getIcon = () => {
     switch (type) {
