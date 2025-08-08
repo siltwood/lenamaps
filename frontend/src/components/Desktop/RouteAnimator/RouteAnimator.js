@@ -646,7 +646,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       
       polylineRef.current = new window.google.maps.Polyline({
         path: densifiedPath,
-        geodesic: false,
+        geodesic: false, // Use the exact path points from the directions
         strokeColor: 'transparent', // Make the line itself invisible
         strokeOpacity: 0,
         strokeWeight: 20, // Keep it wide for click detection
@@ -755,6 +755,17 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     }
     // If resuming from pause, countRef.current already has the correct value
     
+    // Calculate total route distance ONCE at the start
+    let totalRouteDistance = 0;
+    if (pathRef.current && pathRef.current.length > 1) {
+      for (let i = 0; i < pathRef.current.length - 1; i++) {
+        totalRouteDistance += window.google.maps.geometry.spherical.computeDistanceBetween(
+          pathRef.current[i],
+          pathRef.current[i + 1]
+        );
+      }
+    }
+    
     let lastTimestamp = performance.now();
     
     const animate = (timestamp) => {
@@ -774,23 +785,29 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       if (deltaTime > 100) {
       }
       
-      // Increment based on animation speed and delta time
-      // SIMPLE CONSTANT SPEEDS - not based on distance!
-      // Just like the old version but with proper deltaTime handling
+      // CONSTANT SPEED IN METERS PER SECOND
+      // Move at the same speed on the map regardless of trip length
       
-      let baseSpeed;
+      if (!totalRouteDistance || totalRouteDistance === 0) return;
+      
+      // Set speed in meters per second based on animation speed setting
+      let metersPerSecond;
       if (animationSpeedRef.current === 0.5) {
-        baseSpeed = 0.003; // Slow speed
+        metersPerSecond = 100; // Slow: 100 m/s (~220 mph)
       } else if (animationSpeedRef.current === 1) {
-        baseSpeed = 0.006; // Normal speed  
+        metersPerSecond = 200; // Normal: 200 m/s (~450 mph)
       } else if (animationSpeedRef.current === 2) {
-        baseSpeed = 0.012; // Fast speed
+        metersPerSecond = 400; // Fast: 400 m/s (~900 mph)
       } else {
-        baseSpeed = 0.006 * animationSpeedRef.current; // Fallback for other values
+        metersPerSecond = 200 * animationSpeedRef.current;
       }
       
-      // Simple increment based on speed and time
-      countRef.current = countRef.current + (baseSpeed * clampedDeltaTime);
+      // Calculate how much of the total route to cover in this frame
+      const metersThisFrame = metersPerSecond * (clampedDeltaTime / 1000);
+      const percentageThisFrame = (metersThisFrame / totalRouteDistance) * 100;
+      
+      // Increment position by the calculated percentage
+      countRef.current = countRef.current + (percentageThisFrame * 2); // *2 because count is 0-200
       if (countRef.current >= 200) countRef.current = 200;
       
       // Update symbol position
@@ -853,8 +870,14 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         const nextPos = path[nextIndex];
         
         // Interpolate between points for smoother movement
-        const lat = currentPos.lat() + (nextPos.lat() - currentPos.lat()) * interpolationFactor;
-        const lng = currentPos.lng() + (nextPos.lng() - currentPos.lng()) * interpolationFactor;
+        // Handle both LatLng objects and plain objects
+        const currLat = typeof currentPos.lat === 'function' ? currentPos.lat() : currentPos.lat;
+        const currLng = typeof currentPos.lng === 'function' ? currentPos.lng() : currentPos.lng;
+        const nextLat = typeof nextPos.lat === 'function' ? nextPos.lat() : nextPos.lat;
+        const nextLng = typeof nextPos.lng === 'function' ? nextPos.lng() : nextPos.lng;
+        
+        const lat = currLat + (nextLat - currLat) * interpolationFactor;
+        const lng = currLng + (nextLng - currLng) * interpolationFactor;
         const markerPosition = new window.google.maps.LatLng(lat, lng);
           
           // Get map bounds and check if marker is near edge
@@ -886,7 +909,13 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
               
               if (lookAheadPoints.length > 0) {
                 // Create a bounding box that includes current position and look-ahead points
-                const allPoints = [markerPosition, ...lookAheadPoints];
+                // Convert plain objects to LatLng if needed
+                const convertedLookAhead = lookAheadPoints.map(p => {
+                  if (typeof p.lat === 'function') return p;
+                  return new window.google.maps.LatLng(p.lat, p.lng);
+                });
+                
+                const allPoints = [markerPosition, ...convertedLookAhead];
                 let minLat = allPoints[0].lat(), maxLat = allPoints[0].lat();
                 let minLng = allPoints[0].lng(), maxLng = allPoints[0].lng();
                 

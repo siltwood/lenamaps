@@ -440,7 +440,7 @@ const DirectionsPanel = ({
           {/* Display all locations in sequence */}
           {locations.map((location, index) => (
             <div key={index}>
-              <div className={`input-group ${!location && index === locations.findIndex(l => !l) ? 'awaiting-click' : ''}`}>
+              <div className={`input-group ${!location && index === locations.findIndex(l => !l) ? 'awaiting-click' : ''} ${activeInput === index ? 'awaiting-input' : ''}`}>
                 <label>
                   Location {getLocationLabel(index)}
                 </label>

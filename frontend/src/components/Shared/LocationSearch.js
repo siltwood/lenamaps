@@ -196,7 +196,11 @@ const LocationSearch = ({ onLocationSelect, placeholder = "Search for a city or 
             <div
               key={prediction.place_id}
               className={`location-search-item ${index === selectedIndex ? 'selected' : ''}`}
-              onClick={() => selectPlace(prediction.place_id, prediction.description)}
+              onMouseDown={(e) => {
+                e.preventDefault(); // Prevent focus shift
+                e.stopPropagation(); // Stop event bubbling
+                selectPlace(prediction.place_id, prediction.description);
+              }}
               onMouseEnter={() => setSelectedIndex(index)}
             >
               <div className="location-search-item-main">
