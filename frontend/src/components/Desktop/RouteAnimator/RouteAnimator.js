@@ -172,6 +172,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
   const countRef = useRef(0); // Add ref to persist animation count
   const totalDistanceRef = useRef(0); // Store total route distance in km
   const zoomLevelRef = useRef(zoomLevel); // Track zoom level in animation
+  const visualOffsetRef = useRef(0); // Track the actual visual position of the icon
 
   // Calculate marker scale based on zoom level
   const getMarkerScale = (zoom) => {
@@ -278,6 +279,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     
     offsetRef.current = 0;
     countRef.current = 0; // Reset count when stopping
+    visualOffsetRef.current = 0; // Reset visual position
     lastCameraPositionRef.current = null;
     cameraVelocityRef.current = null;
     
@@ -799,6 +801,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
           const progress = (closestIndex / (densifiedPath.length - 1)) * 100;
           countRef.current = progress * 2; // Convert to count (0-200 range)
           offsetRef.current = progress;
+          visualOffsetRef.current = progress; // Update visual position immediately
           setAnimationProgress(progress); // Update UI state
           
           // Update visual position immediately
@@ -870,6 +873,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     if (!isResuming) {
       // Starting fresh - reset to beginning
       countRef.current = 0;
+      visualOffsetRef.current = 0; // Initialize visual position to start
       // Reset frame counter for visual updates
       if (animateRef.current) {
         animateRef.current.frameCount = 0;
@@ -982,8 +986,11 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       
       if (animateRef.current.frameCount % visualUpdateFrequency === 0 || countRef.current >= 198) {
         const icons = polylineRef.current.get('icons');
-        icons[0].offset = (countRef.current / 2) + '%';
+        const visualOffset = (countRef.current / 2);
+        icons[0].offset = visualOffset + '%';
         polylineRef.current.set('icons', icons);
+        // Update the visual position ref so camera follows the actual visible marker
+        visualOffsetRef.current = visualOffset;
       }
       
       // Track progress and update UI
@@ -1029,10 +1036,19 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       }
       
       // Smart camera panning - pan when marker approaches edge of screen
-      // Use the stored densified path for accurate position
+      // Use the VISUAL position (what the user actually sees) for camera following
       const path = pathRef.current;
+      
+      // Safety check - make sure we have a valid path
+      if (!path || path.length === 0) {
+        console.warn('No path available for camera tracking!');
+        return;
+      }
+      
       const numPoints = path.length;
-      const progress = offsetRef.current / 100;
+      // Use visualOffsetRef for camera - this is where the icon actually is visually
+      // visualOffsetRef is already in percentage (0-100), convert to fraction
+      const progress = visualOffsetRef.current / 100;
       
       // Use floating point index for smoother interpolation
       const floatIndex = progress * (numPoints - 1);
@@ -1054,39 +1070,66 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         const lat = currLat + (nextLat - currLat) * interpolationFactor;
         const lng = currLng + (nextLng - currLng) * interpolationFactor;
         const markerPosition = new window.google.maps.LatLng(lat, lng);
-          
-          // Camera following strategy based on zoom level
-          if (zoomLevelRef.current !== 'far') {
-            const bounds = map.getBounds();
-            if (bounds) {
-              const ne = bounds.getNorthEast();
-              const sw = bounds.getSouthWest();
+        
+        // Debug: log every 30 frames
+        if (animateRef.current.frameCount % 30 === 0) {
+          console.log('Camera tracking - calculated progress:', progress, 'visual offset:', visualOffsetRef.current, 'actual offset:', offsetRef.current);
+          console.log('Index:', currentIndex, '/', numPoints, 'position:', lat, lng);
+          console.log('Current zoom level:', zoomLevelRef.current);
+        }
+        
+        // Camera following strategy based on zoom level
+        if (zoomLevelRef.current !== 'far') {
+          const bounds = map.getBounds();
+          if (bounds) {
+            const ne = bounds.getNorthEast();
+            const sw = bounds.getSouthWest();
+            
+            // For Close view - keep marker centered always
+            if (zoomLevelRef.current === 'close') {
+              // Debug log every 30 frames
+              if (animateRef.current.frameCount % 30 === 0) {
+                console.log('Close view - centering on marker at:', markerPosition.lat(), markerPosition.lng());
+              }
+              // Check every frame and keep perfectly centered
+              map.panTo(markerPosition);
+            } 
+            // For Medium view - keep marker loosely centered
+            else if (zoomLevelRef.current === 'medium') {
+              // Use larger buffer for medium view (30% from edge)
+              const latBuffer = (ne.lat() - sw.lat()) * 0.3;
+              const lngBuffer = (ne.lng() - sw.lng()) * 0.3;
               
-              // For Close view - keep marker centered always
-              if (zoomLevelRef.current === 'close') {
-                // Check every frame and keep perfectly centered
+              // Debug bounds every 30 frames
+              if (animateRef.current.frameCount % 30 === 0) {
+                console.log('Medium view bounds check:');
+                console.log('  Marker:', markerPosition.lat(), markerPosition.lng());
+                console.log('  Bounds NE:', ne.lat(), ne.lng());
+                console.log('  Bounds SW:', sw.lat(), sw.lng());
+                console.log('  Safe zone: lat', sw.lat() + latBuffer, 'to', ne.lat() - latBuffer);
+                console.log('  Safe zone: lng', sw.lng() + lngBuffer, 'to', ne.lng() - lngBuffer);
+              }
+              
+              // Check if marker is outside the safe zone
+              const outsideSafeZone = markerPosition.lat() > ne.lat() - latBuffer ||
+                                      markerPosition.lat() < sw.lat() + latBuffer ||
+                                      markerPosition.lng() > ne.lng() - lngBuffer ||
+                                      markerPosition.lng() < sw.lng() + lngBuffer;
+              
+              if (outsideSafeZone) {
+                console.log('Medium view - marker outside safe zone, panning to:', markerPosition.lat(), markerPosition.lng());
+                // Re-center on marker
                 map.panTo(markerPosition);
-              } 
-              // For Medium view - keep marker loosely centered
-              else if (zoomLevelRef.current === 'medium') {
-                // Use larger buffer for medium view (30% from edge)
-                const latBuffer = (ne.lat() - sw.lat()) * 0.3;
-                const lngBuffer = (ne.lng() - sw.lng()) * 0.3;
-                
-                // Check if marker is outside the safe zone
-                const outsideSafeZone = markerPosition.lat() > ne.lat() - latBuffer ||
-                                        markerPosition.lat() < sw.lat() + latBuffer ||
-                                        markerPosition.lng() > ne.lng() - lngBuffer ||
-                                        markerPosition.lng() < sw.lng() + lngBuffer;
-                
-                if (outsideSafeZone) {
-                  // Re-center on marker
-                  map.panTo(markerPosition);
-                }
               }
             }
+          } else {
+            console.warn('No map bounds available!');
           }
         }
+      } else {
+        // Path indices are invalid
+        console.warn('Invalid path indices - currentIndex:', currentIndex, 'numPoints:', numPoints);
+      }
 
       // Check if animation is complete
       if (countRef.current >= 198) {
