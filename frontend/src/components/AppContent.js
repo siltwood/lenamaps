@@ -68,6 +68,7 @@ function AppContent() {
       const previousState = history[history.length - 1];
       // Validate state before restoring
       if (previousState.locations && previousState.legModes) {
+        // Use the raw setters (not the WithHistory versions) to avoid creating new history entries
         setDirectionsLocations(previousState.locations);
         setDirectionsLegModes(previousState.legModes);
         
@@ -129,24 +130,34 @@ function AppContent() {
 
   // Wrapped setters that save to history
   const setDirectionsLocationsWithHistory = useCallback((newLocations, actionType, extraData) => {
-    // Save current state before changing
-    if (actionType) {
-      // Find what changed by comparing with current locations
+    // Only save to history if there's an actual change and an action type
+    if (actionType && JSON.stringify(newLocations) !== JSON.stringify(directionsLocations)) {
+      // Find what changed by comparing
       let action = { type: actionType };
       
       // Find the index that changed
       for (let i = 0; i < Math.max(newLocations.length, directionsLocations.length); i++) {
-        if (newLocations[i] !== directionsLocations[i]) {
+        const oldLoc = directionsLocations[i];
+        const newLoc = newLocations[i];
+        
+        // Check if this location changed (comparing coordinates or null state)
+        const oldKey = oldLoc ? `${oldLoc.lat},${oldLoc.lng}` : 'null';
+        const newKey = newLoc ? `${newLoc.lat},${newLoc.lng}` : 'null';
+        
+        if (oldKey !== newKey) {
           action.index = i;
+          action.oldLocation = oldLoc;
+          action.newLocation = newLoc;
           break;
         }
       }
       
-      // Add any extra data (like mode for ADD_LOCATION_WITH_MODE)
+      // Add any extra data
       if (extraData) {
         action = { ...action, ...extraData };
       }
       
+      // Save the CURRENT state (before change) to history
       saveToHistory(action);
     }
     setDirectionsLocations(newLocations);

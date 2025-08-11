@@ -1055,52 +1055,34 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         const lng = currLng + (nextLng - currLng) * interpolationFactor;
         const markerPosition = new window.google.maps.LatLng(lat, lng);
           
-          // Camera following - only pan when marker is about to leave the viewport
-          // This keeps the marker in view as long as possible without constant panning
+          // Camera following strategy based on zoom level
           if (zoomLevelRef.current !== 'far') {
             const bounds = map.getBounds();
             if (bounds) {
               const ne = bounds.getNorthEast();
               const sw = bounds.getSouthWest();
               
-              // Use a small buffer (10% from edge) so we pan just before marker exits
-              const latBuffer = (ne.lat() - sw.lat()) * 0.1; // 10% buffer from edge
-              const lngBuffer = (ne.lng() - sw.lng()) * 0.1;
-              
-              // Check if marker is about to exit the viewport
-              const nearTopEdge = markerPosition.lat() > ne.lat() - latBuffer;
-              const nearBottomEdge = markerPosition.lat() < sw.lat() + latBuffer;
-              const nearRightEdge = markerPosition.lng() > ne.lng() - lngBuffer;
-              const nearLeftEdge = markerPosition.lng() < sw.lng() + lngBuffer;
-              
-              // Only pan when marker is near the edge
-              if (nearTopEdge || nearBottomEdge || nearRightEdge || nearLeftEdge) {
-                // Calculate new center that puts the marker back toward center
-                // This gives us maximum viewing time before next pan
-                const viewportHeight = ne.lat() - sw.lat();
-                const viewportWidth = ne.lng() - sw.lng();
+              // For Close view - keep marker centered always
+              if (zoomLevelRef.current === 'close') {
+                // Check every frame and keep perfectly centered
+                map.panTo(markerPosition);
+              } 
+              // For Medium view - keep marker loosely centered
+              else if (zoomLevelRef.current === 'medium') {
+                // Use larger buffer for medium view (30% from edge)
+                const latBuffer = (ne.lat() - sw.lat()) * 0.3;
+                const lngBuffer = (ne.lng() - sw.lng()) * 0.3;
                 
-                let newLat = markerPosition.lat();
-                let newLng = markerPosition.lng();
+                // Check if marker is outside the safe zone
+                const outsideSafeZone = markerPosition.lat() > ne.lat() - latBuffer ||
+                                        markerPosition.lat() < sw.lat() + latBuffer ||
+                                        markerPosition.lng() > ne.lng() - lngBuffer ||
+                                        markerPosition.lng() < sw.lng() + lngBuffer;
                 
-                // Adjust center based on which edge we're approaching
-                if (nearTopEdge) {
-                  // Pan up - put marker in lower portion of view
-                  newLat = markerPosition.lat() - viewportHeight * 0.3;
-                } else if (nearBottomEdge) {
-                  // Pan down - put marker in upper portion of view
-                  newLat = markerPosition.lat() + viewportHeight * 0.3;
+                if (outsideSafeZone) {
+                  // Re-center on marker
+                  map.panTo(markerPosition);
                 }
-                
-                if (nearRightEdge) {
-                  // Pan right - put marker in left portion of view
-                  newLng = markerPosition.lng() - viewportWidth * 0.3;
-                } else if (nearLeftEdge) {
-                  // Pan left - put marker in right portion of view
-                  newLng = markerPosition.lng() + viewportWidth * 0.3;
-                }
-                
-                map.panTo(new window.google.maps.LatLng(newLat, newLng));
               }
             }
           }
