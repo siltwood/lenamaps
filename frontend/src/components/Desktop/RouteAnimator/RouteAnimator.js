@@ -46,7 +46,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       onAnimationStateChange(value);
     }
   }
-  const [animationSpeed, setAnimationSpeed] = useState(3);
   const [zoomLevel, setZoomLevel] = useState('medium'); // 'close', 'medium', 'far'
   const [animationProgress, setAnimationProgress] = useState(0); // 0-100 for timeline
   
@@ -68,14 +67,14 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
           if (currentIndex < path.getLength()) {
             const currentPos = path.getAt(currentIndex);
             if (currentPos) {
-              map.setCenter(currentPos);
+              map.panTo(currentPos);
             }
           }
         } else if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length > 0) {
           // Not animating, center on first location
           const loc = directionsRoute.allLocations[0];
           if (loc && loc.lat && loc.lng) {
-            map.setCenter(new window.google.maps.LatLng(loc.lat, loc.lng));
+            map.panTo(new window.google.maps.LatLng(loc.lat, loc.lng));
           }
         }
       } else if (zoomLevel === 'medium') {
@@ -88,14 +87,14 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
           if (currentIndex < path.getLength()) {
             const currentPos = path.getAt(currentIndex);
             if (currentPos) {
-              map.setCenter(currentPos);
+              map.panTo(currentPos);
             }
           }
         } else if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length > 0) {
           // Not animating, center on first location
           const loc = directionsRoute.allLocations[0];
           if (loc && loc.lat && loc.lng) {
-            map.setCenter(new window.google.maps.LatLng(loc.lat, loc.lng));
+            map.panTo(new window.google.maps.LatLng(loc.lat, loc.lng));
           }
         }
       } else if (zoomLevel === 'far') {
@@ -139,7 +138,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
           // Single location, just zoom out to show area
           const loc = directionsRoute.allLocations[0];
           if (loc && loc.lat && loc.lng) {
-            map.setCenter(new window.google.maps.LatLng(loc.lat, loc.lng));
+            map.panTo(new window.google.maps.LatLng(loc.lat, loc.lng));
             map.setZoom(13);
           }
         } else {
@@ -149,11 +148,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       }
     }
   }, [zoomLevel, map, directionsRoute, isMinimized, isAnimating]);
-  
-  // Update speed ref when state changes
-  useEffect(() => {
-    animationSpeedRef.current = animationSpeed;
-  }, [animationSpeed]);
   
   const animationRef = useRef(null);
   // Removed markerRef - using pure Symbol Animation API
@@ -165,7 +159,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
   const animateRef = useRef(null);
   const distanceTraveledRef = useRef(0);
   const lastTimestampRef = useRef(null);
-  const animationSpeedRef = useRef(animationSpeed);
   // Removed position refs - not needed with Symbol Animation API
   const cameraUpdateIntervalRef = useRef(null);
   const polylineRef = useRef(null);
@@ -646,45 +639,38 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       // Use full path for accuracy, but optimize densification for performance
       let densifiedPath;
       
-      // For long routes, use minimal densification
-      if (routeDistanceKm > 500) {
-        // Very long routes - use path as-is if it has enough points
-        if (fullPath.length > 500) {
-          console.log('Using raw path for long route (no densification)');
-          densifiedPath = fullPath;
-        } else {
-          // Add minimal points only where gaps are huge
-          console.log('Minimal densification for long route');
-          densifiedPath = [];
-          for (let i = 0; i < fullPath.length - 1; i++) {
-            densifiedPath.push(fullPath[i]);
-            
-            const segmentDistance = window.google.maps.geometry.spherical.computeDistanceBetween(
-              fullPath[i],
-              fullPath[i + 1]
-            );
-            
-            // Only add points for very long segments (>50km)
-            if (segmentDistance > 50000) {
-              const numPoints = Math.min(5, Math.ceil(segmentDistance / 50000));
-              for (let j = 1; j < numPoints; j++) {
-                const fraction = j / numPoints;
-                const interpolated = window.google.maps.geometry.spherical.interpolate(
-                  fullPath[i],
-                  fullPath[i + 1],
-                  fraction
-                );
-                densifiedPath.push(interpolated);
-              }
-            }
-          }
-          densifiedPath.push(fullPath[fullPath.length - 1]);
-        }
+      // IMPORTANT: Use exact route from Google Maps when available
+      // This ensures the animation follows the actual road path
+      if (window._routeSegments && window._routeSegments.length > 0 && fullPath.length > 0) {
+        console.log(`Using EXACT Google Maps route with ${fullPath.length} points`);
+        densifiedPath = fullPath; // No densification - follow the exact dotted line
+      } else if (routeDistanceKm > 100) {
+        // Long routes without exact path - still use as-is
+        console.log('Long route - using points without densification');
+        densifiedPath = fullPath;
       } else {
-        // Short/medium routes - normal densification for smooth animation
-        const startDensify = performance.now();
-        densifiedPath = densifyPath(fullPath);
-        console.log(`Densification took ${(performance.now() - startDensify).toFixed(0)}ms`);
+        // Only for very short routes (<100km), add minimal smoothing
+        console.log('Short route - minimal smoothing');
+        densifiedPath = [];
+        for (let i = 0; i < fullPath.length - 1; i++) {
+          densifiedPath.push(fullPath[i]);
+          
+          const segmentDistance = window.google.maps.geometry.spherical.computeDistanceBetween(
+            fullPath[i],
+            fullPath[i + 1]
+          );
+          
+          // Add ONE intermediate point only for gaps 1-3km
+          if (segmentDistance > 1000 && segmentDistance < 3000) {
+            const midPoint = window.google.maps.geometry.spherical.interpolate(
+              fullPath[i],
+              fullPath[i + 1],
+              0.5
+            );
+            densifiedPath.push(midPoint);
+          }
+        }
+        densifiedPath.push(fullPath[fullPath.length - 1]);
       }
       
       console.log(`Final path: ${densifiedPath.length} points`);
@@ -836,9 +822,9 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         }
       });
       
-      // Start with a cinematic view of the beginning of the route
+      // Start with a smooth pan to the beginning of the route
       const startPos = densifiedPath[0];
-      map.setCenter(startPos);
+      map.panTo(startPos);
       
       // Set zoom based on selected level
       let zoomValue = 16; // default medium
@@ -946,17 +932,34 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         baseSpeed = 50; // 50m/s for short routes (was 100m/s)
       }
       
-      // Apply user's speed multiplier
-      let metersPerSecond;
-      if (animationSpeedRef.current === 1) {
-        metersPerSecond = baseSpeed * 0.7; // Slow (was 0.5)
-      } else if (animationSpeedRef.current === 3) {
-        metersPerSecond = baseSpeed; // Normal
-      } else if (animationSpeedRef.current === 6) {
-        metersPerSecond = baseSpeed * 1.5; // Fast (was 2.0 - too fast!)
-      } else {
-        metersPerSecond = baseSpeed * (animationSpeedRef.current / 3);
+      // No more user speed controls - zoom handles everything!
+      
+      // Apply zoom-based speed adjustment
+      // Get current map zoom level (typically 1-20)
+      const currentZoom = map.getZoom();
+      let zoomSpeedMultiplier;
+      
+      // Smooth exponential scaling based on zoom
+      // At zoom 18: 0.3x speed (very slow for detail)
+      // At zoom 15: 1.0x speed (normal)
+      // At zoom 10: 3.0x speed (fast for overview)
+      // At zoom 5:  8.0x speed (very fast for continent view)
+      
+      // Use exponential function for smooth scaling
+      // Formula: multiplier = base^(15-zoom)/divisor
+      const zoomDiff = 15 - currentZoom; // Negative when zoomed in, positive when zoomed out
+      zoomSpeedMultiplier = Math.pow(1.15, zoomDiff);
+      
+      // Clamp to reasonable range
+      zoomSpeedMultiplier = Math.max(0.3, Math.min(5.0, zoomSpeedMultiplier));
+      
+      // Log significant speed changes (optional, remove in production)
+      if (Math.abs(zoomDiff) > 3) {
+        console.log(`Zoom ${currentZoom}: Speed multiplier ${zoomSpeedMultiplier.toFixed(1)}x`);
       }
+      
+      // Apply zoom multiplier directly to base speed
+      let metersPerSecond = baseSpeed * zoomSpeedMultiplier;
       
       // Calculate how much of the total route to cover in this frame
       const metersThisFrame = metersPerSecond * (clampedDeltaTime / 1000);
@@ -1052,39 +1055,52 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         const lng = currLng + (nextLng - currLng) * interpolationFactor;
         const markerPosition = new window.google.maps.LatLng(lat, lng);
           
-          // Camera following - more frequent updates for better tracking
-          // Balance between smooth following and performance
-          const cameraUpdateFrequency = routeDistanceKm > 2000 ? 15 :  // Cross-country: every 15 frames
-                                        routeDistanceKm > 1000 ? 10 :  // Very long: every 10 frames
-                                        routeDistanceKm > 500 ? 8 :    // Long: every 8 frames
-                                        routeDistanceKm > 100 ? 5 :    // Medium: every 5 frames
-                                        3;                             // Short: every 3 frames
-          
-          // Use the ref value which is updated when zoom changes
-          if (zoomLevelRef.current !== 'far' && animateRef.current.frameCount % cameraUpdateFrequency === 0) {
+          // Camera following - only pan when marker is about to leave the viewport
+          // This keeps the marker in view as long as possible without constant panning
+          if (zoomLevelRef.current !== 'far') {
             const bounds = map.getBounds();
             if (bounds) {
               const ne = bounds.getNorthEast();
               const sw = bounds.getSouthWest();
               
-              // Use tighter buffer for closer following
-              const latBuffer = (ne.lat() - sw.lat()) * 0.25; // 25% buffer (was 15%)
-              const lngBuffer = (ne.lng() - sw.lng()) * 0.25;
+              // Use a small buffer (10% from edge) so we pan just before marker exits
+              const latBuffer = (ne.lat() - sw.lat()) * 0.1; // 10% buffer from edge
+              const lngBuffer = (ne.lng() - sw.lng()) * 0.1;
               
-              // Check if marker is outside the safe zone
-              const outsideBounds = markerPosition.lat() > ne.lat() - latBuffer ||
-                                   markerPosition.lat() < sw.lat() + latBuffer ||
-                                   markerPosition.lng() > ne.lng() - lngBuffer ||
-                                   markerPosition.lng() < sw.lng() + lngBuffer;
+              // Check if marker is about to exit the viewport
+              const nearTopEdge = markerPosition.lat() > ne.lat() - latBuffer;
+              const nearBottomEdge = markerPosition.lat() < sw.lat() + latBuffer;
+              const nearRightEdge = markerPosition.lng() > ne.lng() - lngBuffer;
+              const nearLeftEdge = markerPosition.lng() < sw.lng() + lngBuffer;
               
-              // For close/medium zoom, always keep centered
-              if (zoomLevelRef.current === 'close' || 
-                  (zoomLevelRef.current === 'medium' && routeDistanceKm < 50)) {
-                // Always center on marker for close views
-                map.panTo(markerPosition);
-              } else if (outsideBounds) {
-                // Pan to keep marker in view for wider views
-                map.panTo(markerPosition);
+              // Only pan when marker is near the edge
+              if (nearTopEdge || nearBottomEdge || nearRightEdge || nearLeftEdge) {
+                // Calculate new center that puts the marker back toward center
+                // This gives us maximum viewing time before next pan
+                const viewportHeight = ne.lat() - sw.lat();
+                const viewportWidth = ne.lng() - sw.lng();
+                
+                let newLat = markerPosition.lat();
+                let newLng = markerPosition.lng();
+                
+                // Adjust center based on which edge we're approaching
+                if (nearTopEdge) {
+                  // Pan up - put marker in lower portion of view
+                  newLat = markerPosition.lat() - viewportHeight * 0.3;
+                } else if (nearBottomEdge) {
+                  // Pan down - put marker in upper portion of view
+                  newLat = markerPosition.lat() + viewportHeight * 0.3;
+                }
+                
+                if (nearRightEdge) {
+                  // Pan right - put marker in left portion of view
+                  newLng = markerPosition.lng() - viewportWidth * 0.3;
+                } else if (nearLeftEdge) {
+                  // Pan left - put marker in right portion of view
+                  newLng = markerPosition.lng() + viewportWidth * 0.3;
+                }
+                
+                map.panTo(new window.google.maps.LatLng(newLat, newLng));
               }
             }
           }
@@ -1283,44 +1299,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
               )}
             </div>
             
-            <div className="speed-control">
-              <label>Animation Speed</label>
-              <div className="speed-radio-group">
-                <label className={`speed-radio ${animationSpeed === 1 ? 'active' : ''}`}>
-                  <input
-                    type="radio"
-                    name="speed"
-                    value="1"
-                    checked={animationSpeed === 1}
-                    onChange={() => setAnimationSpeed(1)}
-                  />
-                  <span>Slow</span>
-                </label>
-                <label className={`speed-radio ${animationSpeed === 3 ? 'active' : ''}`}>
-                  <input
-                    type="radio"
-                    name="speed"
-                    value="3"
-                    checked={animationSpeed === 3}
-                    onChange={() => setAnimationSpeed(3)}
-                  />
-                  <span>Regular</span>
-                </label>
-                <label className={`speed-radio ${animationSpeed === 6 ? 'active' : ''}`}>
-                  <input
-                    type="radio"
-                    name="speed"
-                    value="6"
-                    checked={animationSpeed === 6}
-                    onChange={() => setAnimationSpeed(6)}
-                  />
-                  <span>Fast</span>
-                </label>
-              </div>
-            </div>
-            
             <div className="zoom-control">
-              <label>Zoom Level (Camera Distance)</label>
               <div className="zoom-radio-group">
                 <label className={`zoom-radio ${zoomLevel === 'close' ? 'active' : ''}`}>
                   <input
@@ -1359,7 +1338,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
             </div>
             
             <div className="timeline-control">
-              <label>Timeline Scrubber</label>
               <div className="timeline-container">
                 <div className="timeline-track">
                   <div 
@@ -1368,7 +1346,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                       width: `${animationProgress}%`,
                       transition: 'none'
                     }}
-                    key={`progress-${Math.floor(animationProgress)}`}
                   ></div>
                 </div>
                 <input
@@ -1411,7 +1388,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                       pauseAnimation();
                     }
                   }}
-                  className="timeline-slider"
+                  className={`timeline-slider ${isMobile ? 'mobile-thumb' : 'no-thumb'}`}
                 />
                 <div className="timeline-labels">
                   <span>0%</span>
@@ -1419,11 +1396,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                   <span>100%</span>
                 </div>
               </div>
-              {!isMobile && (
-                <div className="timeline-tips">
-                  💡 <small>Click anywhere on the blue route to jump to that spot!</small>
-                </div>
-              )}
             </div>
           </div>
         </div>
@@ -1551,44 +1523,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
               )}
             </div>
             
-            <div className="speed-control">
-              <label>Animation Speed</label>
-              <div className="speed-radio-group">
-                <label className={`speed-radio ${animationSpeed === 1 ? 'active' : ''}`}>
-                  <input
-                    type="radio"
-                    name="speed"
-                    value="1"
-                    checked={animationSpeed === 1}
-                    onChange={() => setAnimationSpeed(1)}
-                  />
-                  <span>Slow</span>
-                </label>
-                <label className={`speed-radio ${animationSpeed === 3 ? 'active' : ''}`}>
-                  <input
-                    type="radio"
-                    name="speed"
-                    value="3"
-                    checked={animationSpeed === 3}
-                    onChange={() => setAnimationSpeed(3)}
-                  />
-                  <span>Regular</span>
-                </label>
-                <label className={`speed-radio ${animationSpeed === 6 ? 'active' : ''}`}>
-                  <input
-                    type="radio"
-                    name="speed"
-                    value="6"
-                    checked={animationSpeed === 6}
-                    onChange={() => setAnimationSpeed(6)}
-                  />
-                  <span>Fast</span>
-                </label>
-              </div>
-            </div>
-            
             <div className="zoom-control">
-              <label>Zoom Level (Camera Distance)</label>
               <div className="zoom-radio-group">
                 <label className={`zoom-radio ${zoomLevel === 'close' ? 'active' : ''}`}>
                   <input
@@ -1687,11 +1622,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                   <span>100%</span>
                 </div>
               </div>
-              {!isMobile && (
-                <div className="timeline-tips">
-                  💡 <small>Click anywhere on the blue route to jump to that spot!</small>
-                </div>
-              )}
             </div>
             
           </div>

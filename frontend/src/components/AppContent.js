@@ -20,6 +20,7 @@ function AppContent() {
   const [history, setHistory] = useState([]);
   const [lastAction, setLastAction] = useState(null);
   
+  
   // Get user's current location on mount
   useEffect(() => {
     if ('geolocation' in navigator) {
@@ -174,7 +175,7 @@ function AppContent() {
             <span>💋 LenaMaps - Animate your Google Maps Route</span>
           </h1>
         </div>
-        <div className="header-right">
+        <div className="header-right" style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           <div className="header-search">
           {process.env.REACT_APP_GOOGLE_MAPS_API_KEY && 
            process.env.REACT_APP_GOOGLE_MAPS_API_KEY !== "your_google_maps_api_key_here" ? (
@@ -215,6 +216,43 @@ function AppContent() {
             }}
             onMapReady={setMapInstance}
           />
+          {!isAnimating && (
+            <div className="bmc-button-container" style={{
+              position: 'absolute',
+              top: '10px',
+              right: '60px',
+              zIndex: 1000
+            }}>
+              <a 
+                href="https://www.buymeacoffee.com/lenamaps" 
+                target="_blank" 
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '10px 16px',
+                  backgroundColor: '#FFDD00',
+                  color: '#000000',
+                  fontFamily: 'Cookie, cursive',
+                  fontSize: '18px',
+                  borderRadius: '8px',
+                  textDecoration: 'none',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'scale(1.05)';
+                  e.currentTarget.style.boxShadow = '0 4px 12px rgba(0, 0, 0, 0.2)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'scale(1)';
+                  e.currentTarget.style.boxShadow = '0 2px 8px rgba(0, 0, 0, 0.15)';
+                }}
+              >
+                ☕ Buy me a coffee
+              </a>
+            </div>
+          )}
         </div>
       </div>
       
