@@ -231,7 +231,7 @@ function AppContent() {
             <div className="bmc-button-container" style={{
               position: 'absolute',
               top: '10px',
-              right: '60px',
+              right: isMobile ? '10px' : '60px',
               zIndex: 1000
             }}>
               <a 
@@ -241,11 +241,11 @@ function AppContent() {
                 style={{
                   display: 'inline-flex',
                   alignItems: 'center',
-                  padding: '10px 16px',
+                  padding: isMobile ? '6px 10px' : '10px 16px',
                   backgroundColor: '#FFDD00',
                   color: '#000000',
                   fontFamily: 'Cookie, cursive',
-                  fontSize: '18px',
+                  fontSize: isMobile ? '14px' : '18px',
                   borderRadius: '8px',
                   textDecoration: 'none',
                   boxShadow: '0 2px 8px rgba(0, 0, 0, 0.15)',
