@@ -32,6 +32,13 @@ const MobileControls = ({
   const [dragStartY, setDragStartY] = useState(0);
   const [cardTranslateY, setCardTranslateY] = useState(0);
   
+  // Reset position when card is shown
+  useEffect(() => {
+    if (showCard) {
+      setCardTranslateY(0);
+    }
+  }, [showCard]);
+  
   // Card ref for animations
   const cardRef = useRef(null);
   
@@ -43,6 +50,26 @@ const MobileControls = ({
       setViewMode('planner');
     }
   }, [showRouteAnimator]);
+
+  // Add global mouse move and up listeners for smoother dragging
+  useEffect(() => {
+    if (isDragging) {
+      const handleGlobalMove = (e) => handleDragMove(e);
+      const handleGlobalEnd = (e) => handleDragEnd(e);
+      
+      document.addEventListener('mousemove', handleGlobalMove);
+      document.addEventListener('mouseup', handleGlobalEnd);
+      document.addEventListener('touchmove', handleGlobalMove);
+      document.addEventListener('touchend', handleGlobalEnd);
+      
+      return () => {
+        document.removeEventListener('mousemove', handleGlobalMove);
+        document.removeEventListener('mouseup', handleGlobalEnd);
+        document.removeEventListener('touchmove', handleGlobalMove);
+        document.removeEventListener('touchend', handleGlobalEnd);
+      };
+    }
+  }, [isDragging, dragStartY]);
 
   // Handle clicked location from map - ONLY when card is open and in planner mode
   useEffect(() => {
@@ -125,34 +152,46 @@ const MobileControls = ({
 
   // Handle drag events (both touch and mouse for testing)
   const handleDragStart = (e) => {
+    e.preventDefault();
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     setIsDragging(true);
-    setDragStartY(clientY);
-    setCardTranslateY(0);
+    setDragStartY(clientY - cardTranslateY); // Account for current position
   };
 
   const handleDragMove = (e) => {
     if (!isDragging) return;
+    e.preventDefault();
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     const deltaY = clientY - dragStartY;
     
-    // Only allow dragging down
-    if (deltaY > 0) {
-      setCardTranslateY(deltaY);
-    }
+    // Allow dragging both up and down
+    setCardTranslateY(deltaY);
   };
 
   const handleDragEnd = (e) => {
     if (!isDragging) return;
     setIsDragging(false);
     
-    // If dragged more than 100px, minimize the card
-    if (cardTranslateY > 100) {
-      setShowCard(false);
-    }
+    // Get viewport height and card position
+    const viewportHeight = window.innerHeight;
+    const cardRect = cardRef.current?.getBoundingClientRect();
     
-    // Reset the transform
-    setCardTranslateY(0);
+    if (cardRect) {
+      const cardTop = cardRect.top;
+      const cardDefaultTop = viewportHeight * 0.6; // Default position of card
+      
+      // If card top is dragged below 80px from bottom of screen, minimize it
+      if (cardTop > viewportHeight - 80) {
+        // Calculate how far to slide from current position
+        const slideDistance = viewportHeight - cardDefaultTop;
+        setCardTranslateY(slideDistance);
+        setTimeout(() => {
+          setShowCard(false);
+        }, 400); // Wait for slide animation to complete
+      }
+      // Otherwise, keep it where the user dragged it - don't snap back
+      // cardTranslateY is already set to the current position
+    }
   };
 
   // Render animator controls inline
@@ -409,16 +448,16 @@ const MobileControls = ({
         className={`mobile-card ${!showCard ? 'collapsed' : ''}`}
         style={{
           transform: `translateY(${cardTranslateY}px)`,
-          transition: isDragging ? 'none' : 'transform 0.3s ease-out'
+          transition: isDragging ? 'none' : 'transform 0.4s ease-in-out'
         }}
       >
-        {/* Draggable handle to minimize */}
+        {/* Draggable handle for repositioning */}
         <div 
           onTouchStart={handleDragStart}
           onTouchMove={handleDragMove}
           onTouchEnd={handleDragEnd}
           onMouseDown={handleDragStart}
-          onMouseMove={handleDragMove}
+          onMouseMove={isDragging ? handleDragMove : undefined}
           onMouseUp={handleDragEnd}
           onMouseLeave={handleDragEnd}
           style={{
@@ -428,12 +467,46 @@ const MobileControls = ({
             transform: 'translateX(-50%)',
             width: '80px',
             height: '35px',
-            cursor: 'grab',
+            cursor: isDragging ? 'grabbing' : 'grab',
             zIndex: 2,
             touchAction: 'none'
           }}
-          aria-label="Drag to minimize"
+          aria-label="Drag to reposition"
         />
+        {/* Minimize button at top right */}
+        <button
+          onClick={() => {
+            // Slide card off screen then hide
+            const viewportHeight = window.innerHeight;
+            const cardDefaultTop = viewportHeight * 0.6;
+            const slideDistance = viewportHeight - cardDefaultTop;
+            setCardTranslateY(slideDistance);
+            setTimeout(() => {
+              setShowCard(false);
+            }, 400);
+          }}
+          style={{
+            position: 'absolute',
+            top: '3px',
+            right: '12px',
+            width: '24px',
+            height: '24px',
+            background: 'transparent',
+            border: 'none',
+            cursor: 'pointer',
+            zIndex: 3,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#64748b',
+            fontSize: '20px',
+            fontWeight: 'bold',
+            padding: 0
+          }}
+          aria-label="Minimize"
+        >
+          −
+        </button>
         {viewMode === 'animator' ? renderAnimator() : renderPlanner()}
       </div>
 
