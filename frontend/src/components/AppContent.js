@@ -231,7 +231,7 @@ function AppContent() {
             <div className="bmc-button-container" style={{
               position: 'absolute',
               top: '10px',
-              right: isMobile ? '10px' : '60px',
+              right: '60px',
               zIndex: 1000
             }}>
               <a 

@@ -28,6 +28,9 @@ const MobileControls = ({
   const [viewMode, setViewMode] = useState('planner'); // 'planner' or 'animator'
   const [showSearchInputs, setShowSearchInputs] = useState({});
   const [activeInput, setActiveInput] = useState(null); // Track which input is active for clicking
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStartY, setDragStartY] = useState(0);
+  const [cardTranslateY, setCardTranslateY] = useState(0);
   
   // Card ref for animations
   const cardRef = useRef(null);
@@ -121,6 +124,36 @@ const MobileControls = ({
 
 
   // Handle drag events (both touch and mouse for testing)
+  const handleDragStart = (e) => {
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    setIsDragging(true);
+    setDragStartY(clientY);
+    setCardTranslateY(0);
+  };
+
+  const handleDragMove = (e) => {
+    if (!isDragging) return;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    const deltaY = clientY - dragStartY;
+    
+    // Only allow dragging down
+    if (deltaY > 0) {
+      setCardTranslateY(deltaY);
+    }
+  };
+
+  const handleDragEnd = (e) => {
+    if (!isDragging) return;
+    setIsDragging(false);
+    
+    // If dragged more than 100px, minimize the card
+    if (cardTranslateY > 100) {
+      setShowCard(false);
+    }
+    
+    // Reset the transform
+    setCardTranslateY(0);
+  };
 
   // Render animator controls inline
   const renderAnimator = () => {
@@ -155,26 +188,12 @@ const MobileControls = ({
   // Render planner view
   const renderPlanner = () => (
     <>
-      <div className="mobile-card-header">
-        <h4>Plan Your Route</h4>
-        <div className="mobile-header-actions">
-          <button 
-            className="minimize-button" 
-            onClick={() => setShowCard(false)}
-            title="Minimize"
-          >
-            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-              <path d="M4 9h8v1H4z"/>
-            </svg>
-          </button>
-        </div>
-      </div>
       <div className="mobile-planner-content">
         <div className="mobile-segments-container">
           {/* Render all location segments */}
           {locations.map((location, index) => (
             <div key={index} className="mobile-segment">
-              <div className="mobile-route-row">
+              <div className="mobile-route-row" style={{ position: 'relative' }}>
                 <div className={`mobile-route-marker ${index === 0 ? 'start' : index === locations.length - 1 ? 'end' : 'waypoint'}`}>
                   {String.fromCharCode(65 + index)}
                 </div>
@@ -388,7 +407,33 @@ const MobileControls = ({
       <div 
         ref={cardRef}
         className={`mobile-card ${!showCard ? 'collapsed' : ''}`}
+        style={{
+          transform: `translateY(${cardTranslateY}px)`,
+          transition: isDragging ? 'none' : 'transform 0.3s ease-out'
+        }}
       >
+        {/* Draggable handle to minimize */}
+        <div 
+          onTouchStart={handleDragStart}
+          onTouchMove={handleDragMove}
+          onTouchEnd={handleDragEnd}
+          onMouseDown={handleDragStart}
+          onMouseMove={handleDragMove}
+          onMouseUp={handleDragEnd}
+          onMouseLeave={handleDragEnd}
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: '50%',
+            transform: 'translateX(-50%)',
+            width: '80px',
+            height: '35px',
+            cursor: 'grab',
+            zIndex: 2,
+            touchAction: 'none'
+          }}
+          aria-label="Drag to minimize"
+        />
         {viewMode === 'animator' ? renderAnimator() : renderPlanner()}
       </div>
 
