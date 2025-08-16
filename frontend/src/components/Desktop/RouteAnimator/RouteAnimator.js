@@ -1035,8 +1035,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         }
       }
       
-      // Smart camera panning - pan when marker approaches edge of screen
-      // Use the VISUAL position (what the user actually sees) for camera following
+      // Smart camera panning with look-ahead
       const path = pathRef.current;
       
       // Safety check - make sure we have a valid path
@@ -1046,9 +1045,17 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       }
       
       const numPoints = path.length;
-      // Use visualOffsetRef for camera - this is where the icon actually is visually
-      // visualOffsetRef is already in percentage (0-100), convert to fraction
-      const progress = visualOffsetRef.current / 100;
+      // Use actual offset for smooth camera tracking (updates every frame)
+      // offsetRef is in percentage (0-100), convert to fraction
+      const currentProgress = offsetRef.current / 100;
+      
+      // Calculate look-ahead based on current speed
+      const lookAheadSeconds = 1.5; // Look 1.5 seconds into the future
+      const currentSpeed = baseSpeed * zoomSpeedMultiplier;
+      const lookAheadProgress = Math.min(currentProgress + (currentSpeed * lookAheadSeconds / 100), 1);
+      
+      // Use look-ahead position for camera tracking
+      const progress = (currentProgress + lookAheadProgress) / 2; // Average for smooth following
       
       // Use floating point index for smoother interpolation
       const floatIndex = progress * (numPoints - 1);
@@ -1071,13 +1078,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         const lng = currLng + (nextLng - currLng) * interpolationFactor;
         const markerPosition = new window.google.maps.LatLng(lat, lng);
         
-        // Debug: log every 30 frames
-        if (animateRef.current.frameCount % 30 === 0) {
-          console.log('Camera tracking - calculated progress:', progress, 'visual offset:', visualOffsetRef.current, 'actual offset:', offsetRef.current);
-          console.log('Index:', currentIndex, '/', numPoints, 'position:', lat, lng);
-          console.log('Current zoom level:', zoomLevelRef.current);
-        }
-        
         // Camera following strategy based on zoom level
         if (zoomLevelRef.current !== 'far') {
           const bounds = map.getBounds();
@@ -1087,28 +1087,19 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
             
             // For Close view - keep marker centered always
             if (zoomLevelRef.current === 'close') {
-              // Debug log every 30 frames
-              if (animateRef.current.frameCount % 30 === 0) {
-                console.log('Close view - centering on marker at:', markerPosition.lat(), markerPosition.lng());
-              }
-              // Check every frame and keep perfectly centered
+              // Keep perfectly centered with smooth panning
               map.panTo(markerPosition);
             } 
             // For Medium view - keep marker loosely centered
             else if (zoomLevelRef.current === 'medium') {
-              // Use larger buffer for medium view (30% from edge)
-              const latBuffer = (ne.lat() - sw.lat()) * 0.3;
-              const lngBuffer = (ne.lng() - sw.lng()) * 0.3;
+              // Dynamic buffer based on speed - faster speed = larger buffer
+              const speedFactor = Math.min(zoomSpeedMultiplier / 10, 1); // Normalize to 0-1
+              const minBuffer = 0.15; // 15% at slow speeds
+              const maxBuffer = 0.4;  // 40% at high speeds
+              const bufferSize = minBuffer + (maxBuffer - minBuffer) * speedFactor;
               
-              // Debug bounds every 30 frames
-              if (animateRef.current.frameCount % 30 === 0) {
-                console.log('Medium view bounds check:');
-                console.log('  Marker:', markerPosition.lat(), markerPosition.lng());
-                console.log('  Bounds NE:', ne.lat(), ne.lng());
-                console.log('  Bounds SW:', sw.lat(), sw.lng());
-                console.log('  Safe zone: lat', sw.lat() + latBuffer, 'to', ne.lat() - latBuffer);
-                console.log('  Safe zone: lng', sw.lng() + lngBuffer, 'to', ne.lng() - lngBuffer);
-              }
+              const latBuffer = (ne.lat() - sw.lat()) * bufferSize;
+              const lngBuffer = (ne.lng() - sw.lng()) * bufferSize;
               
               // Check if marker is outside the safe zone
               const outsideSafeZone = markerPosition.lat() > ne.lat() - latBuffer ||
@@ -1117,18 +1108,12 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                                       markerPosition.lng() < sw.lng() + lngBuffer;
               
               if (outsideSafeZone) {
-                console.log('Medium view - marker outside safe zone, panning to:', markerPosition.lat(), markerPosition.lng());
-                // Re-center on marker
+                // Re-center on marker with smooth panning
                 map.panTo(markerPosition);
               }
             }
-          } else {
-            console.warn('No map bounds available!');
           }
         }
-      } else {
-        // Path indices are invalid
-        console.warn('Invalid path indices - currentIndex:', currentIndex, 'numPoints:', numPoints);
       }
 
       // Check if animation is complete

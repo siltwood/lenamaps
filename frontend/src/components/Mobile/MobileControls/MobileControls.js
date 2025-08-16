@@ -55,11 +55,12 @@ const MobileControls = ({
   useEffect(() => {
     if (isDragging) {
       const handleGlobalMove = (e) => handleDragMove(e);
-      const handleGlobalEnd = (e) => handleDragEnd(e);
+      const handleGlobalEnd = () => handleDragEnd();
       
+      // Add touch event listeners with { passive: false } to allow preventDefault
       document.addEventListener('mousemove', handleGlobalMove);
       document.addEventListener('mouseup', handleGlobalEnd);
-      document.addEventListener('touchmove', handleGlobalMove);
+      document.addEventListener('touchmove', handleGlobalMove, { passive: true });
       document.addEventListener('touchend', handleGlobalEnd);
       
       return () => {
@@ -160,15 +161,17 @@ const MobileControls = ({
 
   const handleDragMove = (e) => {
     if (!isDragging) return;
-    e.preventDefault();
+    // Don't preventDefault here - it causes issues with passive event listeners
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     const deltaY = clientY - dragStartY;
     
-    // Allow dragging both up and down
-    setCardTranslateY(deltaY);
+    // Limit dragging - don't allow dragging above initial position (deltaY < 0 means dragging up)
+    // Allow dragging down without limit for minimizing
+    const constrainedDeltaY = Math.max(0, deltaY);
+    setCardTranslateY(constrainedDeltaY);
   };
 
-  const handleDragEnd = (e) => {
+  const handleDragEnd = () => {
     if (!isDragging) return;
     setIsDragging(false);
     
@@ -227,6 +230,9 @@ const MobileControls = ({
   // Render planner view
   const renderPlanner = () => (
     <>
+      <div className="mobile-planner-header">
+        <h2>Route Planner</h2>
+      </div>
       <div className="mobile-planner-content">
         <div className="mobile-segments-container">
           {/* Render all location segments */}

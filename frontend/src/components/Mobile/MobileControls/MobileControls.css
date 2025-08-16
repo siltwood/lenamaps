@@ -376,12 +376,27 @@
   background: #e9ecef;
 }
 
+/* Mobile Planner Header */
+.mobile-planner-header {
+  padding: 12px 16px 8px;
+  border-bottom: 1px solid #e2e8f0;
+  background: white;
+}
+
+.mobile-planner-header h2 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+  text-align: left;
+}
+
 /* Mobile Planner Content */
 .mobile-planner-content {
   padding: 16px;
-  padding-top: 28px;
-  height: calc(40vh - 80px);
-  max-height: calc(40vh - 80px);
+  padding-top: 16px;
+  height: calc(40vh - 130px);
+  max-height: calc(40vh - 130px);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
 }
