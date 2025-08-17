@@ -74,7 +74,7 @@
   position: fixed;
   bottom: 0;
   bottom: env(safe-area-inset-bottom, 0);
-  padding-bottom: env(safe-area-inset-bottom, 0);
+  padding-bottom: calc(15px + env(safe-area-inset-bottom, 0));
   left: 0;
   right: 0;
   z-index: 2000;
@@ -399,6 +399,44 @@
   max-height: calc(40vh - 130px);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+/* Landscape orientation adjustments */
+@media screen and (orientation: landscape) and (max-height: 500px) {
+  .mobile-card {
+    max-height: 90vh;
+    bottom: -1px; /* Hide any potential white line */
+    padding-bottom: 0; /* Remove bottom padding in landscape */
+  }
+  
+  .mobile-card::before {
+    height: 4px; /* Smaller drag handle */
+    top: 4px;
+  }
+  
+  .mobile-card.collapsed {
+    transform: translateY(calc(100% + 10px)); /* Ensure it's fully off-screen */
+  }
+  
+  .mobile-planner-content {
+    height: calc(55vh - 80px);
+    max-height: calc(55vh - 80px);
+    padding: 12px;
+    padding-top: 8px;
+  }
+  
+  .mobile-planner-header {
+    padding: 6px 16px 4px;
+    border-bottom: 1px solid #f0f0f0;
+  }
+  
+  .mobile-planner-header h2 {
+    font-size: 14px;
+  }
+  
+  .mobile-actions {
+    padding: 8px 12px;
+  }
 }
 
 .mobile-segments-container {

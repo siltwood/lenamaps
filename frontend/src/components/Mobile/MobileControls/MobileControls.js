@@ -153,7 +153,10 @@ const MobileControls = ({
 
   // Handle drag events (both touch and mouse for testing)
   const handleDragStart = (e) => {
-    e.preventDefault();
+    // Only preventDefault for mouse events, not touch (which are passive by default)
+    if (!e.touches) {
+      e.preventDefault();
+    }
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     setIsDragging(true);
     setDragStartY(clientY - cardTranslateY); // Account for current position
