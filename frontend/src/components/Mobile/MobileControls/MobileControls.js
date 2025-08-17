@@ -234,7 +234,7 @@ const MobileControls = ({
   const renderPlanner = () => (
     <>
       <div className="mobile-planner-header">
-        <h2>Route Planner</h2>
+        <h2>Visualize Your Route</h2>
       </div>
       <div className="mobile-planner-content">
         <div className="mobile-segments-container">
@@ -519,8 +519,8 @@ const MobileControls = ({
         {viewMode === 'animator' ? renderAnimator() : renderPlanner()}
       </div>
 
-      {/* FAB when card is hidden */}
-      {!showCard && (
+      {/* FAB when card is hidden - only show if not in animator mode */}
+      {!showCard && viewMode !== 'animator' && (
         <div className="mobile-fab-container">
           <button 
             className="unified-icon primary"

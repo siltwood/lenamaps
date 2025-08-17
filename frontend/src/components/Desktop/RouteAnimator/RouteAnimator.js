@@ -1087,8 +1087,18 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
             
             // For Close view - keep marker centered always
             if (zoomLevelRef.current === 'close') {
-              // Keep perfectly centered with smooth panning
-              map.panTo(markerPosition);
+              // Smooth continuous panning for close view
+              const center = map.getCenter();
+              const latDiff = markerPosition.lat() - center.lat();
+              const lngDiff = markerPosition.lng() - center.lng();
+              
+              // Faster panning for close view to keep marker more centered
+              const panSpeed = 0.5;
+              const newCenter = new window.google.maps.LatLng(
+                center.lat() + (latDiff * panSpeed),
+                center.lng() + (lngDiff * panSpeed)
+              );
+              map.panTo(newCenter);
             } 
             // For Medium view - keep marker loosely centered
             else if (zoomLevelRef.current === 'medium') {
@@ -1108,8 +1118,20 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                                       markerPosition.lng() < sw.lng() + lngBuffer;
               
               if (outsideSafeZone) {
-                // Re-center on marker with smooth panning
-                map.panTo(markerPosition);
+                // For longer routes, use continuous smooth panning
+                // Calculate how far the marker is from center
+                const center = map.getCenter();
+                const latDiff = markerPosition.lat() - center.lat();
+                const lngDiff = markerPosition.lng() - center.lng();
+                
+                // Pan smoothly toward the marker position
+                // Use smaller increments for smoother movement
+                const panSpeed = 0.3; // Adjust this for smoother/faster panning
+                const newCenter = new window.google.maps.LatLng(
+                  center.lat() + (latDiff * panSpeed),
+                  center.lng() + (lngDiff * panSpeed)
+                );
+                map.panTo(newCenter);
               }
             }
           }
