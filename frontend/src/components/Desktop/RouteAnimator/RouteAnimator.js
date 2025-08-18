@@ -1317,24 +1317,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         <div className="mobile-card-header">
           {!isMobile && <DragHandle />}
           <h4>Route Animator</h4>
-          <div className="mobile-header-actions">
-            <button 
-              className="mobile-header-btn"
-              onClick={() => {
-                if (isAnimating) {
-                  stopAnimation();
-                }
-                if (onClose) {
-                  onClose();
-                }
-              }}
-              title="Back to Route"
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M15 7H3.83l5.59-5.59L8 0 0 8l8 8 1.41-1.41L3.83 9H15V7z"/>
-              </svg>
-            </button>
-          </div>
         </div>
         <div className="mobile-animator-controls">
           <div className="controls-section">

@@ -485,45 +485,79 @@ const MobileControls = ({
           }}
           aria-label="Drag to reposition"
         />
-        {/* Minimize button at top right */}
-        <button
-          onClick={() => {
-            // Slide card completely off screen then hide
-            const cardRect = cardRef.current?.getBoundingClientRect();
-            if (cardRect) {
-              const viewportHeight = window.innerHeight;
-              const cardTop = cardRect.top;
-              // Calculate distance to slide card completely off bottom
-              const slideDistance = viewportHeight - cardTop + 10;
-              setCardTranslateY(slideDistance);
-              setTimeout(() => {
-                setShowCard(false);
-                // Don't reset translateY here - do it when showing the card again
-              }, 400);
-            }
-          }}
-          style={{
-            position: 'absolute',
-            top: '3px',
-            right: '12px',
-            width: '24px',
-            height: '24px',
-            background: 'transparent',
-            border: 'none',
-            cursor: 'pointer',
-            zIndex: 3,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: '#64748b',
-            fontSize: '20px',
-            fontWeight: 'bold',
-            padding: 0
-          }}
-          aria-label="Minimize"
-        >
-          −
-        </button>
+        {/* Back and Minimize buttons at top right */}
+        <div style={{
+          position: 'absolute',
+          top: '3px',
+          right: '12px',
+          display: 'flex',
+          gap: '8px',
+          zIndex: 3
+        }}>
+          {viewMode === 'animator' && (
+            <button
+              onClick={() => {
+                setViewMode('planner');
+                setShowCard(true);
+                if (onHideAnimator) {
+                  onHideAnimator();
+                }
+              }}
+              style={{
+                width: '24px',
+                height: '24px',
+                background: 'transparent',
+                border: 'none',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                color: '#64748b',
+                padding: 0
+              }}
+              aria-label="Back to Route"
+              title="Back to Route"
+            >
+              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
+                <path d="M15 7H3.83l5.59-5.59L8 0 0 8l8 8 1.41-1.41L3.83 9H15V7z"/>
+              </svg>
+            </button>
+          )}
+          <button
+            onClick={() => {
+              // Slide card completely off screen then hide
+              const cardRect = cardRef.current?.getBoundingClientRect();
+              if (cardRect) {
+                const viewportHeight = window.innerHeight;
+                const cardTop = cardRect.top;
+                // Calculate distance to slide card completely off bottom
+                const slideDistance = viewportHeight - cardTop + 10;
+                setCardTranslateY(slideDistance);
+                setTimeout(() => {
+                  setShowCard(false);
+                  // Don't reset translateY here - do it when showing the card again
+                }, 400);
+              }
+            }}
+            style={{
+              width: '24px',
+              height: '24px',
+              background: 'transparent',
+              border: 'none',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#64748b',
+              fontSize: '20px',
+              fontWeight: 'bold',
+              padding: 0
+            }}
+            aria-label="Minimize"
+          >
+            −
+          </button>
+        </div>
         {viewMode === 'animator' ? renderAnimator() : renderPlanner()}
       </div>
 
