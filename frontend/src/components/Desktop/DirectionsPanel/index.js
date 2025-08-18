@@ -384,7 +384,7 @@ const DirectionsPanel = ({
         <button 
           className="unified-icon primary"
           onClick={handleExpand}
-          title="Plan Your Route"
+          title="Visualize Your Route"
         >
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2">
             <circle cx="6" cy="6" r="3" />

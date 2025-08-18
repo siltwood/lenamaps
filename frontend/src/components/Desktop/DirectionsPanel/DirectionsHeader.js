@@ -16,7 +16,7 @@ const DirectionsHeader = ({
   return (
     <div className="directions-header">
       <DragHandle />
-      <h4>{isEditing ? `Edit: ${editingTrip?.name}` : 'Plan Your Route'}</h4>
+      <h4>{isEditing ? `Edit: ${editingTrip?.name}` : 'Visualize Your Route'}</h4>
       <div className="header-buttons">
         <button 
           className="header-action-btn undo-btn" 
