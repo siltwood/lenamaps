@@ -293,7 +293,6 @@
   font-weight: 500;
   color: #666;
   margin: 0;
-  margin-bottom: -2px;
   display: block;
   line-height: 1;
 }
@@ -612,14 +611,13 @@
   display: flex;
   flex-direction: column;
   gap: 0;
-  margin-top: 4px;
+  padding-bottom: 4px;
 }
 
 .zoom-control > label {
   font-size: 14px;
   font-weight: 500;
   color: #333;
-  margin-bottom: 4px;
 }
 
 .zoom-radio-group {
@@ -1118,11 +1116,7 @@
   .zoom-radio small {
     font-size: 8px;
   }
-  
-  .zoom-control {
-    margin-top: 10px;
-  }
-  
+
   .zoom-control > label {
     display: none; /* Hide "Zoom Level" label on mobile */
   }
@@ -1135,10 +1129,6 @@
   .timeline-control > label {
     font-size: 12px;
     margin-bottom: 2px;
-  }
-  
-  .timeline-container {
-    padding: 8px 0;
   }
   
   .timeline-tips {

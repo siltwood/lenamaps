@@ -133,6 +133,8 @@
 
 .mobile-animator-controls {
   padding: 16px;
+  padding-top: 4px;
+  padding-bottom: 4px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -200,9 +202,9 @@
 
 .mobile-section-label {
   font-size: 11px;
+  padding-top: 4px;
   font-weight: 600;
   color: #64748b;
-  margin-bottom: 2px;
 }
 
 .mobile-timeline-container {
