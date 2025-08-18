@@ -972,13 +972,13 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       }
       
       // Apply playback speed multiplier - use ref for real-time updates
-      let playbackMultiplier = 1;
+      let playbackMultiplier = 2; // Default for medium
       if (playbackSpeedRef.current === 'slow') {
-        playbackMultiplier = 0.5;
+        playbackMultiplier = 1;
       } else if (playbackSpeedRef.current === 'fast') {
-        playbackMultiplier = 2;
+        playbackMultiplier = 4;
       }
-      // 'medium' keeps multiplier at 1
+      // 'medium' uses 2x multiplier
       
       // Apply zoom multiplier and playback speed to base speed
       let metersPerSecond = baseSpeed * zoomSpeedMultiplier * playbackMultiplier;
@@ -1355,7 +1355,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                     onChange={() => setPlaybackSpeed('slow')}
                   />
                   <span>Slow</span>
-                  <small>(0.5x)</small>
+                  <small>(1x)</small>
                 </label>
                 <label className={`zoom-radio ${playbackSpeed === 'medium' ? 'active' : ''}`}>
                   <input
@@ -1366,7 +1366,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                     onChange={() => setPlaybackSpeed('medium')}
                   />
                   <span>Medium</span>
-                  <small>(default)</small>
+                  <small>(4x)</small>
                 </label>
                 <label className={`zoom-radio ${playbackSpeed === 'fast' ? 'active' : ''}`}>
                   <input
@@ -1377,7 +1377,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                     onChange={() => setPlaybackSpeed('fast')}
                   />
                   <span>Fast</span>
-                  <small>(2x)</small>
+                  <small>(4x)</small>
                 </label>
               </div>
             </div>
@@ -1656,7 +1656,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                     onChange={() => setPlaybackSpeed('slow')}
                   />
                   <span>Slow</span>
-                  <small>(0.5x speed)</small>
+                  <small>(1x speed)</small>
                 </label>
                 <label className={`speed-radio ${playbackSpeed === 'medium' ? 'active' : ''}`}>
                   <input
@@ -1667,7 +1667,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                     onChange={() => setPlaybackSpeed('medium')}
                   />
                   <span>Medium</span>
-                  <small>(default)</small>
+                  <small>(4x)</small>
                 </label>
                 <label className={`speed-radio ${playbackSpeed === 'fast' ? 'active' : ''}`}>
                   <input
@@ -1678,7 +1678,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                     onChange={() => setPlaybackSpeed('fast')}
                   />
                   <span>Fast</span>
-                  <small>(2x speed)</small>
+                  <small>(4x speed)</small>
                 </label>
               </div>
             </div>
