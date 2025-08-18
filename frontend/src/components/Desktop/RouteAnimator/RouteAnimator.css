@@ -292,7 +292,7 @@
   font-size: 9px;
   font-weight: 500;
   color: #666;
-  margin: 2px 0 2px;
+  margin: 0 0 2px;
   display: block;
 }
 
@@ -301,7 +301,7 @@
   display: flex;
   gap: 8px;
   width: 100%;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .mobile-radio {
@@ -396,7 +396,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 4px 10px;
+  padding: 2px 10px;
   border-bottom: 1px solid #e0e0e0;
 }
 
@@ -408,11 +408,12 @@
 
 /* Mobile animator controls container */
 .mobile-animator-controls {
-  padding: 4px 8px;
+  padding: 2px 8px;
 }
 
 .mobile-animator-controls .controls-section {
   margin: 0;
+  gap: 4px;
 }
 
 /* Hide timeline scrubber thumb on mobile */
@@ -438,8 +439,10 @@
 }
 
 .mobile-animator-controls .timeline-control {
-  margin-top: 6px;
-  margin-bottom: 2px;
+  margin-top: 2px;
+  margin-bottom: 0;
+  padding-top: 2px;
+  border-top: 1px solid #e0e0e0;
 }
 
 .mobile-animator-controls .timeline-track {
@@ -456,7 +459,7 @@
 
 /* Mobile playback controls */
 .mobile-animator-controls .playback-controls {
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
 
 .mobile-control-btn {
@@ -508,14 +511,14 @@
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 4px 3px;
+  padding: 3px 3px;
   border: 1.5px solid #e0e0e0;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
   background: white;
   position: relative;
-  min-height: 36px;
+  min-height: 32px;
 }
 
 .mobile-animator-controls .zoom-radio:hover {
@@ -552,6 +555,7 @@
   display: flex;
   gap: 8px;
   width: 100%;
+  margin-bottom: 2px;
 }
 
 .speed-radio {
@@ -619,6 +623,7 @@
   display: flex;
   gap: 8px;
   width: 100%;
+  margin-bottom: 2px;
 }
 
 .zoom-radio {
@@ -839,9 +844,9 @@
 .timeline-container {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 2px;
   position: relative;
-  padding: 10px 0;
+  padding: 4px 0;
 }
 
 .timeline-track {
@@ -1038,9 +1043,10 @@
 .timeline-labels {
   display: flex;
   justify-content: space-between;
-  font-size: 11px;
+  font-size: 10px;
   color: #666;
   padding: 0 2px;
+  margin-top: -2px;
 }
 
 .timeline-tips {
