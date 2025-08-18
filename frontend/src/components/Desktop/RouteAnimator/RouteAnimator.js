@@ -47,6 +47,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     }
   }
   const [zoomLevel, setZoomLevel] = useState('medium'); // 'close', 'medium', 'far'
+  const [playbackSpeed, setPlaybackSpeed] = useState('medium'); // 'slow', 'medium', 'fast'
   const [animationProgress, setAnimationProgress] = useState(0); // 0-100 for timeline
   
   // Add effect to update zoom whenever zoom level changes
@@ -66,7 +67,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
           const currentIndex = Math.floor(progress * (path.getLength() - 1));
           if (currentIndex < path.getLength()) {
             const currentPos = path.getAt(currentIndex);
-            if (currentPos) {
+            if (currentPos && currentPos.lat && currentPos.lng) {
               map.panTo(currentPos);
             }
           }
@@ -86,7 +87,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
           const currentIndex = Math.floor(progress * (path.getLength() - 1));
           if (currentIndex < path.getLength()) {
             const currentPos = path.getAt(currentIndex);
-            if (currentPos) {
+            if (currentPos && currentPos.lat && currentPos.lng) {
               map.panTo(currentPos);
             }
           }
@@ -149,6 +150,11 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     }
   }, [zoomLevel, map, directionsRoute, isMinimized, isAnimating]);
   
+  // Update playbackSpeed ref when state changes
+  useEffect(() => {
+    playbackSpeedRef.current = playbackSpeed;
+  }, [playbackSpeed]);
+  
   const animationRef = useRef(null);
   // Removed markerRef - using pure Symbol Animation API
   const pathRef = useRef(null);
@@ -173,6 +179,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
   const totalDistanceRef = useRef(0); // Store total route distance in km
   const zoomLevelRef = useRef(zoomLevel); // Track zoom level in animation
   const visualOffsetRef = useRef(0); // Track the actual visual position of the icon
+  const playbackSpeedRef = useRef(playbackSpeed); // Track playback speed in animation
 
   // Calculate marker scale based on zoom level
   const getMarkerScale = (zoom) => {
@@ -827,7 +834,9 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       
       // Start with a smooth pan to the beginning of the route
       const startPos = densifiedPath[0];
-      map.panTo(startPos);
+      if (startPos && startPos.lat && startPos.lng) {
+        map.panTo(startPos);
+      }
       
       // Set zoom based on selected level
       let zoomValue = 16; // default medium
@@ -962,8 +971,17 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         console.log(`Zoom ${currentZoom}: Speed multiplier ${zoomSpeedMultiplier.toFixed(1)}x`);
       }
       
-      // Apply zoom multiplier directly to base speed
-      let metersPerSecond = baseSpeed * zoomSpeedMultiplier;
+      // Apply playback speed multiplier - use ref for real-time updates
+      let playbackMultiplier = 1;
+      if (playbackSpeedRef.current === 'slow') {
+        playbackMultiplier = 0.5;
+      } else if (playbackSpeedRef.current === 'fast') {
+        playbackMultiplier = 2;
+      }
+      // 'medium' keeps multiplier at 1
+      
+      // Apply zoom multiplier and playback speed to base speed
+      let metersPerSecond = baseSpeed * zoomSpeedMultiplier * playbackMultiplier;
       
       // Calculate how much of the total route to cover in this frame
       const metersThisFrame = metersPerSecond * (clampedDeltaTime / 1000);
@@ -984,14 +1002,17 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       if (!animateRef.current) animateRef.current = { frameCount: 0 };
       animateRef.current.frameCount++;
       
+      const visualOffset = (countRef.current / 2);
+      
+      // Update visual icon position every few frames for performance
       if (animateRef.current.frameCount % visualUpdateFrequency === 0 || countRef.current >= 198) {
         const icons = polylineRef.current.get('icons');
-        const visualOffset = (countRef.current / 2);
         icons[0].offset = visualOffset + '%';
         polylineRef.current.set('icons', icons);
-        // Update the visual position ref so camera follows the actual visible marker
-        visualOffsetRef.current = visualOffset;
       }
+      
+      // ALWAYS update the visual position ref every frame for accurate camera tracking
+      visualOffsetRef.current = visualOffset;
       
       // Track progress and update UI
       offsetRef.current = countRef.current / 2;
@@ -1035,14 +1056,14 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         }
       }
       
-      // Smart camera panning with look-ahead
+      // Smart camera panning - ALWAYS track the marker
       const path = pathRef.current;
       
       // Safety check - make sure we have a valid path
       if (!path || path.length === 0) {
         console.warn('No path available for camera tracking!');
-        return;
-      }
+        // Don't return - continue animation even if camera tracking fails
+      } else {
       
       const numPoints = path.length;
       // Use actual offset for smooth camera tracking (updates every frame)
@@ -1079,64 +1100,88 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         const markerPosition = new window.google.maps.LatLng(lat, lng);
         
         // Camera following strategy based on zoom level
-        if (zoomLevelRef.current !== 'far') {
-          const bounds = map.getBounds();
-          if (bounds) {
-            const ne = bounds.getNorthEast();
-            const sw = bounds.getSouthWest();
-            
-            // For Close view - keep marker centered always
-            if (zoomLevelRef.current === 'close') {
-              // Smooth continuous panning for close view
-              const center = map.getCenter();
-              const latDiff = markerPosition.lat() - center.lat();
-              const lngDiff = markerPosition.lng() - center.lng();
-              
-              // Faster panning for close view to keep marker more centered
-              const panSpeed = 0.5;
-              const newCenter = new window.google.maps.LatLng(
-                center.lat() + (latDiff * panSpeed),
-                center.lng() + (lngDiff * panSpeed)
-              );
-              map.panTo(newCenter);
-            } 
-            // For Medium view - keep marker loosely centered
-            else if (zoomLevelRef.current === 'medium') {
-              // Dynamic buffer based on speed - faster speed = larger buffer
-              const speedFactor = Math.min(zoomSpeedMultiplier / 10, 1); // Normalize to 0-1
-              const minBuffer = 0.15; // 15% at slow speeds
-              const maxBuffer = 0.4;  // 40% at high speeds
-              const bufferSize = minBuffer + (maxBuffer - minBuffer) * speedFactor;
-              
-              const latBuffer = (ne.lat() - sw.lat()) * bufferSize;
-              const lngBuffer = (ne.lng() - sw.lng()) * bufferSize;
-              
-              // Check if marker is outside the safe zone
-              const outsideSafeZone = markerPosition.lat() > ne.lat() - latBuffer ||
-                                      markerPosition.lat() < sw.lat() + latBuffer ||
-                                      markerPosition.lng() > ne.lng() - lngBuffer ||
-                                      markerPosition.lng() < sw.lng() + lngBuffer;
-              
-              if (outsideSafeZone) {
-                // For longer routes, use continuous smooth panning
-                // Calculate how far the marker is from center
-                const center = map.getCenter();
-                const latDiff = markerPosition.lat() - center.lat();
-                const lngDiff = markerPosition.lng() - center.lng();
+        if (zoomLevelRef.current !== 'far' && pathRef.current) {
+          // Get the actual marker position from the current progress
+          const actualProgress = visualOffsetRef.current / 100;
+          const pathLength = pathRef.current.length;
+          const actualIndex = Math.min(
+            Math.floor(actualProgress * (pathLength - 1)), 
+            pathLength - 1
+          );
+          
+          let actualMarkerPos = markerPosition; // fallback
+          if (actualIndex >= 0 && actualIndex < pathLength) {
+            actualMarkerPos = pathRef.current[actualIndex];
+          }
+          
+          // For Close view - lazy follow, only pan when near edge
+          if (zoomLevelRef.current === 'close') {
+            if (actualMarkerPos && actualMarkerPos.lat && actualMarkerPos.lng) {
+              const bounds = map.getBounds();
+              if (bounds) {
+                const ne = bounds.getNorthEast();
+                const sw = bounds.getSouthWest();
                 
-                // Pan smoothly toward the marker position
-                // Use smaller increments for smoother movement
-                const panSpeed = 0.3; // Adjust this for smoother/faster panning
-                const newCenter = new window.google.maps.LatLng(
-                  center.lat() + (latDiff * panSpeed),
-                  center.lng() + (lngDiff * panSpeed)
-                );
-                map.panTo(newCenter);
+                // Use 30% buffer from edges for close view (more relaxed)
+                const buffer = 0.30;
+                const latRange = ne.lat() - sw.lat();
+                const lngRange = ne.lng() - sw.lng();
+                
+                // Get marker coordinates safely
+                const markerLat = typeof actualMarkerPos.lat === 'function' ? actualMarkerPos.lat() : actualMarkerPos.lat;
+                const markerLng = typeof actualMarkerPos.lng === 'function' ? actualMarkerPos.lng() : actualMarkerPos.lng;
+                
+                if (markerLat && markerLng) {
+                  // Check if marker is near the edge or off-screen
+                  const isOffScreen = !bounds.contains(actualMarkerPos);
+                  const nearEdge = markerLat > ne.lat() - (latRange * buffer) ||
+                                  markerLat < sw.lat() + (latRange * buffer) ||
+                                  markerLng > ne.lng() - (lngRange * buffer) ||
+                                  markerLng < sw.lng() + (lngRange * buffer);
+                  
+                  if (isOffScreen || nearEdge) {
+                    // Pan to recenter on marker when it gets near edge
+                    map.panTo(actualMarkerPos);
+                  }
+                  // Otherwise, don't pan - let the marker move within the view
+                }
+              }
+            }
+          } 
+          // For Medium view - keep marker in view with tighter bounds
+          else if (zoomLevelRef.current === 'medium') {
+            const bounds = map.getBounds();
+            if (bounds && actualMarkerPos && actualMarkerPos.lat && actualMarkerPos.lng) {
+              const ne = bounds.getNorthEast();
+              const sw = bounds.getSouthWest();
+              
+              // Use tighter 15% buffer from edges for better tracking
+              const buffer = 0.15;
+              const latRange = ne.lat() - sw.lat();
+              const lngRange = ne.lng() - sw.lng();
+              
+              // Get marker coordinates safely
+              const markerLat = typeof actualMarkerPos.lat === 'function' ? actualMarkerPos.lat() : actualMarkerPos.lat;
+              const markerLng = typeof actualMarkerPos.lng === 'function' ? actualMarkerPos.lng() : actualMarkerPos.lng;
+              
+              if (markerLat && markerLng) {
+                // Check if marker is outside the safe zone or completely off-screen
+                const isOffScreen = !bounds.contains(actualMarkerPos);
+                const nearEdge = markerLat > ne.lat() - (latRange * buffer) ||
+                                markerLat < sw.lat() + (latRange * buffer) ||
+                                markerLng > ne.lng() - (lngRange * buffer) ||
+                                markerLng < sw.lng() + (lngRange * buffer);
+                
+                if (isOffScreen || nearEdge) {
+                  // Recenter on marker
+                  map.panTo(actualMarkerPos);
+                }
               }
             }
           }
         }
       }
+      } // Close the else block for path check
 
       // Check if animation is complete
       if (countRef.current >= 198) {
@@ -1308,6 +1353,27 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         </div>
         <div className="mobile-animator-controls">
           <div className="controls-section">
+            <div className="speed-controls-mobile">
+              <button 
+                className={`speed-btn-mobile ${playbackSpeed === 'slow' ? 'active' : ''}`}
+                onClick={() => setPlaybackSpeed('slow')}
+              >
+                Slow
+              </button>
+              <button 
+                className={`speed-btn-mobile ${playbackSpeed === 'medium' ? 'active' : ''}`}
+                onClick={() => setPlaybackSpeed('medium')}
+              >
+                Medium
+                <span className="default-indicator">(default)</span>
+              </button>
+              <button 
+                className={`speed-btn-mobile ${playbackSpeed === 'fast' ? 'active' : ''}`}
+                onClick={() => setPlaybackSpeed('fast')}
+              >
+                Fast
+              </button>
+            </div>
             <div className="playback-controls">
               {!isAnimating ? (
                 <button onClick={startAnimation} className="mobile-control-btn play">
@@ -1409,7 +1475,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                       
                       if (currentIndex < numPoints) {
                         const currentPos = path.getAt(currentIndex);
-                        if (currentPos && map) {
+                        if (currentPos && map && currentPos.lat && currentPos.lng) {
                           map.panTo(currentPos);
                         }
                       }
@@ -1593,6 +1659,44 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
               </div>
             </div>
             
+            <div className="speed-control">
+              <div className="speed-radio-group">
+                <label className={`speed-radio ${playbackSpeed === 'slow' ? 'active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="speed"
+                    value="slow"
+                    checked={playbackSpeed === 'slow'}
+                    onChange={() => setPlaybackSpeed('slow')}
+                  />
+                  <span>Slow</span>
+                  <small>(0.5x speed)</small>
+                </label>
+                <label className={`speed-radio ${playbackSpeed === 'medium' ? 'active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="speed"
+                    value="medium"
+                    checked={playbackSpeed === 'medium'}
+                    onChange={() => setPlaybackSpeed('medium')}
+                  />
+                  <span>Medium</span>
+                  <small>(default)</small>
+                </label>
+                <label className={`speed-radio ${playbackSpeed === 'fast' ? 'active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="speed"
+                    value="fast"
+                    checked={playbackSpeed === 'fast'}
+                    onChange={() => setPlaybackSpeed('fast')}
+                  />
+                  <span>Fast</span>
+                  <small>(2x speed)</small>
+                </label>
+              </div>
+            </div>
+            
             <div className="timeline-control">
               <label>Timeline Scrubber</label>
               <div className="timeline-container">
@@ -1635,7 +1739,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                       
                       if (currentIndex < numPoints) {
                         const currentPos = path.getAt(currentIndex);
-                        if (currentPos && map) {
+                        if (currentPos && map && currentPos.lat && currentPos.lng) {
                           map.panTo(currentPos);
                         }
                       }

@@ -226,6 +226,80 @@
   margin-bottom: 4px;
 }
 
+/* Speed control buttons */
+.speed-controls {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.speed-btn {
+  padding: 6px 12px;
+  border: 1px solid #ddd;
+  background: #f8f9fa;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+  position: relative;
+}
+
+.speed-btn:hover {
+  background: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.speed-btn.active {
+  background: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.speed-btn .default-label {
+  display: block;
+  font-size: 10px;
+  opacity: 0.8;
+  margin-top: 2px;
+}
+
+/* Mobile speed controls */
+.speed-controls-mobile {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.speed-btn-mobile {
+  padding: 8px 16px;
+  border: 1px solid #ddd;
+  background: #f8f9fa;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+  font-weight: 500;
+  flex: 1;
+}
+
+.speed-btn-mobile:hover {
+  background: #e9ecef;
+  border-color: #adb5bd;
+}
+
+.speed-btn-mobile.active {
+  background: #007bff;
+  color: white;
+  border-color: #007bff;
+}
+
+.speed-btn-mobile .default-indicator {
+  display: block;
+  font-size: 10px;
+  opacity: 0.9;
+  margin-top: 2px;
+}
+
 .speed-radio-group {
   display: flex;
   gap: 8px;
@@ -235,6 +309,7 @@
 .speed-radio {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 8px 12px;
@@ -243,6 +318,8 @@
   cursor: pointer;
   transition: all 0.2s ease;
   background: white;
+  position: relative;
+  min-height: 70px;
 }
 
 .speed-radio:hover {
@@ -266,6 +343,12 @@
 
 .speed-radio span {
   font-size: 13px;
+  user-select: none;
+}
+
+.speed-radio small {
+  font-size: 10px;
+  color: #666;
   user-select: none;
 }
 
@@ -304,6 +387,7 @@
   background: white;
   position: relative;
   gap: 2px;
+  min-height: 70px;
 }
 
 .zoom-radio:hover:not([disabled]) {
@@ -772,6 +856,7 @@
     font-size: 11px;
   }
   
+  .speed-radio small,
   .zoom-radio small {
     font-size: 8px;
   }
