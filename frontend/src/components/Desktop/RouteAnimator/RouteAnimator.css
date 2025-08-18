@@ -898,23 +898,8 @@
   appearance: none;
   width: 0;
   height: 0;
-  border-left: 8px solid transparent;
-  border-right: 8px solid transparent;
-  border-top: 14px solid #4285F4;
-  border-bottom: 0;
-  border-style: solid;
-  background: transparent;
-  cursor: grab;
-  transition: all 0.2s ease;
-  position: relative;
-  z-index: 2;
-  margin-top: -20px; /* Position triangle above the track */
-  box-sizing: border-box;
-}
-
-.timeline-slider::-webkit-slider-thumb:hover {
-  transform: scale(1.15);
-  border-top-color: #1a73e8;
+  opacity: 0;
+  cursor: pointer;
 }
 
 .timeline-slider::-webkit-slider-thumb:active {
@@ -942,23 +927,9 @@
 .timeline-slider::-moz-range-thumb {
   width: 0;
   height: 0;
-  border-left: 8px solid transparent;
-  border-right: 8px solid transparent;
-  border-top: 14px solid #4285F4;
-  border-bottom: 0;
-  border-style: solid;
-  background: transparent;
-  border-radius: 0;
-  cursor: grab;
-  transition: all 0.2s ease;
-  margin-top: -20px; /* Position triangle above the track */
-  box-shadow: none;
-  box-sizing: border-box;
-}
-
-.timeline-slider::-moz-range-thumb:hover {
-  transform: scale(1.15);
-  border-top-color: #1a73e8;
+  opacity: 0;
+  border: none;
+  cursor: pointer;
 }
 
 /* Hide the slider thumb completely while keeping drag functionality */

@@ -1316,7 +1316,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       <>
         <div className="mobile-card-header">
           {!isMobile && <DragHandle />}
-          <h4>Route Animator</h4>
+          <h4>Visualize Your Route</h4>
           <div className="mobile-header-actions">
             <button 
               className="mobile-header-btn"
@@ -1563,7 +1563,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     >
       <div className="route-animator-header">
         {!isMobile && <DragHandle />}
-        <h4>Route Animator</h4>
+        <h4>Visualize Your Route</h4>
         <div className="header-actions">
           {isMobile && onClose ? (
             <>
