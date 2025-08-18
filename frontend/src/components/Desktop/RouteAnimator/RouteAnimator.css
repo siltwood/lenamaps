@@ -73,6 +73,31 @@
   color: #333;
 }
 
+/* Mobile header actions */
+.mobile-header-actions {
+  display: flex;
+  gap: 8px;
+  z-index: 10;
+  position: relative;
+}
+
+.mobile-header-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #666;
+  padding: 8px;
+  border-radius: 4px;
+  transition: all 0.2s;
+  pointer-events: auto;
+  z-index: 10;
+}
+
+.mobile-header-btn:hover {
+  background: #e9ecef;
+  color: #333;
+}
+
 
 .route-animator-content {
   padding: 16px;
@@ -262,42 +287,265 @@
   margin-top: 2px;
 }
 
-/* Mobile speed controls */
-.speed-controls-mobile {
-  display: flex;
-  gap: 8px;
-  justify-content: center;
-  margin-bottom: 12px;
+/* Mobile section labels */
+.mobile-section-label {
+  font-size: 9px;
+  font-weight: 500;
+  color: #666;
+  margin: 2px 0 2px;
+  display: block;
 }
 
-.speed-btn-mobile {
-  padding: 8px 16px;
-  border: 1px solid #ddd;
+/* Mobile radio group styling */
+.mobile-radio-group {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.mobile-radio {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 8px;
+  border: 2px solid #e0e0e0;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
+  position: relative;
+  min-height: 55px;
+}
+
+.mobile-radio:hover {
+  border-color: #4285F4;
   background: #f8f9fa;
+}
+
+.mobile-radio.active {
+  border-color: #4285F4;
+  background: #e8f0fe;
+  color: #1967d2;
+  font-weight: 500;
+}
+
+.mobile-radio input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.mobile-radio span {
+  font-size: 13px;
+  user-select: none;
+}
+
+.mobile-radio small {
+  font-size: 10px;
+  color: #666;
+  user-select: none;
+}
+
+/* Mobile speed control - inline radio style like desktop */
+.speed-control-mobile {
+  margin: 16px 0;
+}
+
+.speed-radio-inline {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.speed-inline-radio {
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.speed-inline-radio input[type="radio"] {
+  margin-right: 6px;
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.speed-inline-radio span {
+  color: #333;
+  user-select: none;
+}
+
+.speed-inline-radio.active span {
+  color: #1967d2;
+  font-weight: 500;
+}
+
+.speed-inline-radio small {
+  font-size: 11px;
+  color: #666;
+  margin-left: 2px;
+}
+
+/* Mobile card header */
+.mobile-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 10px;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.mobile-card-header h4 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Mobile animator controls container */
+.mobile-animator-controls {
+  padding: 4px 8px;
+}
+
+.mobile-animator-controls .controls-section {
+  margin: 0;
+}
+
+/* Hide timeline scrubber thumb on mobile */
+.mobile-animator-controls .timeline-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 0;
+  height: 0;
+  opacity: 0;
+}
+
+.mobile-animator-controls .timeline-slider::-moz-range-thumb {
+  width: 0;
+  height: 0;
+  opacity: 0;
+  border: none;
+}
+
+.mobile-animator-controls .timeline-slider::-ms-thumb {
+  width: 0;
+  height: 0;
+  opacity: 0;
+}
+
+.mobile-animator-controls .timeline-control {
+  margin-top: 6px;
+  margin-bottom: 2px;
+}
+
+.mobile-animator-controls .timeline-track {
+  height: 2px;
+  background: #e2e8f0;
+  border-radius: 1px;
+}
+
+.mobile-animator-controls .timeline-progress {
+  height: 2px;
+  background: #3b82f6;
+  border-radius: 1px;
+}
+
+/* Mobile playback controls */
+.mobile-animator-controls .playback-controls {
+  margin-bottom: 4px;
+}
+
+.mobile-control-btn {
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 500;
+  border: none;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s;
-  font-size: 14px;
-  font-weight: 500;
-  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-right: 6px;
 }
 
-.speed-btn-mobile:hover {
-  background: #e9ecef;
-  border-color: #adb5bd;
-}
-
-.speed-btn-mobile.active {
-  background: #007bff;
+.mobile-control-btn.play {
+  background: #4CAF50;
   color: white;
-  border-color: #007bff;
 }
 
-.speed-btn-mobile .default-indicator {
-  display: block;
+.mobile-control-btn.play:hover {
+  background: #45a049;
+}
+
+.mobile-control-btn.pause {
+  background: #ff9800;
+  color: white;
+}
+
+.mobile-control-btn.pause:hover {
+  background: #e68900;
+}
+
+.mobile-control-btn.stop {
+  background: #f44336;
+  color: white;
+}
+
+.mobile-control-btn.stop:hover {
+  background: #da190b;
+}
+
+/* Make zoom controls look good on mobile */
+.mobile-animator-controls .zoom-radio {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 4px 3px;
+  border: 1.5px solid #e0e0e0;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background: white;
+  position: relative;
+  min-height: 36px;
+}
+
+.mobile-animator-controls .zoom-radio:hover {
+  border-color: #4285F4;
+  background: #f8f9fa;
+}
+
+.mobile-animator-controls .zoom-radio.active {
+  border-color: #4285F4;
+  background: #e8f0fe;
+  color: #1967d2;
+  font-weight: 500;
+}
+
+.mobile-animator-controls .zoom-radio input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.mobile-animator-controls .zoom-radio span {
   font-size: 10px;
-  opacity: 0.9;
-  margin-top: 2px;
+  user-select: none;
+}
+
+.mobile-animator-controls .zoom-radio small {
+  font-size: 7px;
+  color: #666;
+  margin-top: 0;
 }
 
 .speed-radio-group {

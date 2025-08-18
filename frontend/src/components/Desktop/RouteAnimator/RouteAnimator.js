@@ -1319,21 +1319,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
           <h4>Route Animator</h4>
           <div className="mobile-header-actions">
             <button 
-              className="minimize-button"
-              onClick={() => {
-                // Call minimize callback if provided
-                if (onMinimize) {
-                  onMinimize();
-                }
-              }}
-              title="Minimize"
-              style={{ marginRight: '8px' }}
-            >
-              <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
-                <path d="M4 9h8v1H4z"/>
-              </svg>
-            </button>
-            <button 
               className="mobile-header-btn"
               onClick={() => {
                 if (isAnimating) {
@@ -1353,27 +1338,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         </div>
         <div className="mobile-animator-controls">
           <div className="controls-section">
-            <div className="speed-controls-mobile">
-              <button 
-                className={`speed-btn-mobile ${playbackSpeed === 'slow' ? 'active' : ''}`}
-                onClick={() => setPlaybackSpeed('slow')}
-              >
-                Slow
-              </button>
-              <button 
-                className={`speed-btn-mobile ${playbackSpeed === 'medium' ? 'active' : ''}`}
-                onClick={() => setPlaybackSpeed('medium')}
-              >
-                Medium
-                <span className="default-indicator">(default)</span>
-              </button>
-              <button 
-                className={`speed-btn-mobile ${playbackSpeed === 'fast' ? 'active' : ''}`}
-                onClick={() => setPlaybackSpeed('fast')}
-              >
-                Fast
-              </button>
-            </div>
             <div className="playback-controls">
               {!isAnimating ? (
                 <button onClick={startAnimation} className="mobile-control-btn play">
@@ -1391,12 +1355,52 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                     </button>
                   )}
                   <button onClick={stopAnimation} className="mobile-control-btn stop">
-                    <FontAwesomeIcon icon={faStop} /> Exit Animation
+                    <FontAwesomeIcon icon={faStop} /> Stop
                   </button>
                 </>
               )}
             </div>
             
+            <div className="mobile-section-label">Speed</div>
+            <div className="zoom-control">
+              <div className="zoom-radio-group">
+                <label className={`zoom-radio ${playbackSpeed === 'slow' ? 'active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="speed"
+                    value="slow"
+                    checked={playbackSpeed === 'slow'}
+                    onChange={() => setPlaybackSpeed('slow')}
+                  />
+                  <span>Slow</span>
+                  <small>(0.5x)</small>
+                </label>
+                <label className={`zoom-radio ${playbackSpeed === 'medium' ? 'active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="speed"
+                    value="medium"
+                    checked={playbackSpeed === 'medium'}
+                    onChange={() => setPlaybackSpeed('medium')}
+                  />
+                  <span>Medium</span>
+                  <small>(default)</small>
+                </label>
+                <label className={`zoom-radio ${playbackSpeed === 'fast' ? 'active' : ''}`}>
+                  <input
+                    type="radio"
+                    name="speed"
+                    value="fast"
+                    checked={playbackSpeed === 'fast'}
+                    onChange={() => setPlaybackSpeed('fast')}
+                  />
+                  <span>Fast</span>
+                  <small>(2x)</small>
+                </label>
+              </div>
+            </div>
+            
+            <div className="mobile-section-label">View</div>
             <div className="zoom-control">
               <div className="zoom-radio-group">
                 <label className={`zoom-radio ${zoomLevel === 'close' ? 'active' : ''}`}>

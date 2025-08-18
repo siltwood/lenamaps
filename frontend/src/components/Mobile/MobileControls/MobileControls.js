@@ -184,15 +184,16 @@ const MobileControls = ({
     
     if (cardRect) {
       const cardTop = cardRect.top;
-      const cardDefaultTop = viewportHeight * 0.6; // Default position of card
+      const cardHeight = cardRect.height;
       
       // If card top is dragged below 80px from bottom of screen, minimize it
       if (cardTop > viewportHeight - 80) {
-        // Calculate how far to slide from current position
-        const slideDistance = viewportHeight - cardDefaultTop;
+        // Slide card completely off bottom of screen
+        const slideDistance = viewportHeight - cardTop + cardHeight + 10;
         setCardTranslateY(slideDistance);
         setTimeout(() => {
           setShowCard(false);
+          // Don't reset translateY here - do it when showing the card again
         }, 400); // Wait for slide animation to complete
       }
       // Otherwise, keep it where the user dragged it - don't snap back
@@ -209,8 +210,7 @@ const MobileControls = ({
         map={map}
         directionsRoute={directionsRoute}
         onAnimationStateChange={(isAnimating) => {
-          // Hide the card when animation starts, show when it stops
-          setShowCard(!isAnimating);
+          // Don't auto-show the card when animation stops if it was manually hidden
           // Pass the state up to parent
           if (onAnimationStateChange) {
             onAnimationStateChange(isAnimating);
@@ -220,11 +220,14 @@ const MobileControls = ({
         forceShow={true}
         onClose={() => {
           setViewMode('planner');
+          setShowCard(true);
           if (onHideAnimator) {
             onHideAnimator();
           }
         }}
-        onMinimize={() => setShowCard(false)}
+        onMinimize={() => {
+          setShowCard(false);
+        }}
         embeddedInModal={true}
       />
     );
@@ -485,14 +488,19 @@ const MobileControls = ({
         {/* Minimize button at top right */}
         <button
           onClick={() => {
-            // Slide card off screen then hide
-            const viewportHeight = window.innerHeight;
-            const cardDefaultTop = viewportHeight * 0.6;
-            const slideDistance = viewportHeight - cardDefaultTop;
-            setCardTranslateY(slideDistance);
-            setTimeout(() => {
-              setShowCard(false);
-            }, 400);
+            // Slide card completely off screen then hide
+            const cardRect = cardRef.current?.getBoundingClientRect();
+            if (cardRect) {
+              const viewportHeight = window.innerHeight;
+              const cardTop = cardRect.top;
+              // Calculate distance to slide card completely off bottom
+              const slideDistance = viewportHeight - cardTop + 10;
+              setCardTranslateY(slideDistance);
+              setTimeout(() => {
+                setShowCard(false);
+                // Don't reset translateY here - do it when showing the card again
+              }, 400);
+            }
           }}
           style={{
             position: 'absolute',
@@ -519,12 +527,15 @@ const MobileControls = ({
         {viewMode === 'animator' ? renderAnimator() : renderPlanner()}
       </div>
 
-      {/* FAB when card is hidden - only show if not in animator mode */}
-      {!showCard && viewMode !== 'animator' && (
+      {/* FAB when card is hidden */}
+      {!showCard && (
         <div className="mobile-fab-container">
           <button 
             className="unified-icon primary"
-            onClick={() => setShowCard(true)}
+            onClick={() => {
+              setCardTranslateY(0); // Reset position
+              setShowCard(true);
+            }}
             aria-label="Plan Route"
             style={{ position: 'fixed', left: '20px', bottom: '20px' }}
           >
