@@ -30,12 +30,12 @@ const MobileControls = ({
   const [activeInput, setActiveInput] = useState(null); // Track which input is active for clicking
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartY, setDragStartY] = useState(0);
-  const [cardTranslateY, setCardTranslateY] = useState(-50);
+  const [cardTranslateY, setCardTranslateY] = useState(0);
   
   // Reset position when card is shown
   useEffect(() => {
     if (showCard) {
-      setCardTranslateY(-50); // Start 50px higher
+      setCardTranslateY(0);
     }
   }, [showCard]);
   
@@ -226,7 +226,20 @@ const MobileControls = ({
           }
         }}
         onMinimize={() => {
-          setShowCard(false);
+          // Slide the card completely off screen
+          if (cardRef.current) {
+            const cardRect = cardRef.current.getBoundingClientRect();
+            const viewportHeight = window.innerHeight;
+            const cardTop = cardRect.top;
+            const cardHeight = cardRect.height;
+            // Calculate distance to slide card completely off bottom
+            const slideDistance = viewportHeight - cardTop + cardHeight + 10;
+            setCardTranslateY(slideDistance);
+            // Then hide it after animation
+            setTimeout(() => {
+              setShowCard(false);
+            }, 400);
+          }
         }}
         embeddedInModal={true}
       />

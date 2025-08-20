@@ -840,6 +840,10 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       // Start animation immediately
       setTimeout(() => {
         animateAlongRoute();
+        // Auto-minimize on mobile when animation actually starts
+        if (embeddedInModal && onMinimize) {
+          onMinimize();
+        }
       }, 100);
       
     } catch (error) {
