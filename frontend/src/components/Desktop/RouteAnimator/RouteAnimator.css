@@ -21,6 +21,7 @@
     z-index: 2000 !important;
     max-height: 240px;
     overflow-y: auto;
+    -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
     border-radius: 12px !important;
     box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1) !important;
   }
@@ -410,6 +411,9 @@
 /* Mobile animator controls container */
 .mobile-animator-controls {
   padding: 2px 8px;
+  max-height: 200px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
 }
 
 .mobile-animator-controls .controls-section {

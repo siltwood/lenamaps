@@ -1234,13 +1234,32 @@ body {
 .location-search-input:focus {
   outline: none;
   border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  box-shadow: none; /* Remove box-shadow on mobile to prevent size change */
+}
+
+/* Add box-shadow only on desktop */
+@media (min-width: 769px) {
+  .location-search-input:focus {
+    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  }
 }
 
 .location-search-input:disabled {
   background: #f8fafc;
   color: #94a3b8;
   cursor: not-allowed;
+}
+
+/* Ghost text overlay for inline autocomplete */
+.location-search-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.location-search-ghost-text {
+  font-family: inherit;
+  font-size: 0.875rem;
+  line-height: 1.5;
 }
 
 /* Style the new gmp-place-autocomplete element */

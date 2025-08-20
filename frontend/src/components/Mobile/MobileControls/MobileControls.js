@@ -30,12 +30,12 @@ const MobileControls = ({
   const [activeInput, setActiveInput] = useState(null); // Track which input is active for clicking
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartY, setDragStartY] = useState(0);
-  const [cardTranslateY, setCardTranslateY] = useState(0);
+  const [cardTranslateY, setCardTranslateY] = useState(-50);
   
   // Reset position when card is shown
   useEffect(() => {
     if (showCard) {
-      setCardTranslateY(0);
+      setCardTranslateY(-50); // Start 50px higher
     }
   }, [showCard]);
   
@@ -271,16 +271,9 @@ const MobileControls = ({
                         }
                       }}
                       placeholder={`Search for point ${String.fromCharCode(65 + index)}...`}
+                      enableInlineComplete={true}
+                      hideDropdown={true}
                     />
-                    <button 
-                      className="mobile-search-cancel"
-                      onClick={() => {
-                        setShowSearchInputs(prev => ({ ...prev, [index]: false }));
-                        setActiveInput(null);
-                      }}
-                    >
-                      ×
-                    </button>
                   </div>
                 ) : !location ? (
                   <input 

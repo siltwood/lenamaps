@@ -556,9 +556,9 @@
 
 .mobile-route-input {
   flex: 1;
-  padding: 8px 10px;
+  padding: 12px;
   border: 1.5px solid #e2e8f0;
-  border-radius: 10px;
+  border-radius: 12px;
   font-size: 14px;
   background: #f8fafc;
 }
@@ -572,7 +572,7 @@
 .mobile-route-input.active {
   border-color: #3b82f6;
   background: #eff6ff;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  /* Remove box-shadow to prevent size change */
 }
 
 .mobile-route-input.filled {
@@ -586,20 +586,7 @@
   border-color: #3b82f6;
   background: #eff6ff;
   color: #1e40af;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  animation: pulse-mobile 2s infinite;
-}
-
-@keyframes pulse-mobile {
-  0% {
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  }
-  50% {
-    box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.05);
-  }
-  100% {
-    box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
-  }
+  /* Remove box-shadow and animation to prevent size changes */
 }
 
 .mobile-route-input.filled:active {
@@ -690,13 +677,22 @@
   gap: 8px;
 }
 
-.mobile-search-container input {
+.mobile-search-container input,
+.mobile-search-container .location-search-input {
   flex: 1;
-  padding: 12px;
-  border: 1px solid #e2e8f0;
+  padding: 12px !important;
+  border: 1.5px solid #e2e8f0 !important;
   border-radius: 12px;
   font-size: 14px;
   background: white;
+  box-sizing: border-box;
+}
+
+/* Override focus styles to prevent size change */
+.mobile-search-container .location-search-input:focus {
+  border: 1.5px solid #3b82f6 !important;
+  box-shadow: none !important;
+  outline: none;
 }
 
 .mobile-search-cancel {

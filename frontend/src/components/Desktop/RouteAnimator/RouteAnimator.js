@@ -46,7 +46,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       onAnimationStateChange(value);
     }
   }
-  const [zoomLevel, setZoomLevel] = useState('medium'); // 'close', 'medium', 'far'
+  const [zoomLevel, setZoomLevel] = useState('follow'); // 'follow', 'whole'
   const [playbackSpeed, setPlaybackSpeed] = useState('medium'); // 'slow', 'medium', 'fast'
   const [animationProgress, setAnimationProgress] = useState(0); // 0-100 for timeline
   
@@ -58,8 +58,8 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     // Update zoom when RouteAnimator is visible/expanded
     // Remove the isAnimating requirement so zoom works even when paused/stopped
     if (map && !isMinimized) {
-      if (zoomLevel === 'close') {
-        map.setZoom(18);
+      if (zoomLevel === 'follow') {
+        map.setZoom(17);
         // Center on current animation position if available, or first location
         if (polylineRef.current && isAnimating && offsetRef) {
           const path = polylineRef.current.getPath();
@@ -78,27 +78,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
             map.panTo(new window.google.maps.LatLng(loc.lat, loc.lng));
           }
         }
-      } else if (zoomLevel === 'medium') {
-        map.setZoom(16);
-        // Center on current animation position if available, or first location
-        if (polylineRef.current && isAnimating && offsetRef) {
-          const path = polylineRef.current.getPath();
-          const progress = offsetRef.current / 100;
-          const currentIndex = Math.floor(progress * (path.getLength() - 1));
-          if (currentIndex < path.getLength()) {
-            const currentPos = path.getAt(currentIndex);
-            if (currentPos && currentPos.lat && currentPos.lng) {
-              map.panTo(currentPos);
-            }
-          }
-        } else if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length > 0) {
-          // Not animating, center on first location
-          const loc = directionsRoute.allLocations[0];
-          if (loc && loc.lat && loc.lng) {
-            map.panTo(new window.google.maps.LatLng(loc.lat, loc.lng));
-          }
-        }
-      } else if (zoomLevel === 'far') {
+      } else if (zoomLevel === 'whole') {
         // Fit the entire route when "far" is selected
         // Check if we have a route to show with at least 2 locations
         if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length >= 2) {
@@ -132,8 +112,8 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
             });
           }
           
-          // Fit bounds with padding
-          const padding = { top: 50, right: 50, bottom: 50, left: 50 };
+          // Fit bounds with more padding to show the entire route clearly
+          const padding = { top: 100, right: 100, bottom: 100, left: 100 };
           map.fitBounds(bounds, padding);
         } else if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length === 1) {
           // Single location, just zoom out to show area
@@ -832,26 +812,22 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         }
       });
       
-      // Start with a smooth pan to the beginning of the route
-      const startPos = densifiedPath[0];
-      if (startPos && startPos.lat && startPos.lng) {
-        map.panTo(startPos);
-      }
-      
       // Set zoom based on selected level
-      let zoomValue = 16; // default medium
-      if (zoomLevel === 'close') {
-        zoomValue = 18; // Street level view
-      } else if (zoomLevel === 'far') {
-        // Fit the entire route in view
+      if (zoomLevel === 'follow') {
+        // Start with a smooth pan to the beginning of the route
+        const startPos = densifiedPath[0];
+        if (startPos && startPos.lat && startPos.lng) {
+          map.panTo(startPos);
+        }
+        map.setZoom(17); // Follow marker view
+      } else if (zoomLevel === 'whole') {
+        // Fit the entire route in view with extra padding
         const bounds = new window.google.maps.LatLngBounds();
         densifiedPath.forEach(point => bounds.extend(point));
-        map.fitBounds(bounds);
-        // Add some padding so the route isn't at the edge
-        const padding = { top: 50, right: 50, bottom: 50, left: 50 };
+        // Use larger padding to show full route
+        const padding = { top: 100, right: 100, bottom: 100, left: 100 };
         map.fitBounds(bounds, padding);
-      } else {
-        map.setZoom(zoomValue);
+        // Don't pan to start or zoom out further - keep the fitted bounds view
       }
       
       // Clear any existing camera update interval
@@ -926,23 +902,28 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       if (!totalRouteDistance || totalRouteDistance === 0) return;
       
       // Set speed in meters per second based on animation speed setting
-      // Scale speed based on route distance for better experience
       let baseSpeed;
       const routeDistanceKm = totalRouteDistance / 1000;
       
-      // Adaptive base speed based on route length
-      if (routeDistanceKm > 1000) {
-        // Very long routes: Much faster animation
-        baseSpeed = 2000; // 2km/s for cross-country (was 5km/s)
-      } else if (routeDistanceKm > 100) {
-        // Long routes: Faster animation
-        baseSpeed = 500; // 500m/s for long routes (was 1km/s)
-      } else if (routeDistanceKm > 10) {
-        // Medium routes: Moderate speed
-        baseSpeed = 150; // 150m/s for medium routes (was 300m/s)
+      // Check current zoom level for speed calculation
+      if (zoomLevelRef.current === 'whole') {
+        // Adaptive base speed based on route length ONLY in Whole Route mode
+        if (routeDistanceKm > 1000) {
+          // Very long routes: Much faster animation
+          baseSpeed = 2000; // 2km/s for cross-country
+        } else if (routeDistanceKm > 100) {
+          // Long routes: Faster animation
+          baseSpeed = 500; // 500m/s for long routes
+        } else if (routeDistanceKm > 10) {
+          // Medium routes: Moderate speed
+          baseSpeed = 150; // 150m/s for medium routes
+        } else {
+          // Short routes: Slower for detail
+          baseSpeed = 50; // 50m/s for short routes
+        }
       } else {
-        // Short routes: Slower for detail
-        baseSpeed = 50; // 50m/s for short routes (was 100m/s)
+        // Follow Marker mode - consistent speed regardless of route length
+        baseSpeed = 100; // Fixed 100m/s for follow mode
       }
       
       // No more user speed controls - zoom handles everything!
@@ -1100,7 +1081,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         const markerPosition = new window.google.maps.LatLng(lat, lng);
         
         // Camera following strategy based on zoom level
-        if (zoomLevelRef.current !== 'far' && pathRef.current) {
+        if (zoomLevelRef.current !== 'whole' && pathRef.current) {
           // Get the actual marker position from the current progress
           const actualProgress = visualOffsetRef.current / 100;
           const pathLength = pathRef.current.length;
@@ -1114,68 +1095,12 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
             actualMarkerPos = pathRef.current[actualIndex];
           }
           
-          // For Close view - lazy follow, only pan when near edge
-          if (zoomLevelRef.current === 'close') {
+          // For Follow view - always keep marker centered
+          if (zoomLevelRef.current === 'follow') {
             if (actualMarkerPos && actualMarkerPos.lat && actualMarkerPos.lng) {
-              const bounds = map.getBounds();
-              if (bounds) {
-                const ne = bounds.getNorthEast();
-                const sw = bounds.getSouthWest();
-                
-                // Use 30% buffer from edges for close view (more relaxed)
-                const buffer = 0.30;
-                const latRange = ne.lat() - sw.lat();
-                const lngRange = ne.lng() - sw.lng();
-                
-                // Get marker coordinates safely
-                const markerLat = typeof actualMarkerPos.lat === 'function' ? actualMarkerPos.lat() : actualMarkerPos.lat;
-                const markerLng = typeof actualMarkerPos.lng === 'function' ? actualMarkerPos.lng() : actualMarkerPos.lng;
-                
-                if (markerLat && markerLng) {
-                  // Check if marker is near the edge or off-screen
-                  const isOffScreen = !bounds.contains(actualMarkerPos);
-                  const nearEdge = markerLat > ne.lat() - (latRange * buffer) ||
-                                  markerLat < sw.lat() + (latRange * buffer) ||
-                                  markerLng > ne.lng() - (lngRange * buffer) ||
-                                  markerLng < sw.lng() + (lngRange * buffer);
-                  
-                  if (isOffScreen || nearEdge) {
-                    // Pan to recenter on marker when it gets near edge
-                    map.panTo(actualMarkerPos);
-                  }
-                  // Otherwise, don't pan - let the marker move within the view
-                }
-              }
-            }
-          } 
-          // For Medium view - keep marker in view with tighter bounds
-          else if (zoomLevelRef.current === 'medium') {
-            const bounds = map.getBounds();
-            if (bounds && actualMarkerPos && actualMarkerPos.lat && actualMarkerPos.lng) {
-              const ne = bounds.getNorthEast();
-              const sw = bounds.getSouthWest();
-              
-              // Use tighter 15% buffer from edges for better tracking
-              const buffer = 0.15;
-              const latRange = ne.lat() - sw.lat();
-              const lngRange = ne.lng() - sw.lng();
-              
-              // Get marker coordinates safely
-              const markerLat = typeof actualMarkerPos.lat === 'function' ? actualMarkerPos.lat() : actualMarkerPos.lat;
-              const markerLng = typeof actualMarkerPos.lng === 'function' ? actualMarkerPos.lng() : actualMarkerPos.lng;
-              
-              if (markerLat && markerLng) {
-                // Check if marker is outside the safe zone or completely off-screen
-                const isOffScreen = !bounds.contains(actualMarkerPos);
-                const nearEdge = markerLat > ne.lat() - (latRange * buffer) ||
-                                markerLat < sw.lat() + (latRange * buffer) ||
-                                markerLng > ne.lng() - (lngRange * buffer) ||
-                                markerLng < sw.lng() + (lngRange * buffer);
-                
-                if (isOffScreen || nearEdge) {
-                  // Recenter on marker
-                  map.panTo(actualMarkerPos);
-                }
+              // Continuously center on the marker for smooth following
+              if (mapRef.current) {
+                mapRef.current.panTo(actualMarkerPos);
               }
             }
           }
@@ -1385,38 +1310,27 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
             <div className="mobile-section-label">View</div>
             <div className="zoom-control">
               <div className="zoom-radio-group">
-                <label className={`zoom-radio ${zoomLevel === 'close' ? 'active' : ''}`}>
+                <label className={`zoom-radio ${zoomLevel === 'follow' ? 'active' : ''}`}>
                   <input
                     type="radio"
                     name="zoom"
-                    value="close"
-                    checked={zoomLevel === 'close'}
-                    onChange={() => setZoomLevel('close')}
+                    value="follow"
+                    checked={zoomLevel === 'follow'}
+                    onChange={() => setZoomLevel('follow')}
                   />
-                  <span>Close</span>
-                  <small>(Street level)</small>
+                  <span>Follow</span>
+                  <small>Marker</small>
                 </label>
-                <label className={`zoom-radio ${zoomLevel === 'medium' ? 'active' : ''}`}>
+                <label className={`zoom-radio ${zoomLevel === 'whole' ? 'active' : ''}`}>
                   <input
                     type="radio"
                     name="zoom"
-                    value="medium"
-                    checked={zoomLevel === 'medium'}
-                    onChange={() => setZoomLevel('medium')}
+                    value="whole"
+                    checked={zoomLevel === 'whole'}
+                    onChange={() => setZoomLevel('whole')}
                   />
-                  <span>Medium</span>
-                  <small>(Neighborhood)</small>
-                </label>
-                <label className={`zoom-radio ${zoomLevel === 'far' ? 'active' : ''}`}>
-                  <input
-                    type="radio"
-                    name="zoom"
-                    value="far"
-                    checked={zoomLevel === 'far'}
-                    onChange={() => setZoomLevel('far')}
-                  />
-                  <span>Whole Route</span>
-                  <small>(Full view)</small>
+                  <span>Whole</span>
+                  <small>Route</small>
                 </label>
               </div>
             </div>
@@ -1609,38 +1523,27 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
             
             <div className="zoom-control">
               <div className="zoom-radio-group">
-                <label className={`zoom-radio ${zoomLevel === 'close' ? 'active' : ''}`}>
+                <label className={`zoom-radio ${zoomLevel === 'follow' ? 'active' : ''}`}>
                   <input
                     type="radio"
                     name="zoom"
-                    value="close"
-                    checked={zoomLevel === 'close'}
-                    onChange={() => setZoomLevel('close')}
+                    value="follow"
+                    checked={zoomLevel === 'follow'}
+                    onChange={() => setZoomLevel('follow')}
                   />
-                  <span>Close</span>
-                  <small>(Street level)</small>
+                  <span>Follow</span>
+                  <small>Marker</small>
                 </label>
-                <label className={`zoom-radio ${zoomLevel === 'medium' ? 'active' : ''}`}>
+                <label className={`zoom-radio ${zoomLevel === 'whole' ? 'active' : ''}`}>
                   <input
                     type="radio"
                     name="zoom"
-                    value="medium"
-                    checked={zoomLevel === 'medium'}
-                    onChange={() => setZoomLevel('medium')}
+                    value="whole"
+                    checked={zoomLevel === 'whole'}
+                    onChange={() => setZoomLevel('whole')}
                   />
-                  <span>Medium</span>
-                  <small>(Neighborhood)</small>
-                </label>
-                <label className={`zoom-radio ${zoomLevel === 'far' ? 'active' : ''}`}>
-                  <input
-                    type="radio"
-                    name="zoom"
-                    value="far"
-                    checked={zoomLevel === 'far'}
-                    onChange={() => setZoomLevel('far')}
-                  />
-                  <span>Whole Route</span>
-                  <small>(Full view)</small>
+                  <span>Whole</span>
+                  <small>Route</small>
                 </label>
               </div>
             </div>

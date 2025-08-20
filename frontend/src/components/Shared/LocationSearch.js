@@ -1,16 +1,18 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 // Custom autocomplete implementation using Places Service
-const LocationSearch = ({ onLocationSelect, placeholder = "Search for a city or location..." }) => {
+const LocationSearch = ({ onLocationSelect, placeholder = "Search for a city or location...", enableInlineComplete = false, hideDropdown = false }) => {
   const [searchInput, setSearchInput] = useState('');
   const [predictions, setPredictions] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [ghostText, setGhostText] = useState('');
   const autocompleteService = useRef(null);
   const placesService = useRef(null);
   const searchTimeout = useRef(null);
   const containerRef = useRef(null);
   const sessionToken = useRef(null);
+  const inputRef = useRef(null);
 
   useEffect(() => {
     // Function to initialize services
@@ -60,9 +62,24 @@ const LocationSearch = ({ onLocationSelect, placeholder = "Search for a city or 
       (predictions, status) => {
         if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
           setPredictions(predictions);
-          setShowDropdown(true);
+          // Only show dropdown if not hidden (for mobile)
+          if (!hideDropdown) {
+            setShowDropdown(true);
+          }
+          
+          // Set ghost text for inline autocomplete on mobile
+          if (enableInlineComplete && predictions.length > 0) {
+            const firstPrediction = predictions[0].structured_formatting.main_text.toLowerCase();
+            const inputLower = input.toLowerCase();
+            if (firstPrediction.startsWith(inputLower)) {
+              setGhostText(predictions[0].structured_formatting.main_text);
+            } else {
+              setGhostText('');
+            }
+          }
         } else {
           setPredictions([]);
+          setGhostText('');
         }
       }
     );
@@ -72,6 +89,11 @@ const LocationSearch = ({ onLocationSelect, placeholder = "Search for a city or 
     const value = e.target.value;
     setSearchInput(value);
     setSelectedIndex(-1);
+
+    // Clear ghost text if input is empty
+    if (!value) {
+      setGhostText('');
+    }
 
     // Debounce the search
     if (searchTimeout.current) {
@@ -106,6 +128,7 @@ const LocationSearch = ({ onLocationSelect, placeholder = "Search for a city or 
           setSearchInput(description);
           setPredictions([]);
           setShowDropdown(false);
+          setGhostText('');
 
           // Create new session token after place selection
           sessionToken.current = new window.google.maps.places.AutocompleteSessionToken();
@@ -122,6 +145,29 @@ const LocationSearch = ({ onLocationSelect, placeholder = "Search for a city or 
 
   const handleKeyDown = (e) => {
     switch (e.key) {
+      case 'Tab':
+        // Accept ghost text suggestion on Tab
+        if (enableInlineComplete && ghostText && searchInput) {
+          e.preventDefault();
+          setSearchInput(ghostText);
+          // Trigger search for the completed text
+          if (predictions.length > 0) {
+            selectPlace(predictions[0].place_id, predictions[0].description);
+          }
+        }
+        break;
+      case 'ArrowRight':
+        // Accept ghost text suggestion on right arrow at end of input
+        if (enableInlineComplete && ghostText && searchInput && 
+            inputRef.current && inputRef.current.selectionStart === searchInput.length) {
+          e.preventDefault();
+          setSearchInput(ghostText);
+          // Trigger search for the completed text
+          if (predictions.length > 0) {
+            selectPlace(predictions[0].place_id, predictions[0].description);
+          }
+        }
+        break;
       case 'ArrowDown':
         if (showDropdown && predictions.length > 0) {
           e.preventDefault();
@@ -158,6 +204,7 @@ const LocationSearch = ({ onLocationSelect, placeholder = "Search for a city or 
               setSearchInput(result.formatted_address);
               setPredictions([]);
               setShowDropdown(false);
+              setGhostText('');
               
               // Create new session token after geocoding search
               sessionToken.current = new window.google.maps.places.AutocompleteSessionToken();
@@ -180,15 +227,47 @@ const LocationSearch = ({ onLocationSelect, placeholder = "Search for a city or 
   
   return (
     <div ref={containerRef} className="location-search-custom">
-      <input
-        type="text"
-        value={searchInput}
-        onChange={handleInputChange}
-        onKeyDown={handleKeyDown}
-        onFocus={() => predictions.length > 0 && setShowDropdown(true)}
-        placeholder={placeholder}
-        className="location-search-input"
-      />
+      <div className="location-search-input-wrapper">
+        {enableInlineComplete && ghostText && searchInput && (
+          <div 
+            className="location-search-ghost-overlay"
+            style={{
+              position: 'absolute',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              pointerEvents: 'none',
+              zIndex: 0,
+              display: 'flex',
+              alignItems: 'center',
+              padding: '12px',
+              fontSize: '14px',
+              fontFamily: 'inherit',
+              lineHeight: '1.5',
+              whiteSpace: 'nowrap'
+            }}
+          >
+            <span style={{ color: 'transparent' }}>{searchInput}</span>
+            <span style={{ color: '#9ca3af', opacity: 0.6 }}>{ghostText.substring(searchInput.length)}</span>
+          </div>
+        )}
+        <input
+          ref={inputRef}
+          type="text"
+          value={searchInput}
+          onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
+          onFocus={() => !hideDropdown && predictions.length > 0 && setShowDropdown(true)}
+          placeholder={placeholder}
+          className="location-search-input"
+          style={{ 
+            position: 'relative', 
+            zIndex: 2,
+            background: enableInlineComplete && ghostText ? 'transparent' : 'white'
+          }}
+        />
+      </div>
       
       {showDropdown && predictions.length > 0 && (
         <div className="location-search-dropdown">
