@@ -825,7 +825,7 @@ body {
 .directions-content {
   padding: 1.5rem;
   overflow-x: visible;
-  overflow-y: auto;
+  overflow-y: auto; /* Reverted back to auto for scrolling */
   max-height: calc(100vh - 220px);
   position: relative;
 }
@@ -834,6 +834,9 @@ body {
   display: flex;
   flex-direction: column;
   gap: 1.5rem;
+  overflow: visible !important; /* Allow dropdown to overflow */
+  position: relative;
+  z-index: 100;
 }
 
 .input-group {

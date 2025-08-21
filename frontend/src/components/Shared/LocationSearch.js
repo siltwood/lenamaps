@@ -14,6 +14,24 @@ const LocationSearch = ({ onLocationSelect, placeholder = "Search for a city or 
   const sessionToken = useRef(null);
   const inputRef = useRef(null);
 
+  // Handle overflow of parent container when dropdown is shown
+  useEffect(() => {
+    if (showDropdown) {
+      // Find the directions-content container
+      const directionsContent = document.querySelector('.directions-content');
+      if (directionsContent) {
+        // Store original overflow value
+        const originalOverflow = directionsContent.style.overflowY || 'auto';
+        directionsContent.style.overflowY = 'visible';
+        
+        // Restore overflow when dropdown closes
+        return () => {
+          directionsContent.style.overflowY = originalOverflow;
+        };
+      }
+    }
+  }, [showDropdown]);
+
   useEffect(() => {
     // Function to initialize services
     const initializeServices = () => {
