@@ -1088,13 +1088,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       }
       
       // Camera following for Follow mode - runs every frame regardless of interpolation
-      console.log('Check follow conditions:', {
-        zoomLevel: zoomLevelRef.current,
-        hasPath: !!pathRef.current,
-        hasMap: !!mapRef.current
-      });
       if (zoomLevelRef.current === 'follow' && pathRef.current && mapRef.current) {
-        console.log('INSIDE FOLLOW BLOCK');
         // Get the actual marker position from the current visual progress
         const actualProgress = visualOffsetRef.current / 100;
         const pathLength = pathRef.current.length;
@@ -1118,19 +1112,14 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
             }
             
             if (latLngPos) {
-              // Continuously center on the marker for smooth following
-              console.log('Map ref type:', typeof mapRef.current, 'Has panTo?:', !!mapRef.current.panTo);
-              
-              // Try using the map prop directly instead of mapRef
-              if (map && map.panTo) {
-                console.log('Using map prop directly');
-                map.panTo(latLngPos);
-              } else {
-                console.log('Map prop not available, using mapRef');
-                mapRef.current.panTo(latLngPos);
+              // Set zoom level for follow mode if not already set
+              const currentZoom = mapRef.current.getZoom();
+              if (currentZoom < 17) {
+                mapRef.current.setZoom(17); // Set a closer zoom for follow mode
               }
-            } else {
-              console.log('No latLngPos generated!');
+              
+              // Pan to follow the marker
+              mapRef.current.panTo(latLngPos);
             }
           }
         }
