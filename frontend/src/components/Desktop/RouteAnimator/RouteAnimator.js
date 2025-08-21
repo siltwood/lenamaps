@@ -1055,16 +1055,11 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       // offsetRef is in percentage (0-100), convert to fraction
       const currentProgress = offsetRef.current / 100;
       
-      // Calculate look-ahead based on current speed
-      const lookAheadSeconds = 1.5; // Look 1.5 seconds into the future
-      const currentSpeed = baseSpeed * zoomSpeedMultiplier;
-      const lookAheadProgress = Math.min(currentProgress + (currentSpeed * lookAheadSeconds / 100), 1);
-      
-      // Use look-ahead position for camera tracking
-      const progress = (currentProgress + lookAheadProgress) / 2; // Average for smooth following
+      // Use the ACTUAL visual position of the animated marker
+      const actualMarkerProgress = visualOffsetRef.current / 100; // This is the real marker position!
       
       // Use floating point index for smoother interpolation
-      const floatIndex = progress * (numPoints - 1);
+      const floatIndex = actualMarkerProgress * (numPoints - 1);
       const currentIndex = Math.floor(floatIndex);
       const nextIndex = Math.min(currentIndex + 1, numPoints - 1);
       const interpolationFactor = floatIndex - currentIndex;
