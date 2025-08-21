@@ -1051,10 +1051,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       } else {
       
       const numPoints = path.length;
-      // Use actual offset for smooth camera tracking (updates every frame)
-      // offsetRef is in percentage (0-100), convert to fraction
-      const currentProgress = offsetRef.current / 100;
-      
       // Use the ACTUAL visual position of the animated marker
       const actualMarkerProgress = visualOffsetRef.current / 100; // This is the real marker position!
       
