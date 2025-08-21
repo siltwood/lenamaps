@@ -1069,6 +1069,8 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       const nextIndex = Math.min(currentIndex + 1, numPoints - 1);
       const interpolationFactor = floatIndex - currentIndex;
       
+      // Calculate interpolated marker position
+      let interpolatedMarkerPos = null;
       if (currentIndex < numPoints && path[currentIndex] && path[nextIndex]) {
         const currentPos = path[currentIndex];
         const nextPos = path[nextIndex];
@@ -1082,47 +1084,19 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         
         const lat = currLat + (nextLat - currLat) * interpolationFactor;
         const lng = currLng + (nextLng - currLng) * interpolationFactor;
-        const markerPosition = new window.google.maps.LatLng(lat, lng);
-        
-        // Camera following strategy based on zoom level - MOVED OUTSIDE INTERPOLATION BLOCK
+        interpolatedMarkerPos = new window.google.maps.LatLng(lat, lng);
       }
       
-      // Camera following for Follow mode - runs every frame regardless of interpolation
-      if (zoomLevelRef.current === 'follow' && pathRef.current && mapRef.current) {
-        // Get the actual marker position from the current visual progress
-        const actualProgress = visualOffsetRef.current / 100;
-        const pathLength = pathRef.current.length;
-        const actualIndex = Math.min(
-          Math.floor(actualProgress * (pathLength - 1)), 
-          pathLength - 1
-        );
-        
-        if (actualIndex >= 0 && actualIndex < pathLength) {
-          const actualMarkerPos = pathRef.current[actualIndex];
-          if (actualMarkerPos) {
-            // Make sure we have a proper LatLng object
-            let latLngPos;
-            if (actualMarkerPos.lat && actualMarkerPos.lng) {
-              // Handle both function and property access
-              const lat = typeof actualMarkerPos.lat === 'function' ? actualMarkerPos.lat() : actualMarkerPos.lat;
-              const lng = typeof actualMarkerPos.lng === 'function' ? actualMarkerPos.lng() : actualMarkerPos.lng;
-              latLngPos = new window.google.maps.LatLng(lat, lng);
-            } else if (actualMarkerPos instanceof window.google.maps.LatLng) {
-              latLngPos = actualMarkerPos;
-            }
-            
-            if (latLngPos) {
-              // Set zoom level for follow mode if not already set
-              const currentZoom = mapRef.current.getZoom();
-              if (currentZoom < 17) {
-                mapRef.current.setZoom(17); // Set a closer zoom for follow mode
-              }
-              
-              // Pan to follow the marker
-              mapRef.current.panTo(latLngPos);
-            }
-          }
+      // Camera following for Follow mode - use the actual interpolated position
+      if (zoomLevelRef.current === 'follow' && interpolatedMarkerPos && mapRef.current) {
+        // Set zoom level for follow mode if not already set
+        const currentZoom = mapRef.current.getZoom();
+        if (currentZoom < 17) {
+          mapRef.current.setZoom(17); // Set a closer zoom for follow mode
         }
+        
+        // Pan to follow the marker using the smooth interpolated position
+        mapRef.current.panTo(interpolatedMarkerPos);
       }
       } // Close the else block for path check
 
