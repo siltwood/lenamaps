@@ -1084,28 +1084,53 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         const lng = currLng + (nextLng - currLng) * interpolationFactor;
         const markerPosition = new window.google.maps.LatLng(lat, lng);
         
-        // Camera following strategy based on zoom level
-        if (zoomLevelRef.current !== 'whole' && pathRef.current) {
-          // Get the actual marker position from the current progress
-          const actualProgress = visualOffsetRef.current / 100;
-          const pathLength = pathRef.current.length;
-          const actualIndex = Math.min(
-            Math.floor(actualProgress * (pathLength - 1)), 
-            pathLength - 1
-          );
-          
-          let actualMarkerPos = markerPosition; // fallback
-          if (actualIndex >= 0 && actualIndex < pathLength) {
-            actualMarkerPos = pathRef.current[actualIndex];
-          }
-          
-          // For Follow view - always keep marker centered
-          if (zoomLevelRef.current === 'follow') {
-            if (actualMarkerPos && actualMarkerPos.lat && actualMarkerPos.lng) {
+        // Camera following strategy based on zoom level - MOVED OUTSIDE INTERPOLATION BLOCK
+      }
+      
+      // Camera following for Follow mode - runs every frame regardless of interpolation
+      console.log('Check follow conditions:', {
+        zoomLevel: zoomLevelRef.current,
+        hasPath: !!pathRef.current,
+        hasMap: !!mapRef.current
+      });
+      if (zoomLevelRef.current === 'follow' && pathRef.current && mapRef.current) {
+        console.log('INSIDE FOLLOW BLOCK');
+        // Get the actual marker position from the current visual progress
+        const actualProgress = visualOffsetRef.current / 100;
+        const pathLength = pathRef.current.length;
+        const actualIndex = Math.min(
+          Math.floor(actualProgress * (pathLength - 1)), 
+          pathLength - 1
+        );
+        
+        if (actualIndex >= 0 && actualIndex < pathLength) {
+          const actualMarkerPos = pathRef.current[actualIndex];
+          if (actualMarkerPos) {
+            // Make sure we have a proper LatLng object
+            let latLngPos;
+            if (actualMarkerPos.lat && actualMarkerPos.lng) {
+              // Handle both function and property access
+              const lat = typeof actualMarkerPos.lat === 'function' ? actualMarkerPos.lat() : actualMarkerPos.lat;
+              const lng = typeof actualMarkerPos.lng === 'function' ? actualMarkerPos.lng() : actualMarkerPos.lng;
+              latLngPos = new window.google.maps.LatLng(lat, lng);
+            } else if (actualMarkerPos instanceof window.google.maps.LatLng) {
+              latLngPos = actualMarkerPos;
+            }
+            
+            if (latLngPos) {
               // Continuously center on the marker for smooth following
-              if (mapRef.current) {
-                mapRef.current.panTo(actualMarkerPos);
+              console.log('Map ref type:', typeof mapRef.current, 'Has panTo?:', !!mapRef.current.panTo);
+              
+              // Try using the map prop directly instead of mapRef
+              if (map && map.panTo) {
+                console.log('Using map prop directly');
+                map.panTo(latLngPos);
+              } else {
+                console.log('Map prop not available, using mapRef');
+                mapRef.current.panTo(latLngPos);
               }
+            } else {
+              console.log('No latLngPos generated!');
             }
           }
         }
