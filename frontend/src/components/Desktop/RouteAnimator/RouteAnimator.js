@@ -55,15 +55,10 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     // Update the ref for animation loop access
     zoomLevelRef.current = zoomLevel;
     
-    // Don't do anything here - zoom/pan is handled in startAnimation and animation loop
-    // This effect should only update the ref, not change the map view
-  }, [zoomLevel]);
-  
-  // Separate effect for handling zoom when animation state changes
-  useEffect(() => {
-    // ONLY adjust zoom/view for 'whole' view when actually animating
-    // Follow mode zoom/pan is handled in startAnimation() for better control
-    if (map && !isMinimized && isAnimating && zoomLevel === 'whole') {
+    // When zoom level changes to "whole", immediately show the whole route
+    // (not just during animation)
+    if (map && !isMinimized && zoomLevel === 'whole') {
+      console.log('[RouteAnimator] Switching to Whole Route view');
       // Fit the entire route when "whole" is selected
       // Check if we have a route to show with at least 2 locations
       if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length >= 2) {
@@ -76,16 +71,8 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
           }
         });
         
-        // If we have a polyline (during animation), also include its path
-        if (polylineRef.current) {
-          const path = polylineRef.current.getPath();
-          // Add a sample of points to get accurate bounds without adding too many
-          const step = Math.max(1, Math.floor(path.getLength() / 50));
-          for (let i = 0; i < path.getLength(); i += step) {
-            bounds.extend(path.getAt(i));
-          }
-        } else if (directionsRoute.segments && directionsRoute.segments.length > 0) {
-          // Include segment paths if available and not animating
+        // Include segment paths if available for more accurate bounds
+        if (directionsRoute.segments && directionsRoute.segments.length > 0) {
           directionsRoute.segments.forEach(segment => {
             if (segment.route && segment.route.overview_path) {
               // Sample points from segments too
@@ -100,6 +87,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         // Fit bounds with more padding to show the entire route clearly
         const padding = { top: 100, right: 100, bottom: 100, left: 100 };
         map.fitBounds(bounds, padding);
+        console.log('[RouteAnimator] Fitted map to show entire route');
       } else if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length === 1) {
         // Single location, just zoom out to show area
         const loc = directionsRoute.allLocations[0];
@@ -112,7 +100,36 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         map.setZoom(13);
       }
     }
-  }, [zoomLevel, map, directionsRoute, isMinimized, isAnimating]);
+    // For follow mode when NOT animating, don't change the view
+    // Let the user control the map freely
+  }, [zoomLevel, map, directionsRoute, isMinimized]);
+  
+  // Separate effect for handling animated polyline bounds during animation
+  useEffect(() => {
+    // When animating with a polyline, include it in the bounds for whole view
+    if (map && !isMinimized && isAnimating && zoomLevel === 'whole' && polylineRef.current) {
+      const bounds = new window.google.maps.LatLngBounds();
+      
+      // Include all route locations
+      if (directionsRoute && directionsRoute.allLocations) {
+        directionsRoute.allLocations.forEach(loc => {
+          if (loc && loc.lat && loc.lng) {
+            bounds.extend(new window.google.maps.LatLng(loc.lat, loc.lng));
+          }
+        });
+      }
+      
+      // Include the animated polyline path
+      const path = polylineRef.current.getPath();
+      const step = Math.max(1, Math.floor(path.getLength() / 50));
+      for (let i = 0; i < path.getLength(); i += step) {
+        bounds.extend(path.getAt(i));
+      }
+      
+      const padding = { top: 100, right: 100, bottom: 100, left: 100 };
+      map.fitBounds(bounds, padding);
+    }
+  }, [map, isMinimized, isAnimating, zoomLevel, directionsRoute]);
   
   // Update playbackSpeed ref when state changes
   useEffect(() => {
