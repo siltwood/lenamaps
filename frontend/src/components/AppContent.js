@@ -112,6 +112,7 @@ function AppContent() {
   }, []);
 
   const handleLocationSearch = useCallback((location) => {
+    console.log('[AppContent] handleLocationSearch called - centering map to searched location:', location.name || 'unnamed');
     setMapCenter({ lat: location.lat, lng: location.lng });
     setShouldCenterMap(true);
   }, []);
@@ -282,6 +283,16 @@ function AppContent() {
           onClearHistory={handleClearHistory}
           canUndo={history.length > 0}
           onShowAnimator={() => {
+            console.log('[AppContent] onShowAnimator called - entering animation mode');
+            // Center on first marker when entering animation mode on mobile
+            if (mapInstance && directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length > 0) {
+              const firstLocation = directionsRoute.allLocations[0];
+              if (firstLocation && firstLocation.lat && firstLocation.lng) {
+                console.log('[AppContent] Centering on first marker for animation:', firstLocation.name || 'unnamed');
+                mapInstance.setCenter(new window.google.maps.LatLng(firstLocation.lat, firstLocation.lng));
+                mapInstance.setZoom(17);
+              }
+            }
             setShowRouteAnimator(true);
           }}
           onHideAnimator={() => {

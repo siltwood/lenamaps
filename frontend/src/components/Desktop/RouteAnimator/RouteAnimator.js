@@ -55,77 +55,61 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     // Update the ref for animation loop access
     zoomLevelRef.current = zoomLevel;
     
-    // Update zoom when RouteAnimator is visible/expanded
-    // Remove the isAnimating requirement so zoom works even when paused/stopped
-    if (map && !isMinimized) {
-      if (zoomLevel === 'follow') {
-        map.setZoom(17);
-        // Center on current animation position if available, or first location
-        if (polylineRef.current && isAnimating && offsetRef) {
-          const path = polylineRef.current.getPath();
-          const progress = offsetRef.current / 100;
-          const currentIndex = Math.floor(progress * (path.getLength() - 1));
-          if (currentIndex < path.getLength()) {
-            const currentPos = path.getAt(currentIndex);
-            if (currentPos && currentPos.lat && currentPos.lng) {
-              map.panTo(currentPos);
-            }
-          }
-        } else if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length > 0) {
-          // Not animating, center on first location
-          const loc = directionsRoute.allLocations[0];
+    // Don't do anything here - zoom/pan is handled in startAnimation and animation loop
+    // This effect should only update the ref, not change the map view
+  }, [zoomLevel]);
+  
+  // Separate effect for handling zoom when animation state changes
+  useEffect(() => {
+    // ONLY adjust zoom/view for 'whole' view when actually animating
+    // Follow mode zoom/pan is handled in startAnimation() for better control
+    if (map && !isMinimized && isAnimating && zoomLevel === 'whole') {
+      // Fit the entire route when "whole" is selected
+      // Check if we have a route to show with at least 2 locations
+      if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length >= 2) {
+        const bounds = new window.google.maps.LatLngBounds();
+        
+        // Always include all route locations
+        directionsRoute.allLocations.forEach(loc => {
           if (loc && loc.lat && loc.lng) {
-            map.panTo(new window.google.maps.LatLng(loc.lat, loc.lng));
+            bounds.extend(new window.google.maps.LatLng(loc.lat, loc.lng));
           }
-        }
-      } else if (zoomLevel === 'whole') {
-        // Fit the entire route when "far" is selected
-        // Check if we have a route to show with at least 2 locations
-        if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length >= 2) {
-          const bounds = new window.google.maps.LatLngBounds();
-          
-          // Always include all route locations
-          directionsRoute.allLocations.forEach(loc => {
-            if (loc && loc.lat && loc.lng) {
-              bounds.extend(new window.google.maps.LatLng(loc.lat, loc.lng));
+        });
+        
+        // If we have a polyline (during animation), also include its path
+        if (polylineRef.current) {
+          const path = polylineRef.current.getPath();
+          // Add a sample of points to get accurate bounds without adding too many
+          const step = Math.max(1, Math.floor(path.getLength() / 50));
+          for (let i = 0; i < path.getLength(); i += step) {
+            bounds.extend(path.getAt(i));
+          }
+        } else if (directionsRoute.segments && directionsRoute.segments.length > 0) {
+          // Include segment paths if available and not animating
+          directionsRoute.segments.forEach(segment => {
+            if (segment.route && segment.route.overview_path) {
+              // Sample points from segments too
+              const step = Math.max(1, Math.floor(segment.route.overview_path.length / 20));
+              for (let i = 0; i < segment.route.overview_path.length; i += step) {
+                bounds.extend(segment.route.overview_path[i]);
+              }
             }
           });
-          
-          // If we have a polyline (during animation), also include its path
-          if (polylineRef.current) {
-            const path = polylineRef.current.getPath();
-            // Add a sample of points to get accurate bounds without adding too many
-            const step = Math.max(1, Math.floor(path.getLength() / 50));
-            for (let i = 0; i < path.getLength(); i += step) {
-              bounds.extend(path.getAt(i));
-            }
-          } else if (directionsRoute.segments && directionsRoute.segments.length > 0) {
-            // Include segment paths if available and not animating
-            directionsRoute.segments.forEach(segment => {
-              if (segment.route && segment.route.overview_path) {
-                // Sample points from segments too
-                const step = Math.max(1, Math.floor(segment.route.overview_path.length / 20));
-                for (let i = 0; i < segment.route.overview_path.length; i += step) {
-                  bounds.extend(segment.route.overview_path[i]);
-                }
-              }
-            });
-          }
-          
-          // Fit bounds with more padding to show the entire route clearly
-          const padding = { top: 100, right: 100, bottom: 100, left: 100 };
-          map.fitBounds(bounds, padding);
-        } else if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length === 1) {
-          // Single location, just zoom out to show area
-          const loc = directionsRoute.allLocations[0];
-          if (loc && loc.lat && loc.lng) {
-            map.panTo(new window.google.maps.LatLng(loc.lat, loc.lng));
-            map.setZoom(13);
-          }
-        } else {
-          // No route, just zoom out to see more
+        }
+        
+        // Fit bounds with more padding to show the entire route clearly
+        const padding = { top: 100, right: 100, bottom: 100, left: 100 };
+        map.fitBounds(bounds, padding);
+      } else if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length === 1) {
+        // Single location, just zoom out to show area
+        const loc = directionsRoute.allLocations[0];
+        if (loc && loc.lat && loc.lng) {
+          map.panTo(new window.google.maps.LatLng(loc.lat, loc.lng));
           map.setZoom(13);
         }
+      } else {
+        // No route, just zoom out to see more
+        map.setZoom(13);
       }
     }
   }, [zoomLevel, map, directionsRoute, isMinimized, isAnimating]);
@@ -505,6 +489,19 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       setIsMinimized(true);
     }
     
+    // IMPORTANT: Center on first marker immediately when starting animation (especially for mobile)
+    if (directionsRoute.allLocations && directionsRoute.allLocations.length > 0) {
+      const firstLocation = directionsRoute.allLocations[0];
+      if (firstLocation && firstLocation.lat && firstLocation.lng) {
+        console.log('[RouteAnimator] Centering on first marker for animation start:', firstLocation.name || 'unnamed');
+        map.panTo(new window.google.maps.LatLng(firstLocation.lat, firstLocation.lng));
+        // Set appropriate zoom for follow mode
+        if (zoomLevel === 'follow') {
+          map.setZoom(17);
+        }
+      }
+    }
+    
     // Disable map interactions during animation to prevent user from panning away
     map.setOptions({
       draggable: false,
@@ -536,13 +533,8 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
             const route = segment.route.routes[0];
             let segmentPath = [];
             
-            // Check distance to decide detail level
-            const segmentDistance = segment.distance ? segment.distance.value : 0;
-            
-            if (segmentDistance > 50000 || !route.legs) {
-              // Long segment - use overview_path
-              segmentPath = route.overview_path || [];
-            } else {
+            // Always try to get detailed path first
+            if (route.legs) {
               // Get detailed path from steps for accuracy
               route.legs.forEach(leg => {
                 if (leg.steps) {
@@ -555,11 +547,14 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                   });
                 }
               });
-              
-              // Fallback to overview_path if no steps
-              if (segmentPath.length === 0) {
-                segmentPath = route.overview_path || [];
-              }
+            }
+            
+            // Fallback to overview_path if no steps
+            if (segmentPath.length === 0) {
+              segmentPath = route.overview_path || [];
+              console.log(`Using overview_path with ${segmentPath.length} points for segment ${i}`);
+            } else {
+              console.log(`Using detailed path with ${segmentPath.length} points for segment ${i}`);
             }
             
             // Store segment info
@@ -631,8 +626,24 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       // IMPORTANT: Use exact route from Google Maps when available
       // This ensures the animation follows the actual road path
       if (window._routeSegments && window._routeSegments.length > 0 && fullPath.length > 0) {
-        console.log(`Using EXACT Google Maps route with ${fullPath.length} points`);
-        densifiedPath = fullPath; // No densification - follow the exact dotted line
+        console.log(`Using Google Maps route with ${fullPath.length} points`);
+        
+        // For very long routes, we may need to sample points to avoid performance issues
+        if (fullPath.length > 10000) {
+          console.log(`Route has ${fullPath.length} points - sampling for performance`);
+          densifiedPath = [];
+          const sampleRate = Math.ceil(fullPath.length / 5000); // Keep max 5000 points
+          for (let i = 0; i < fullPath.length; i += sampleRate) {
+            densifiedPath.push(fullPath[i]);
+          }
+          // Always include the last point
+          if (densifiedPath[densifiedPath.length - 1] !== fullPath[fullPath.length - 1]) {
+            densifiedPath.push(fullPath[fullPath.length - 1]);
+          }
+          console.log(`Sampled to ${densifiedPath.length} points (every ${sampleRate}th point)`);
+        } else {
+          densifiedPath = fullPath; // Use exact path if not too many points
+        }
       } else if (routeDistanceKm > 100) {
         // Long routes without exact path - still use as-is
         console.log('Long route - using points without densification');
@@ -663,6 +674,11 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       }
       
       console.log(`Final path: ${densifiedPath.length} points`);
+      
+      // Validate that we have a valid path
+      if (!densifiedPath || densifiedPath.length < 2) {
+        throw new Error('Invalid path: not enough points for animation');
+      }
       
       // Update segment info indices to match densified path
       const densifiedSegmentInfo = [];
@@ -791,10 +807,16 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
           visualOffsetRef.current = progress; // Update visual position immediately
           setAnimationProgress(progress); // Update UI state
           
-          // Update visual position immediately
+          // Update visual position immediately - recreate icon to ensure visibility
           const icons = polylineRef.current.get('icons');
-          icons[0].offset = progress + '%';
-          polylineRef.current.set('icons', icons);
+          if (icons && icons.length > 0) {
+            // Recreate the icon to force visibility
+            const currentIcon = icons[0].icon;
+            polylineRef.current.set('icons', [{
+              icon: currentIcon,
+              offset: progress + '%'
+            }]);
+          }
           
           // Pan to the clicked location
           map.panTo(e.latLng);
@@ -816,8 +838,14 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       if (zoomLevel === 'follow') {
         // Start with a smooth pan to the beginning of the route
         const startPos = densifiedPath[0];
-        if (startPos && startPos.lat && startPos.lng) {
-          map.panTo(startPos);
+        if (startPos) {
+          // Handle both LatLng objects and plain objects
+          const lat = typeof startPos.lat === 'function' ? startPos.lat() : startPos.lat;
+          const lng = typeof startPos.lng === 'function' ? startPos.lng() : startPos.lng;
+          if (lat && lng) {
+            console.log('[RouteAnimator] Starting animation - centering on first position:', lat, lng);
+            map.panTo(new window.google.maps.LatLng(lat, lng));
+          }
         }
         map.setZoom(17); // Follow marker view
       } else if (zoomLevel === 'whole') {
@@ -992,8 +1020,10 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       // Update visual icon position every few frames for performance
       if (animateRef.current.frameCount % visualUpdateFrequency === 0 || countRef.current >= 198) {
         const icons = polylineRef.current.get('icons');
-        icons[0].offset = visualOffset + '%';
-        polylineRef.current.set('icons', icons);
+        if (icons && icons.length > 0) {
+          icons[0].offset = visualOffset + '%';
+          polylineRef.current.set('icons', icons);
+        }
       }
       
       // ALWAYS update the visual position ref every frame for accurate camera tracking
@@ -1078,16 +1108,56 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         interpolatedMarkerPos = new window.google.maps.LatLng(lat, lng);
       }
       
-      // Camera following for Follow mode - use the actual interpolated position
-      if (zoomLevelRef.current === 'follow' && interpolatedMarkerPos && mapRef.current) {
-        // Set zoom level for follow mode if not already set
-        const currentZoom = mapRef.current.getZoom();
-        if (currentZoom < 17) {
-          mapRef.current.setZoom(17); // Set a closer zoom for follow mode
-        }
+      // Camera following for Follow mode - only update when actually animating (not paused)
+      if (zoomLevelRef.current === 'follow' && mapRef.current && !isPausedRef.current) {
+        // Use the visual offset which tracks the actual symbol position
+        const symbolProgress = visualOffsetRef.current / 100; // Convert percentage to decimal
         
-        // Pan to follow the marker using the smooth interpolated position
-        mapRef.current.panTo(interpolatedMarkerPos);
+        // Calculate position along the path
+        if (path && path.length > 1) {
+          // Calculate total distance
+          let totalDistance = 0;
+          const distances = [];
+          for (let i = 0; i < path.length - 1; i++) {
+            const dist = window.google.maps.geometry.spherical.computeDistanceBetween(
+              path[i], 
+              path[i + 1]
+            );
+            distances.push(dist);
+            totalDistance += dist;
+          }
+          
+          // Find the target distance along the path
+          const targetDistance = totalDistance * symbolProgress;
+          let accumulatedDistance = 0;
+          
+          // Find which segment the symbol is on
+          for (let i = 0; i < distances.length; i++) {
+            if (accumulatedDistance + distances[i] >= targetDistance) {
+              // Symbol is on this segment
+              const segmentProgress = (targetDistance - accumulatedDistance) / distances[i];
+              
+              // Interpolate position on this segment
+              const symbolPosition = window.google.maps.geometry.spherical.interpolate(
+                path[i],
+                path[i + 1],
+                segmentProgress
+              );
+              
+              // Pan to keep symbol centered - use setCenter for immediate update
+              mapRef.current.setCenter(symbolPosition);
+              
+              // Maintain zoom level
+              const currentZoom = mapRef.current.getZoom();
+              if (currentZoom < 17) {
+                mapRef.current.setZoom(17);
+              }
+              
+              break;
+            }
+            accumulatedDistance += distances[i];
+          }
+        }
       }
       } // Close the else block for path check
 
@@ -1341,25 +1411,73 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                     // Update animation position
                     countRef.current = newProgress * 2;
                     offsetRef.current = newProgress;
+                    visualOffsetRef.current = newProgress; // Critical: update visual offset ref
                     
-                    // Update visual position if animating
+                    // Update visual position immediately
                     if (polylineRef.current) {
+                      // Simply update the icon offset - this works in whole route view
                       const icons = polylineRef.current.get('icons');
                       if (icons && icons.length > 0) {
                         icons[0].offset = newProgress + '%';
                         polylineRef.current.set('icons', icons);
                       }
                       
-                      // Pan to new position
-                      const path = polylineRef.current.getPath();
-                      const numPoints = path.getLength();
-                      const floatIndex = (newProgress / 100) * (numPoints - 1);
-                      const currentIndex = Math.floor(floatIndex);
-                      
-                      if (currentIndex < numPoints) {
-                        const currentPos = path.getAt(currentIndex);
-                        if (currentPos && map && currentPos.lat && currentPos.lng) {
-                          map.panTo(currentPos);
+                      // In Follow mode, center camera on the new symbol position
+                      if (zoomLevelRef.current === 'follow' && pathRef.current && pathRef.current.length > 0) {
+                        const path = pathRef.current;
+                        
+                        // Calculate exact position along the path based on progress
+                        let totalDistance = 0;
+                        const distances = [];
+                        
+                        // Calculate segment distances
+                        for (let i = 0; i < path.length - 1; i++) {
+                          const dist = window.google.maps.geometry.spherical.computeDistanceBetween(
+                            path[i], 
+                            path[i + 1]
+                          );
+                          distances.push(dist);
+                          totalDistance += dist;
+                        }
+                        
+                        // Find the target distance along the path
+                        const targetDistance = totalDistance * (newProgress / 100);
+                        let accumulatedDistance = 0;
+                        
+                        // Find which segment we're on and interpolate position
+                        for (let i = 0; i < distances.length; i++) {
+                          if (accumulatedDistance + distances[i] >= targetDistance) {
+                            // We're on this segment
+                            const segmentProgress = (targetDistance - accumulatedDistance) / distances[i];
+                            
+                            // Interpolate position on this segment
+                            const symbolPosition = window.google.maps.geometry.spherical.interpolate(
+                              path[i],
+                              path[i + 1],
+                              segmentProgress
+                            );
+                            
+                            // Immediately center on the symbol
+                            map.setCenter(symbolPosition);
+                            
+                            // Ensure proper zoom
+                            const currentZoom = map.getZoom();
+                            if (currentZoom < 17) {
+                              map.setZoom(17);
+                            }
+                            
+                            break;
+                          }
+                          accumulatedDistance += distances[i];
+                        }
+                      } else if (zoomLevelRef.current !== 'follow') {
+                        // In whole route view, just pan to show the new position
+                        if (pathRef.current && pathRef.current.length > 0) {
+                          const path = pathRef.current;
+                          const index = Math.floor((newProgress / 100) * (path.length - 1));
+                          if (index < path.length && path[index]) {
+                            map.panTo(path[index]);
+                          }
                         }
                       }
                     }
@@ -1399,7 +1517,39 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         <div className="route-animator-minimized mobile">
           <button 
             className="unified-icon animation"
-            onClick={() => setIsMinimized(false)}
+            onClick={() => {
+              console.log('[RouteAnimator] Camera button clicked on mobile');
+              console.log('[RouteAnimator] Map exists:', !!map);
+              console.log('[RouteAnimator] DirectionsRoute:', directionsRoute);
+              console.log('[RouteAnimator] Current zoom level setting:', zoomLevelRef.current);
+              
+              // When showing animation controls on mobile, center on first marker
+              if (map && directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length > 0) {
+                const firstLocation = directionsRoute.allLocations[0];
+                console.log('[RouteAnimator] First location found:', firstLocation);
+                
+                if (firstLocation && firstLocation.lat && firstLocation.lng) {
+                  console.log('[RouteAnimator] Mobile: Centering on first marker at:', firstLocation.lat, firstLocation.lng, 'name:', firstLocation.name || 'unnamed');
+                  
+                  // Use setCenter for immediate effect instead of panTo
+                  const centerPoint = new window.google.maps.LatLng(firstLocation.lat, firstLocation.lng);
+                  map.setCenter(centerPoint);
+                  
+                  // Always set zoom to 17 for animation view
+                  console.log('[RouteAnimator] Setting zoom to 17');
+                  map.setZoom(17);
+                }
+              } else {
+                console.log('[RouteAnimator] Cannot center - missing data:', {
+                  hasMap: !!map,
+                  hasRoute: !!directionsRoute,
+                  hasLocations: !!(directionsRoute?.allLocations),
+                  locationCount: directionsRoute?.allLocations?.length || 0
+                });
+              }
+              
+              setIsMinimized(false);
+            }}
             title="Show Animation Controls"
             style={{ position: 'fixed', left: '20px', bottom: '20px' }}
           >
@@ -1594,25 +1744,73 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                     // Update animation position
                     countRef.current = newProgress * 2;
                     offsetRef.current = newProgress;
+                    visualOffsetRef.current = newProgress; // Critical: update visual offset ref
                     
-                    // Update visual position if animating
+                    // Update visual position immediately
                     if (polylineRef.current) {
+                      // Simply update the icon offset - this works in whole route view
                       const icons = polylineRef.current.get('icons');
                       if (icons && icons.length > 0) {
                         icons[0].offset = newProgress + '%';
                         polylineRef.current.set('icons', icons);
                       }
                       
-                      // Pan to new position
-                      const path = polylineRef.current.getPath();
-                      const numPoints = path.getLength();
-                      const floatIndex = (newProgress / 100) * (numPoints - 1);
-                      const currentIndex = Math.floor(floatIndex);
-                      
-                      if (currentIndex < numPoints) {
-                        const currentPos = path.getAt(currentIndex);
-                        if (currentPos && map && currentPos.lat && currentPos.lng) {
-                          map.panTo(currentPos);
+                      // In Follow mode, center camera on the new symbol position
+                      if (zoomLevelRef.current === 'follow' && pathRef.current && pathRef.current.length > 0) {
+                        const path = pathRef.current;
+                        
+                        // Calculate exact position along the path based on progress
+                        let totalDistance = 0;
+                        const distances = [];
+                        
+                        // Calculate segment distances
+                        for (let i = 0; i < path.length - 1; i++) {
+                          const dist = window.google.maps.geometry.spherical.computeDistanceBetween(
+                            path[i], 
+                            path[i + 1]
+                          );
+                          distances.push(dist);
+                          totalDistance += dist;
+                        }
+                        
+                        // Find the target distance along the path
+                        const targetDistance = totalDistance * (newProgress / 100);
+                        let accumulatedDistance = 0;
+                        
+                        // Find which segment we're on and interpolate position
+                        for (let i = 0; i < distances.length; i++) {
+                          if (accumulatedDistance + distances[i] >= targetDistance) {
+                            // We're on this segment
+                            const segmentProgress = (targetDistance - accumulatedDistance) / distances[i];
+                            
+                            // Interpolate position on this segment
+                            const symbolPosition = window.google.maps.geometry.spherical.interpolate(
+                              path[i],
+                              path[i + 1],
+                              segmentProgress
+                            );
+                            
+                            // Immediately center on the symbol
+                            map.setCenter(symbolPosition);
+                            
+                            // Ensure proper zoom
+                            const currentZoom = map.getZoom();
+                            if (currentZoom < 17) {
+                              map.setZoom(17);
+                            }
+                            
+                            break;
+                          }
+                          accumulatedDistance += distances[i];
+                        }
+                      } else if (zoomLevelRef.current !== 'follow') {
+                        // In whole route view, just pan to show the new position
+                        if (pathRef.current && pathRef.current.length > 0) {
+                          const path = pathRef.current;
+                          const index = Math.floor((newProgress / 100) * (path.length - 1));
+                          if (index < path.length && path[index]) {
+                            map.panTo(path[index]);
+                          }
                         }
                       }
                     }

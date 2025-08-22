@@ -244,7 +244,7 @@ const LocationSearch = ({ onLocationSelect, placeholder = "Search for a city or 
 
   
   return (
-    <div ref={containerRef} className="location-search-custom">
+    <div ref={containerRef} className="location-search-custom" style={{ position: 'relative' }}>
       <div className="location-search-input-wrapper">
         {enableInlineComplete && ghostText && searchInput && (
           <div 
@@ -288,7 +288,10 @@ const LocationSearch = ({ onLocationSelect, placeholder = "Search for a city or 
       </div>
       
       {showDropdown && predictions.length > 0 && (
-        <div className="location-search-dropdown">
+        <div className="location-search-dropdown" style={{ 
+          zIndex: 100000,
+          position: 'absolute'
+        }}>
           {predictions.map((prediction, index) => (
             <div
               key={prediction.place_id}

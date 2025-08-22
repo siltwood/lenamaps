@@ -65,6 +65,7 @@ const DirectionsPanel = ({
         
         // If there's an active input (edit mode), replace that specific location
         if (activeInput !== null && activeInput !== undefined) {
+          console.log(`[DirectionsPanel] Replacing location at index ${activeInput} with clicked location:`, clickedLocation.name || 'unnamed');
           newLocations[activeInput] = clickedLocation;
           // Clear active input to exit edit mode and show the updated location
           setActiveInput(null);
@@ -72,9 +73,11 @@ const DirectionsPanel = ({
           // Otherwise, find the first empty slot
           const emptyIndex = newLocations.findIndex(loc => !loc);
           if (emptyIndex !== -1) {
+            console.log(`[DirectionsPanel] Adding new location at index ${emptyIndex}:`, clickedLocation.name || 'unnamed', clickedLocation);
             newLocations[emptyIndex] = clickedLocation;
           }
         }
+        console.log('[DirectionsPanel] Updated locations array:', newLocations.map((loc, i) => loc ? `${i}: ${loc.name || 'unnamed'}` : `${i}: empty`));
         onLocationsChange(newLocations, 'ADD_LOCATION');
         
         // Auto-calculate route or show marker for single location
@@ -449,11 +452,7 @@ const DirectionsPanel = ({
                     onLocationSelect={(loc) => {
                       updateLocation(index, loc);
                       setActiveInput(null); // Clear active input
-                      // Center map on point A when it's searched (not clicked)
-                      if (index === 0 && map) {
-                        map.panTo({ lat: loc.lat, lng: loc.lng });
-                        map.setZoom(15); // Zoom in to show the location clearly
-                      }
+                      // Don't auto-pan/zoom - let user control the map view
                     }}
                     placeholder={`Enter location ${getLocationLabel(index)}...`}
                     onFocus={() => setActiveInput(index)}

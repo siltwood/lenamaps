@@ -50,6 +50,7 @@ const RouteSegmentManager = ({
       if (segment.markers.start) clearAdvancedMarker(segment.markers.start);
       if (segment.markers.end) clearAdvancedMarker(segment.markers.end);
       if (segment.markers.transition) clearAdvancedMarker(segment.markers.transition);
+      if (segment.markers.waypoint) clearAdvancedMarker(segment.markers.waypoint);
     }
   };
 
@@ -202,6 +203,19 @@ const RouteSegmentManager = ({
             scale
           );
           segment.markers.transition.content = newContent;
+        }
+        
+        // Update waypoint marker
+        if (segment.markers.waypoint && segment.markers.waypoint._icon) {
+          const newContent = createMarkerContent(
+            segment.markers.waypoint._icon,
+            segment.markers.waypoint._color,
+            false,
+            null,
+            null,
+            scale
+          );
+          segment.markers.waypoint.content = newContent;
         }
       }
     });
@@ -588,10 +602,20 @@ const RouteSegmentManager = ({
               throw new Error('Invalid directions result');
             }
             
+            // Store current view to prevent any movement
+            const savedCenter = map.getCenter();
+            const savedZoom = map.getZoom();
+            
             const segmentRenderer = new window.google.maps.DirectionsRenderer(rendererOptions);
             
             segmentRenderer.setMap(map);
             segmentRenderer.setDirections(result);
+            
+            // Force restore the view - Google Maps sometimes ignores preserveViewport
+            setTimeout(() => {
+              map.setCenter(savedCenter);
+              map.setZoom(savedZoom);
+            }, 0);
             
             // Create markers for this segment
             const markers = {};
@@ -646,19 +670,39 @@ const RouteSegmentManager = ({
             // Check if this is the last segment
             const isLastSegment = i === validLocations.length - 2;
             
-            // Add transition marker if mode changes to next segment
-            if (!isLastSegment && i < validModes.length - 1 && validModes[i] !== validModes[i + 1]) {
-              const nextMode = validModes[i + 1];
-              const nextIcon = TRANSPORT_ICONS[nextMode] || '🚶';
-              const nextColor = getTransportationColor(nextMode);
+            // Add waypoint marker for the destination of this segment (which is a waypoint if not last)
+            if (!isLastSegment) {
+              // This destination is a waypoint - always show a marker
+              const nextMode = i < validModes.length - 1 ? validModes[i + 1] : segmentMode;
               
-              markers.transition = createTransitionMarker(
-                segmentDestination,
-                modeIcon,
-                modeColor,
-                nextIcon,
-                nextColor
-              );
+              // If mode changes, show transition marker, otherwise show waypoint marker
+              if (validModes[i] !== nextMode) {
+                const nextIcon = TRANSPORT_ICONS[nextMode] || '🚶';
+                const nextColor = getTransportationColor(nextMode);
+                
+                markers.transition = createTransitionMarker(
+                  segmentDestination,
+                  modeIcon,
+                  modeColor,
+                  nextIcon,
+                  nextColor
+                );
+              } else {
+                // Same mode - show a waypoint marker
+                markers.waypoint = createMarker(
+                  segmentDestination,
+                  modeIcon,
+                  modeColor,
+                  `Waypoint ${i + 1}`,
+                  5000,
+                  segmentMode === 'bus'
+                );
+                // Store icon and color for scaling
+                if (markers.waypoint) {
+                  markers.waypoint._icon = modeIcon;
+                  markers.waypoint._color = modeColor;
+                }
+              }
             }
             
             // Add end marker for last segment
