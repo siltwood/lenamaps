@@ -28,9 +28,58 @@ const RouteSegmentManager = ({
     return Math.max(minScale, Math.min(maxScale, scaleFactor));
   };
 
+  // Generate a curved arc path for flights
+  const generateFlightArc = (origin, destination, numPoints = 100) => {
+    const path = [];
+    
+    // Convert to LatLng objects if needed
+    const startLat = typeof origin.lat === 'function' ? origin.lat() : origin.lat;
+    const startLng = typeof origin.lng === 'function' ? origin.lng() : origin.lng;
+    const endLat = typeof destination.lat === 'function' ? destination.lat() : destination.lat;
+    const endLng = typeof destination.lng === 'function' ? destination.lng() : destination.lng;
+    
+    // Calculate distance to determine arc height
+    const R = 6371; // Earth's radius in km
+    const dLat = (endLat - startLat) * Math.PI / 180;
+    const dLng = (endLng - startLng) * Math.PI / 180;
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(startLat * Math.PI / 180) * Math.cos(endLat * Math.PI / 180) *
+              Math.sin(dLng/2) * Math.sin(dLng/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const distance = R * c;
+    
+    // Arc height based on distance (max 5% of distance, min 0.1 degrees, cap at 2 degrees)
+    const arcHeight = Math.max(0.1, Math.min(2, distance * 0.05 / 111)); // Convert km to degrees (rough)
+    
+    // Generate points along the arc
+    for (let i = 0; i <= numPoints; i++) {
+      const t = i / numPoints;
+      
+      // Linear interpolation for base position
+      const lat = startLat + (endLat - startLat) * t;
+      const lng = startLng + (endLng - startLng) * t;
+      
+      // Add arc height using a parabolic curve
+      // Maximum height at t=0.5 (middle of path)
+      const arcOffset = arcHeight * 4 * t * (1 - t);
+      
+      // Apply the arc as a latitude offset (creates upward curve)
+      const arcLat = lat + arcOffset;
+      
+      path.push(new window.google.maps.LatLng(arcLat, lng));
+    }
+    
+    return path;
+  };
+
   // Helper function to clear a single segment (route + markers)
   const clearSegment = (segment) => {
     if (!segment) return;
+    
+    // Clear flight polyline if it exists
+    if (segment.polyline) {
+      segment.polyline.setMap(null);
+    }
     
     // Clear route
     if (segment.routeRenderer) {
@@ -450,6 +499,97 @@ const RouteSegmentManager = ({
           const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
           const distance = R * c; // Distance in km
           
+          
+          // Handle flight mode separately with arc path
+          if (segmentMode === 'flight') {
+            // Generate curved arc path for flight
+            const flightPath = generateFlightArc(segmentOrigin, segmentDestination);
+            
+            // Create a simple polyline for the flight path
+            const flightPolyline = new window.google.maps.Polyline({
+              path: flightPath,
+              geodesic: false,
+              strokeColor: getTransportationColor('flight'),
+              strokeOpacity: 1.0,
+              strokeWeight: 4,
+              map: map,
+              zIndex: 1000
+            });
+            
+            // Create markers for flight segment
+            const markers = {};
+            const modeIcon = TRANSPORT_ICONS['flight'];
+            const modeColor = getTransportationColor('flight');
+            
+            // Add start marker (only for first segment)
+            if (i === 0) {
+              markers.start = createMarker(
+                segmentOrigin,
+                modeIcon,
+                modeColor,
+                'Start',
+                5000,
+                false
+              );
+            }
+            
+            // Add end marker (only for last segment)
+            if (i === validLocations.length - 2) {
+              markers.end = createMarker(
+                segmentDestination,
+                modeIcon,
+                modeColor,
+                'End',
+                5001,
+                false
+              );
+            }
+            
+            // Add transition marker if next segment has different mode
+            if (i < validLocations.length - 2 && validModes[i + 1] !== segmentMode) {
+              const nextMode = validModes[i + 1];
+              const nextIcon = TRANSPORT_ICONS[nextMode] || '🚶';
+              const nextColor = getTransportationColor(nextMode);
+              markers.transition = createTransitionMarker(
+                segmentDestination,
+                modeIcon,
+                modeColor,
+                nextIcon,
+                nextColor
+              );
+            }
+            
+            // Store the flight segment
+            const segment = {
+              id: `segment-${i}`,
+              index: i,
+              mode: 'flight',
+              startLocation: segmentOrigin,
+              endLocation: segmentDestination,
+              polyline: flightPolyline,
+              markers: markers,
+              // Create a fake route object for animation compatibility
+              route: {
+                routes: [{
+                  overview_path: flightPath,
+                  legs: [{
+                    start_location: segmentOrigin,
+                    end_location: segmentDestination,
+                    steps: [{
+                      path: flightPath
+                    }],
+                    distance: { text: `${distance.toFixed(0)} km`, value: distance * 1000 },
+                    duration: { text: `${Math.round(distance / 800 * 60)} min`, value: Math.round(distance / 800 * 3600) } // Assume 800km/h
+                  }]
+                }]
+              },
+              distance: { text: `${distance.toFixed(0)} km`, value: distance * 1000 },
+              duration: { text: `${Math.round(distance / 800 * 60)} min`, value: Math.round(distance / 800 * 3600) }
+            };
+            
+            newSegments[i] = segment;
+            continue; // Skip the regular routing logic
+          }
           
           // Determine travel mode (bus uses DRIVING for reliability)
           let travelMode = window.google.maps.TravelMode.WALKING;

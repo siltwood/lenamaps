@@ -3,7 +3,8 @@ export const TRANSPORTATION_COLORS = {
   walk: "#3b82f6",  // Blue
   bike: "#22c55e",  // Green
   bus: "#ef4444",   // Red
-  car: "#f59e0b"    // Orange
+  car: "#f59e0b",   // Orange
+  flight: "#8b5cf6" // Purple
 };
 
 // Transportation icons
@@ -11,7 +12,8 @@ export const TRANSPORT_ICONS = {
   walk: '🚶',
   bike: '🚴',
   car: '🚗',
-  bus: '🚌'
+  bus: '🚌',
+  flight: '✈️'
 };
 
 // Default map center (NYC)

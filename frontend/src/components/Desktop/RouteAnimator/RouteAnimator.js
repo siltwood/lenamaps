@@ -769,6 +769,14 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
           fillOpacity: 1,
           strokeColor: '#FFFFFF',
           strokeWeight: 3
+        },
+        flight: {
+          path: window.google.maps.SymbolPath.CIRCLE,
+          scale: 20,
+          fillColor: TRANSPORTATION_COLORS.flight,
+          fillOpacity: 1,
+          strokeColor: '#FFFFFF',
+          strokeWeight: 3
         }
       };
       
