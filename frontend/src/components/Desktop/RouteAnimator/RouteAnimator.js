@@ -154,6 +154,8 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
   const cameraVelocityRef = useRef(null);
   const markerRef = useRef(null);
   const zoomListenerRef = useRef(null);
+  const lastMapUpdateTimeRef = useRef(0);
+  const mapUpdateThrottleMs = 100; // Throttle map updates to every 100ms to prevent tearing
   const currentZoomRef = useRef(13);
   const lastSymbolUpdateRef = useRef(0);
   const countRef = useRef(0); // Add ref to persist animation count
@@ -512,10 +514,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       if (firstLocation && firstLocation.lat && firstLocation.lng) {
         console.log('[RouteAnimator] Centering on first marker for animation start:', firstLocation.name || 'unnamed');
         map.panTo(new window.google.maps.LatLng(firstLocation.lat, firstLocation.lng));
-        // Set appropriate zoom for follow mode
-        if (zoomLevel === 'follow') {
-          map.setZoom(17);
-        }
+        // Don't auto-zoom for follow mode - let user control zoom
       }
     }
     
@@ -541,10 +540,13 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       // First check if we have stored route segments with actual route data
       if (window._routeSegments && window._routeSegments.length > 0) {
         console.log('Using global route segments (exact match to displayed route)');
+        console.log('[Animation] Available modes:', allModes);
+        console.log('[Animation] Route segments:', window._routeSegments.map(s => s.mode));
         
         for (let i = 0; i < window._routeSegments.length; i++) {
           const segment = window._routeSegments[i];
           const mode = segment.mode || allModes[i] || 'walk';
+          console.log(`[Animation] Processing segment ${i}: mode=${mode}`);
           
           if (segment.route && segment.route.routes && segment.route.routes[0]) {
             const route = segment.route.routes[0];
@@ -720,6 +722,14 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       pathRef.current = densifiedPath;
       segmentPathsRef.current = densifiedSegmentInfo;
       
+      // Log segment info for debugging
+      console.log('[Animation] Segment info:', densifiedSegmentInfo.map(s => ({
+        mode: s.mode,
+        startIdx: s.startIndex,
+        endIdx: s.endIndex,
+        points: s.endIndex - s.startIndex
+      })));
+      
       // Calculate total route distance for speed adjustment
       let totalDistance = 0;
       for (let i = 0; i < densifiedPath.length - 1; i++) {
@@ -872,7 +882,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
             map.panTo(new window.google.maps.LatLng(lat, lng));
           }
         }
-        map.setZoom(17); // Follow marker view
+        // Don't auto-zoom - let user control zoom
       } else if (zoomLevel === 'whole') {
         // Fit the entire route in view with extra padding
         const bounds = new window.google.maps.LatLngBounds();
@@ -1060,8 +1070,8 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       const newProgress = countRef.current / 2;
       setAnimationProgress(newProgress);
       
-      // Check if we need to change the transport mode icon (less frequently for performance)
-      if (animateRef.current.frameCount % 10 === 0 && segmentPathsRef.current && pathRef.current) {
+      // Check if we need to change the transport mode icon - check frequently for smooth transitions
+      if (animateRef.current.frameCount % 2 === 0 && segmentPathsRef.current && pathRef.current) {
         const progress = offsetRef.current / 100;
         const currentPointIndex = Math.floor(progress * (pathRef.current.length - 1));
         
@@ -1074,24 +1084,29 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
           }
         }
         
-        // Update icon color if mode changed
+        // Update icon color based on current segment
         if (currentSegment && polylineRef.current) {
           const icons = polylineRef.current.get('icons');
           if (icons && icons[0]) {
             const currentMode = currentSegment.mode;
-            // Only update if mode actually changed
-            if (!icons[0].icon._lastMode || icons[0].icon._lastMode !== currentMode) {
-              icons[0].icon = {
-                path: window.google.maps.SymbolPath.CIRCLE,
-                scale: 8,
-                fillColor: TRANSPORTATION_COLORS[currentMode],
-                fillOpacity: 1,
-                strokeColor: '#FFFFFF',
-                strokeWeight: 2,
-                _lastMode: currentMode // Track last mode to avoid unnecessary updates
-              };
-              polylineRef.current.set('icons', icons);
+            
+            // Track if mode changed for logging
+            const lastMode = icons[0].icon._lastMode;
+            if (lastMode !== currentMode) {
+              console.log(`[Animation] Mode changed from ${lastMode} to ${currentMode} at progress ${offsetRef.current.toFixed(1)}%`);
             }
+            
+            // Always update the color to match current segment
+            icons[0].icon = {
+              path: window.google.maps.SymbolPath.CIRCLE,
+              scale: 8,
+              fillColor: TRANSPORTATION_COLORS[currentMode],
+              fillOpacity: 1,
+              strokeColor: '#FFFFFF',
+              strokeWeight: 2,
+              _lastMode: currentMode // Track for change detection
+            };
+            polylineRef.current.set('icons', icons);
           }
         }
       }
@@ -1135,52 +1150,54 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       
       // Camera following for Follow mode - only update when actually animating (not paused)
       if (zoomLevelRef.current === 'follow' && mapRef.current && !isPausedRef.current) {
-        // Use the visual offset which tracks the actual symbol position
-        const symbolProgress = visualOffsetRef.current / 100; // Convert percentage to decimal
-        
-        // Calculate position along the path
-        if (path && path.length > 1) {
-          // Calculate total distance
-          let totalDistance = 0;
-          const distances = [];
-          for (let i = 0; i < path.length - 1; i++) {
-            const dist = window.google.maps.geometry.spherical.computeDistanceBetween(
-              path[i], 
-              path[i + 1]
-            );
-            distances.push(dist);
-            totalDistance += dist;
-          }
+        // Throttle map updates to prevent tearing
+        const now = Date.now();
+        if (now - lastMapUpdateTimeRef.current >= mapUpdateThrottleMs) {
+          lastMapUpdateTimeRef.current = now;
           
-          // Find the target distance along the path
-          const targetDistance = totalDistance * symbolProgress;
-          let accumulatedDistance = 0;
+          // Use the visual offset which tracks the actual symbol position
+          const symbolProgress = visualOffsetRef.current / 100; // Convert percentage to decimal
           
-          // Find which segment the symbol is on
-          for (let i = 0; i < distances.length; i++) {
-            if (accumulatedDistance + distances[i] >= targetDistance) {
-              // Symbol is on this segment
-              const segmentProgress = (targetDistance - accumulatedDistance) / distances[i];
-              
-              // Interpolate position on this segment
-              const symbolPosition = window.google.maps.geometry.spherical.interpolate(
-                path[i],
-                path[i + 1],
-                segmentProgress
+          // Calculate position along the path
+          if (path && path.length > 1) {
+            // Calculate total distance
+            let totalDistance = 0;
+            const distances = [];
+            for (let i = 0; i < path.length - 1; i++) {
+              const dist = window.google.maps.geometry.spherical.computeDistanceBetween(
+                path[i], 
+                path[i + 1]
               );
-              
-              // Pan to keep symbol centered - use setCenter for immediate update
-              mapRef.current.setCenter(symbolPosition);
-              
-              // Maintain zoom level
-              const currentZoom = mapRef.current.getZoom();
-              if (currentZoom < 17) {
-                mapRef.current.setZoom(17);
-              }
-              
-              break;
+              distances.push(dist);
+              totalDistance += dist;
             }
-            accumulatedDistance += distances[i];
+            
+            // Find the target distance along the path
+            const targetDistance = totalDistance * symbolProgress;
+            let accumulatedDistance = 0;
+            
+            // Find which segment the symbol is on
+            for (let i = 0; i < distances.length; i++) {
+              if (accumulatedDistance + distances[i] >= targetDistance) {
+                // Symbol is on this segment
+                const segmentProgress = (targetDistance - accumulatedDistance) / distances[i];
+                
+                // Interpolate position on this segment
+                const symbolPosition = window.google.maps.geometry.spherical.interpolate(
+                  path[i],
+                  path[i + 1],
+                  segmentProgress
+                );
+                
+                // Use panTo with shorter duration for smoother following
+                mapRef.current.panTo(symbolPosition);
+                
+                // Don't change zoom - let user control it
+                
+                break;
+              }
+              accumulatedDistance += distances[i];
+            }
           }
         }
       }
@@ -1482,14 +1499,10 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                               segmentProgress
                             );
                             
-                            // Immediately center on the symbol
-                            map.setCenter(symbolPosition);
+                            // Use panTo for smoother following without tearing
+                            map.panTo(symbolPosition);
                             
-                            // Ensure proper zoom
-                            const currentZoom = map.getZoom();
-                            if (currentZoom < 17) {
-                              map.setZoom(17);
-                            }
+                            // Don't change zoom - let user control it
                             
                             break;
                           }
@@ -1556,13 +1569,12 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                 if (firstLocation && firstLocation.lat && firstLocation.lng) {
                   console.log('[RouteAnimator] Mobile: Centering on first marker at:', firstLocation.lat, firstLocation.lng, 'name:', firstLocation.name || 'unnamed');
                   
-                  // Use setCenter for immediate effect instead of panTo
+                  // Use panTo for smooth positioning
                   const centerPoint = new window.google.maps.LatLng(firstLocation.lat, firstLocation.lng);
-                  map.setCenter(centerPoint);
+                  map.panTo(centerPoint);
                   
-                  // Always set zoom to 17 for animation view
-                  console.log('[RouteAnimator] Setting zoom to 17');
-                  map.setZoom(17);
+                  // Don't auto-zoom - let user control zoom
+                  console.log('[RouteAnimator] Keeping current zoom level');
                 }
               } else {
                 console.log('[RouteAnimator] Cannot center - missing data:', {
@@ -1815,14 +1827,10 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                               segmentProgress
                             );
                             
-                            // Immediately center on the symbol
-                            map.setCenter(symbolPosition);
+                            // Use panTo for smoother following without tearing
+                            map.panTo(symbolPosition);
                             
-                            // Ensure proper zoom
-                            const currentZoom = map.getZoom();
-                            if (currentZoom < 17) {
-                              map.setZoom(17);
-                            }
+                            // Don't change zoom - let user control it
                             
                             break;
                           }

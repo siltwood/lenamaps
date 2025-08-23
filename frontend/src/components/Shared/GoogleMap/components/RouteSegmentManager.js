@@ -48,8 +48,8 @@ const RouteSegmentManager = ({
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     const distance = R * c;
     
-    // Arc height based on distance (max 5% of distance, min 0.1 degrees, cap at 2 degrees)
-    const arcHeight = Math.max(0.1, Math.min(2, distance * 0.05 / 111)); // Convert km to degrees (rough)
+    // Arc height based on distance - REDUCED significantly (max 0.5% of distance, min 0.01 degrees, cap at 0.2 degrees)
+    const arcHeight = Math.max(0.01, Math.min(0.2, distance * 0.005 / 111)); // Convert km to degrees (rough)
     
     // Generate points along the arc
     for (let i = 0; i <= numPoints; i++) {
