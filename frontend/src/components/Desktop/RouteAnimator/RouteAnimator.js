@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlay, faPause, faStop } from '@fortawesome/free-solid-svg-icons';
-import { TRANSPORTATION_COLORS, TRANSPORT_ICONS } from '../../../constants/transportationModes';
+import { TRANSPORT_ICONS } from '../../../constants/transportationModes';
 import DragHandle from '../../common/DragHandle';
 import Modal from './Modal';
 import { isMobileDevice } from '../../../utils/deviceDetection';
@@ -155,7 +155,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
   const markerRef = useRef(null);
   const zoomListenerRef = useRef(null);
   const lastMapUpdateTimeRef = useRef(0);
-  const mapUpdateThrottleMs = 100; // Throttle map updates to every 100ms to prevent tearing
+  const mapUpdateThrottleMs = 16; // Update roughly at 60fps for smooth following
   const currentZoomRef = useRef(13);
   const lastSymbolUpdateRef = useRef(0);
   const countRef = useRef(0); // Add ref to persist animation count
@@ -194,7 +194,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       content.style.cssText = `
         width: ${size}px;
         height: ${size}px;
-        background-color: ${TRANSPORTATION_COLORS[currentMode]};
+        background-color: #000000;
         border-radius: 50%;
         border: ${borderWidth}px solid white;
         display: flex;
@@ -751,7 +751,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         walk: {
           path: window.google.maps.SymbolPath.CIRCLE,
           scale: 20,
-          fillColor: TRANSPORTATION_COLORS.walk,
+          fillColor: '#000000',
           fillOpacity: 1,
           strokeColor: '#FFFFFF',
           strokeWeight: 3
@@ -759,7 +759,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         bike: {
           path: window.google.maps.SymbolPath.CIRCLE,
           scale: 20,
-          fillColor: TRANSPORTATION_COLORS.bike,
+          fillColor: '#000000',
           fillOpacity: 1,
           strokeColor: '#FFFFFF',
           strokeWeight: 3
@@ -767,7 +767,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         car: {
           path: window.google.maps.SymbolPath.CIRCLE,
           scale: 20,
-          fillColor: TRANSPORTATION_COLORS.car,
+          fillColor: '#000000',
           fillOpacity: 1,
           strokeColor: '#FFFFFF',
           strokeWeight: 3
@@ -775,7 +775,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         bus: {
           path: window.google.maps.SymbolPath.CIRCLE,
           scale: 20,
-          fillColor: TRANSPORTATION_COLORS.bus,
+          fillColor: '#000000',
           fillOpacity: 1,
           strokeColor: '#FFFFFF',
           strokeWeight: 3
@@ -783,7 +783,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         flight: {
           path: window.google.maps.SymbolPath.CIRCLE,
           scale: 20,
-          fillColor: TRANSPORTATION_COLORS.flight,
+          fillColor: '#000000',
           fillOpacity: 1,
           strokeColor: '#FFFFFF',
           strokeWeight: 3
@@ -796,7 +796,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       const lineSymbol = {
         path: window.google.maps.SymbolPath.CIRCLE,
         scale: 8,
-        fillColor: TRANSPORTATION_COLORS[initialMode],
+        fillColor: '#000000',
         fillOpacity: 1,
         strokeColor: '#FFFFFF',
         strokeWeight: 2
@@ -955,13 +955,18 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       const deltaTime = timestamp - lastTimestamp;
       lastTimestamp = timestamp;
       
-      // IMPORTANT: Clamp deltaTime to prevent huge jumps when tab loses focus or frames are delayed
-      // Maximum deltaTime is 100ms (10 fps minimum)
-      const clampedDeltaTime = Math.min(deltaTime, 100);
+      // Use a fixed timestep for consistent movement (16.67ms = 60fps)
+      // This prevents jitter from variable frame times
+      const fixedTimestep = 16.67;
       
-      // Log huge delta times that might cause jumps
-      if (deltaTime > 100) {
+      // Skip frame if deltaTime is too large (tab was in background)
+      if (deltaTime > 200) {
+        animationRef.current = requestAnimationFrame(animate);
+        return;
       }
+      
+      // Use fixed timestep for calculations to ensure smooth movement
+      const clampedDeltaTime = fixedTimestep;
       
       // CONSTANT SPEED IN METERS PER SECOND
       // Move at the same speed on the map regardless of trip length
@@ -990,7 +995,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         }
       } else {
         // Follow Marker mode - consistent speed regardless of route length
-        baseSpeed = 100; // Fixed 100m/s for follow mode
+        baseSpeed = 30; // Reduced from 100m/s to 30m/s for slower, more watchable speed
       }
       
       // No more user speed controls - zoom handles everything!
@@ -1020,13 +1025,13 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       }
       
       // Apply playback speed multiplier - use ref for real-time updates
-      let playbackMultiplier = 2; // Default for medium
+      let playbackMultiplier = 1; // Default for medium (was 2)
       if (playbackSpeedRef.current === 'slow') {
-        playbackMultiplier = 1;
+        playbackMultiplier = 0.5; // Half speed for slow
       } else if (playbackSpeedRef.current === 'fast') {
-        playbackMultiplier = 4;
+        playbackMultiplier = 2; // Double speed for fast (was 4)
       }
-      // 'medium' uses 2x multiplier
+      // 'medium' uses 1x multiplier (normal speed)
       
       // Apply zoom multiplier and playback speed to base speed
       let metersPerSecond = baseSpeed * zoomSpeedMultiplier * playbackMultiplier;
@@ -1039,11 +1044,8 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       countRef.current = countRef.current + (percentageThisFrame * 2); // *2 because count is 0-200
       if (countRef.current >= 200) countRef.current = 200;
       
-      // Optimize visual updates based on route length
-      // Long routes need less frequent updates to stay smooth
-      const visualUpdateFrequency = routeDistanceKm > 1000 ? 10 : 
-                                    routeDistanceKm > 500 ? 5 : 
-                                    routeDistanceKm > 100 ? 3 : 1;
+      // Update visual position every frame for smooth movement
+      const visualUpdateFrequency = 1; // Always update for smoothness
       
       // Update symbol position (less frequently for long routes)
       // Use frame counter instead of progress for modulo check
@@ -1070,46 +1072,8 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       const newProgress = countRef.current / 2;
       setAnimationProgress(newProgress);
       
-      // Check if we need to change the transport mode icon - check frequently for smooth transitions
-      if (animateRef.current.frameCount % 2 === 0 && segmentPathsRef.current && pathRef.current) {
-        const progress = offsetRef.current / 100;
-        const currentPointIndex = Math.floor(progress * (pathRef.current.length - 1));
-        
-        // Find which segment we're in
-        let currentSegment = null;
-        for (const segment of segmentPathsRef.current) {
-          if (currentPointIndex >= segment.startIndex && currentPointIndex < segment.endIndex) {
-            currentSegment = segment;
-            break;
-          }
-        }
-        
-        // Update icon color based on current segment
-        if (currentSegment && polylineRef.current) {
-          const icons = polylineRef.current.get('icons');
-          if (icons && icons[0]) {
-            const currentMode = currentSegment.mode;
-            
-            // Track if mode changed for logging
-            const lastMode = icons[0].icon._lastMode;
-            if (lastMode !== currentMode) {
-              console.log(`[Animation] Mode changed from ${lastMode} to ${currentMode} at progress ${offsetRef.current.toFixed(1)}%`);
-            }
-            
-            // Always update the color to match current segment
-            icons[0].icon = {
-              path: window.google.maps.SymbolPath.CIRCLE,
-              scale: 8,
-              fillColor: TRANSPORTATION_COLORS[currentMode],
-              fillOpacity: 1,
-              strokeColor: '#FFFFFF',
-              strokeWeight: 2,
-              _lastMode: currentMode // Track for change detection
-            };
-            polylineRef.current.set('icons', icons);
-          }
-        }
-      }
+      // Don't update icon properties during animation - it's already black
+      // This was causing unnecessary redraws and potential jitter
       
       // Smart camera panning - ALWAYS track the marker
       const path = pathRef.current;
@@ -1150,16 +1114,12 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       
       // Camera following for Follow mode - only update when actually animating (not paused)
       if (zoomLevelRef.current === 'follow' && mapRef.current && !isPausedRef.current) {
-        // Throttle map updates to prevent tearing
-        const now = Date.now();
-        if (now - lastMapUpdateTimeRef.current >= mapUpdateThrottleMs) {
-          lastMapUpdateTimeRef.current = now;
-          
-          // Use the visual offset which tracks the actual symbol position
-          const symbolProgress = visualOffsetRef.current / 100; // Convert percentage to decimal
-          
-          // Calculate position along the path
-          if (path && path.length > 1) {
+        // Update camera every frame for smooth following
+        // Use the visual offset which tracks the actual symbol position
+        const symbolProgress = visualOffsetRef.current / 100; // Convert percentage to decimal
+        
+        // Calculate position along the path
+        if (path && path.length > 1) {
             // Calculate total distance
             let totalDistance = 0;
             const distances = [];
@@ -1189,8 +1149,9 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                   segmentProgress
                 );
                 
-                // Use panTo with shorter duration for smoother following
-                mapRef.current.panTo(symbolPosition);
+                // Use setCenter for immediate update without animation
+                // This prevents conflicting animations between panTo and our frame updates
+                mapRef.current.setCenter(symbolPosition);
                 
                 // Don't change zoom - let user control it
                 
@@ -1199,7 +1160,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
               accumulatedDistance += distances[i];
             }
           }
-        }
       }
       } // Close the else block for path check
 
@@ -1499,8 +1459,8 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                               segmentProgress
                             );
                             
-                            // Use panTo for smoother following without tearing
-                            map.panTo(symbolPosition);
+                            // Use setCenter for immediate positioning
+                            map.setCenter(symbolPosition);
                             
                             // Don't change zoom - let user control it
                             
@@ -1827,8 +1787,8 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                               segmentProgress
                             );
                             
-                            // Use panTo for smoother following without tearing
-                            map.panTo(symbolPosition);
+                            // Use setCenter for immediate positioning
+                            map.setCenter(symbolPosition);
                             
                             // Don't change zoom - let user control it
                             
