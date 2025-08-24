@@ -284,8 +284,8 @@ const MobileControls = ({
                         }
                       }}
                       placeholder={`Search for point ${String.fromCharCode(65 + index)}...`}
-                      enableInlineComplete={true}
-                      hideDropdown={true}
+                      enableInlineComplete={false}
+                      hideDropdown={false}
                     />
                   </div>
                 ) : !location ? (
