@@ -13,6 +13,10 @@ const LocationSearch = ({ onLocationSelect, placeholder = "Search for a city or 
   const containerRef = useRef(null);
   const sessionToken = useRef(null);
   const inputRef = useRef(null);
+  const dropdownRef = useRef(null);
+  const [dropdownPosition, setDropdownPosition] = useState({});
+  const isScrollingRef = useRef(false);
+  const scrollTimeoutRef = useRef(null);
 
   // Handle overflow of parent container when dropdown is shown
   useEffect(() => {
@@ -29,6 +33,7 @@ const LocationSearch = ({ onLocationSelect, placeholder = "Search for a city or 
           directionsContent.style.overflowY = originalOverflow;
         };
       }
+      
     }
   }, [showDropdown]);
 
@@ -279,6 +284,10 @@ const LocationSearch = ({ onLocationSelect, placeholder = "Search for a city or 
           onFocus={() => !hideDropdown && predictions.length > 0 && setShowDropdown(true)}
           placeholder={placeholder}
           className="location-search-input"
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck="false"
           style={{ 
             position: 'relative', 
             zIndex: 2,
@@ -288,17 +297,20 @@ const LocationSearch = ({ onLocationSelect, placeholder = "Search for a city or 
       </div>
       
       {showDropdown && predictions.length > 0 && (
-        <div className="location-search-dropdown" style={{ 
-          zIndex: 100000,
-          position: 'absolute'
-        }}>
+        <div 
+          ref={dropdownRef}
+          className="location-search-dropdown" 
+          style={{ 
+            zIndex: 100000,
+            position: 'absolute'
+          }}
+        >
           {predictions.map((prediction, index) => (
             <div
               key={prediction.place_id}
               className={`location-search-item ${index === selectedIndex ? 'selected' : ''}`}
-              onMouseDown={(e) => {
-                e.preventDefault(); // Prevent focus shift
-                e.stopPropagation(); // Stop event bubbling
+              onClick={(e) => {
+                e.stopPropagation();
                 selectPlace(prediction.place_id, prediction.description);
               }}
               onMouseEnter={() => setSelectedIndex(index)}

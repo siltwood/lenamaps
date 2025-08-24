@@ -401,6 +401,14 @@
   max-height: calc(40vh - 80px);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+
+/* Allow natural scrolling when dropdown is shown */
+.mobile-planner-content:has(.location-search-dropdown) {
+  overflow-y: auto !important;
+  max-height: none !important;
+  height: auto !important;
 }
 
 /* Landscape orientation adjustments */
@@ -693,6 +701,40 @@
   border: 1.5px solid #3b82f6 !important;
   box-shadow: none !important;
   outline: none;
+}
+
+/* Fix dropdown positioning and scrolling on mobile */
+.mobile-search-container .location-search-custom {
+  position: relative;
+  width: 100%;
+  z-index: 1;
+}
+
+.mobile-search-container .location-search-input {
+  position: relative;
+  z-index: 1;
+}
+
+.mobile-search-container .location-search-dropdown {
+  position: absolute !important;
+  top: 100% !important;
+  left: 0 !important;
+  right: 0 !important;
+  max-height: none !important;
+  z-index: 99999 !important;
+  margin-top: 4px !important;
+  background: white !important;
+}
+
+/* Hide other inputs when dropdown is showing to prevent overlap */
+.mobile-planner-content:has(.location-search-dropdown) .mobile-route-input:not(:focus) {
+  z-index: -1 !important;
+}
+
+/* Ensure the active search container stays on top */
+.mobile-search-container:has(.location-search-dropdown) {
+  z-index: 10000 !important;
+  position: relative !important;
 }
 
 .mobile-search-cancel {
