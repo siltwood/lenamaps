@@ -1393,7 +1393,22 @@ body {
   box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
   max-height: 300px;
   overflow-y: auto;
+  overflow-x: hidden;
   z-index: 10000;
+  padding: 0;
+  line-height: 0; /* Remove line-height gaps */
+  font-size: 0; /* Remove font-size gaps */
+}
+
+.location-search-dropdown > * {
+  line-height: normal;
+  font-size: inherit;
+}
+
+/* Hide scrollbar but keep functionality */
+.location-search-dropdown::-webkit-scrollbar {
+  width: 0px;
+  background: transparent;
 }
 
 .location-search-item {
@@ -1401,10 +1416,21 @@ body {
   cursor: pointer;
   border-bottom: 1px solid #f1f5f9;
   transition: background-color 0.2s ease;
+  background: white;
+}
+
+.location-search-item:first-child {
+  border-radius: 10px 10px 0 0; /* Match top border radius */
 }
 
 .location-search-item:last-child {
   border-bottom: none;
+  border-radius: 0 0 10px 10px; /* Match the parent border radius */
+  margin-bottom: 0;
+}
+
+.location-search-item:only-child {
+  border-radius: 10px; /* Full radius if only one item */
 }
 
 .location-search-item:hover,
