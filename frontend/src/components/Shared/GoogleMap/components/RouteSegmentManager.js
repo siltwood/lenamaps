@@ -48,8 +48,10 @@ const RouteSegmentManager = ({
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     const distance = R * c;
     
-    // Arc height based on distance - REDUCED significantly (max 0.5% of distance, min 0.01 degrees, cap at 0.2 degrees)
-    const arcHeight = Math.max(0.01, Math.min(0.2, distance * 0.005 / 111)); // Convert km to degrees (rough)
+    // Arc height based on distance - proportional to distance for consistent curve
+    // Use 10% of distance for arc height, with minimum of 0.5 degrees and no maximum cap
+    // This ensures long flights maintain a visible arc
+    const arcHeight = Math.max(0.5, distance * 0.1 / 111); // Convert km to degrees (111 km per degree)
     
     // Generate points along the arc
     for (let i = 0; i <= numPoints; i++) {

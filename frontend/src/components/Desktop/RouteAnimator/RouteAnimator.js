@@ -980,22 +980,41 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       // Check current zoom level for speed calculation
       if (zoomLevelRef.current === 'whole') {
         // Adaptive base speed based on route length ONLY in Whole Route mode
-        if (routeDistanceKm > 1000) {
+        // Significantly faster speeds for longer trips
+        if (routeDistanceKm > 2000) {
+          // Cross-continental routes: Very fast animation
+          baseSpeed = 20000; // 20km/s for cross-continental routes
+        } else if (routeDistanceKm > 1000) {
           // Very long routes: Much faster animation
-          baseSpeed = 2000; // 2km/s for cross-country
+          baseSpeed = 10000; // 10km/s for cross-country
+        } else if (routeDistanceKm > 500) {
+          // Long interstate routes: Fast animation
+          baseSpeed = 5000; // 5km/s for long routes
         } else if (routeDistanceKm > 100) {
-          // Long routes: Faster animation
-          baseSpeed = 500; // 500m/s for long routes
-        } else if (routeDistanceKm > 10) {
+          // Regional routes: Faster animation
+          baseSpeed = 2000; // 2km/s for regional routes
+        } else if (routeDistanceKm > 50) {
           // Medium routes: Moderate speed
-          baseSpeed = 150; // 150m/s for medium routes
+          baseSpeed = 800; // 800m/s for medium routes
+        } else if (routeDistanceKm > 10) {
+          // Short routes: Moderate speed
+          baseSpeed = 400; // 400m/s for short routes
         } else {
-          // Short routes: Slower for detail
-          baseSpeed = 50; // 50m/s for short routes
+          // Very short routes: Slower for detail
+          baseSpeed = 150; // 150m/s for very short routes
         }
       } else {
-        // Follow Marker mode - consistent speed regardless of route length
-        baseSpeed = 30; // Reduced from 100m/s to 30m/s for slower, more watchable speed
+        // Follow Marker mode - progressive speed based on route length
+        // Even in follow mode, longer trips should be faster
+        if (routeDistanceKm > 1000) {
+          baseSpeed = 500; // 500m/s for very long routes in follow mode
+        } else if (routeDistanceKm > 100) {
+          baseSpeed = 200; // 200m/s for long routes in follow mode
+        } else if (routeDistanceKm > 10) {
+          baseSpeed = 100; // 100m/s for medium routes in follow mode
+        } else {
+          baseSpeed = 60; // 60m/s for short routes in follow mode
+        }
       }
       
       // No more user speed controls - zoom handles everything!
@@ -1025,11 +1044,12 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       }
       
       // Apply playback speed multiplier - use ref for real-time updates
-      let playbackMultiplier = 1; // Default for medium (was 2)
+      // More aggressive multipliers for better control
+      let playbackMultiplier = 1; // Default for medium
       if (playbackSpeedRef.current === 'slow') {
         playbackMultiplier = 0.5; // Half speed for slow
       } else if (playbackSpeedRef.current === 'fast') {
-        playbackMultiplier = 2; // Double speed for fast (was 4)
+        playbackMultiplier = 2; // Double speed for fast
       }
       // 'medium' uses 1x multiplier (normal speed)
       
@@ -1088,29 +1108,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       // Use the ACTUAL visual position of the animated marker
       const actualMarkerProgress = visualOffsetRef.current / 100; // This is the real marker position!
       
-      // Use floating point index for smoother interpolation
-      const floatIndex = actualMarkerProgress * (numPoints - 1);
-      const currentIndex = Math.floor(floatIndex);
-      const nextIndex = Math.min(currentIndex + 1, numPoints - 1);
-      const interpolationFactor = floatIndex - currentIndex;
-      
-      // Calculate interpolated marker position
-      let interpolatedMarkerPos = null;
-      if (currentIndex < numPoints && path[currentIndex] && path[nextIndex]) {
-        const currentPos = path[currentIndex];
-        const nextPos = path[nextIndex];
-        
-        // Interpolate between points for smoother movement
-        // Handle both LatLng objects and plain objects
-        const currLat = typeof currentPos.lat === 'function' ? currentPos.lat() : currentPos.lat;
-        const currLng = typeof currentPos.lng === 'function' ? currentPos.lng() : currentPos.lng;
-        const nextLat = typeof nextPos.lat === 'function' ? nextPos.lat() : nextPos.lat;
-        const nextLng = typeof nextPos.lng === 'function' ? nextPos.lng() : nextPos.lng;
-        
-        const lat = currLat + (nextLat - currLat) * interpolationFactor;
-        const lng = currLng + (nextLng - currLng) * interpolationFactor;
-        interpolatedMarkerPos = new window.google.maps.LatLng(lat, lng);
-      }
+      // Note: Position calculation is now handled in the camera following section below
       
       // Camera following for Follow mode - only update when actually animating (not paused)
       if (zoomLevelRef.current === 'follow' && mapRef.current && !isPausedRef.current) {
@@ -1335,7 +1333,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                     onChange={() => setPlaybackSpeed('slow')}
                   />
                   <span>Slow</span>
-                  <small>(1x)</small>
+                  <small>(0.5x)</small>
                 </label>
                 <label className={`zoom-radio ${playbackSpeed === 'medium' ? 'active' : ''}`}>
                   <input
@@ -1346,7 +1344,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                     onChange={() => setPlaybackSpeed('medium')}
                   />
                   <span>Medium</span>
-                  <small>(4x)</small>
+                  <small>(1x)</small>
                 </label>
                 <label className={`zoom-radio ${playbackSpeed === 'fast' ? 'active' : ''}`}>
                   <input
@@ -1357,7 +1355,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                     onChange={() => setPlaybackSpeed('fast')}
                   />
                   <span>Fast</span>
-                  <small>(4x)</small>
+                  <small>(2x)</small>
                 </label>
               </div>
             </div>
@@ -1689,7 +1687,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                     onChange={() => setPlaybackSpeed('slow')}
                   />
                   <span>Slow</span>
-                  <small>(1x speed)</small>
+                  <small>(0.5x)</small>
                 </label>
                 <label className={`speed-radio ${playbackSpeed === 'medium' ? 'active' : ''}`}>
                   <input
@@ -1700,7 +1698,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                     onChange={() => setPlaybackSpeed('medium')}
                   />
                   <span>Medium</span>
-                  <small>(4x)</small>
+                  <small>(1x)</small>
                 </label>
                 <label className={`speed-radio ${playbackSpeed === 'fast' ? 'active' : ''}`}>
                   <input
@@ -1711,7 +1709,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                     onChange={() => setPlaybackSpeed('fast')}
                   />
                   <span>Fast</span>
-                  <small>(4x speed)</small>
+                  <small>(2x)</small>
                 </label>
               </div>
             </div>
