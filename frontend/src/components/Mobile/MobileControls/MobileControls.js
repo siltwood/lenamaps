@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import LocationSearch from '../../Shared/LocationSearch';
 import TRANSPORTATION_MODES from '../../../constants/transportationModes';
 import RouteAnimator from '../../Desktop/RouteAnimator/RouteAnimator';
+import { generateShareableURL, copyToClipboard } from '../../../utils/shareUtils';
 import '../../../styles/unified-icons.css';
 import './MobileControls.css';
 
@@ -31,6 +32,7 @@ const MobileControls = ({
   const [isDragging, setIsDragging] = useState(false);
   const [dragStartY, setDragStartY] = useState(0);
   const [cardTranslateY, setCardTranslateY] = useState(0);
+  const [showCopiedMessage, setShowCopiedMessage] = useState(false);
   
   // Reset position when card is shown
   useEffect(() => {
@@ -147,6 +149,39 @@ const MobileControls = ({
       }
     } catch (error) {
       // Handle error silently
+    }
+  };
+
+  const handleShare = async () => {
+    const shareableURL = generateShareableURL(locations, legModes);
+    
+    if (!shareableURL) {
+      alert('Please add at least one location to share');
+      return;
+    }
+    
+    const copied = await copyToClipboard(shareableURL);
+    
+    if (copied) {
+      setShowCopiedMessage(true);
+      setTimeout(() => setShowCopiedMessage(false), 3000);
+    } else {
+      // On mobile, fallback to native share if available
+      if (navigator.share) {
+        try {
+          await navigator.share({
+            title: 'My Trip Route',
+            text: 'Check out my trip route!',
+            url: shareableURL
+          });
+        } catch (err) {
+          if (err.name !== 'AbortError') {
+            alert('Failed to share. URL: ' + shareableURL);
+          }
+        }
+      } else {
+        alert('Failed to copy link. URL: ' + shareableURL);
+      }
     }
   };
 
@@ -432,6 +467,15 @@ const MobileControls = ({
             title="Clear All"
           >
             🔄
+          </button>
+          <button 
+            className="mobile-action-btn secondary"
+            onClick={handleShare}
+            disabled={!locations.some(l => l !== null)}
+            style={{ height: '44px', fontSize: '20px' }}
+            title="Share Trip"
+          >
+            {showCopiedMessage ? '✅' : '🔗'}
           </button>
           <button 
             className="mobile-action-btn primary"

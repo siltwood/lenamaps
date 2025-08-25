@@ -711,7 +711,7 @@ const RouteSegmentManager = ({
             if (!routeFound) {
               // No ground route found - automatically switch to flight mode
               console.log('No ground route found, switching to flight mode for segment', i);
-              segmentMode = 'flight';
+              const flightMode = 'flight';
               
               // Create flight path using the existing generateFlightArc function
               const flightPath = generateFlightArc(segmentOrigin, segmentDestination);
@@ -771,7 +771,7 @@ const RouteSegmentManager = ({
                 id: `segment-${i}`,
                 startLocation: segmentOrigin,
                 endLocation: segmentDestination,
-                mode: 'flight',
+                mode: flightMode,
                 isFlight: true,
                 polyline: flightPolyline,
                 markers: markers

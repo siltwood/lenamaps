@@ -3,6 +3,7 @@ import { GoogleMap, LocationSearch } from './Shared';
 import { DirectionsPanel } from './Desktop';
 import { MobileControls } from './Mobile';
 import { useMobileDetection } from '../utils/deviceDetection';
+import { hasSharedTrip, loadSharedTrip, clearSharedTripFromURL } from '../utils/shareUtils';
 
 function AppContent() {
   const [directionsRoute, setDirectionsRoute] = useState(null);
@@ -21,28 +22,83 @@ function AppContent() {
   const [lastAction, setLastAction] = useState(null);
   
   
-  // Get user's current location on mount
+  // Check for shared trip in URL on mount
   useEffect(() => {
-    if ('geolocation' in navigator) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const userLocation = {
-            lat: position.coords.latitude,
-            lng: position.coords.longitude
+    if (hasSharedTrip()) {
+      const sharedTrip = loadSharedTrip();
+      
+      if (sharedTrip) {
+        console.log('Loading shared trip:', sharedTrip);
+        
+        // Set the locations and modes
+        setDirectionsLocations(sharedTrip.locations);
+        setDirectionsLegModes(sharedTrip.modes);
+        
+        // Auto-calculate the route
+        if (sharedTrip.locations.length >= 2) {
+          const segments = [];
+          for (let i = 0; i < sharedTrip.locations.length - 1; i++) {
+            segments.push({
+              mode: sharedTrip.modes[i] || 'walk',
+              startIndex: i,
+              endIndex: i + 1
+            });
+          }
+          
+          const routeData = {
+            origin: sharedTrip.locations[0],
+            destination: sharedTrip.locations[sharedTrip.locations.length - 1],
+            waypoints: sharedTrip.locations.slice(1, -1),
+            mode: sharedTrip.modes[0] || 'walk',
+            segments,
+            allLocations: sharedTrip.locations,
+            allModes: sharedTrip.modes,
+            routeId: `shared_${Date.now()}`
           };
-          setMapCenter(userLocation);
+          
+          setDirectionsRoute(routeData);
+          
+          // Center map on first location
+          setMapCenter({ 
+            lat: sharedTrip.locations[0].lat, 
+            lng: sharedTrip.locations[0].lng 
+          });
           setShouldCenterMap(true);
-        },
-        (error) => {
-          // Silently fail - use default location
-          // Geolocation error - silently fail
-        },
-        {
-          enableHighAccuracy: false,
-          timeout: 5000,
-          maximumAge: 0
+        } else if (sharedTrip.locations.length === 1) {
+          // Single location - just center on it
+          setMapCenter({ 
+            lat: sharedTrip.locations[0].lat, 
+            lng: sharedTrip.locations[0].lng 
+          });
+          setShouldCenterMap(true);
         }
-      );
+        
+        // Clear the trip from URL to clean up the address bar
+        clearSharedTripFromURL();
+      }
+    } else {
+      // No shared trip - try to get user's location
+      if ('geolocation' in navigator) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const userLocation = {
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            };
+            setMapCenter(userLocation);
+            setShouldCenterMap(true);
+          },
+          (error) => {
+            // Silently fail - use default location
+            // Geolocation error - silently fail
+          },
+          {
+            enableHighAccuracy: false,
+            timeout: 5000,
+            maximumAge: 0
+          }
+        );
+      }
     }
   }, []); // Run only once on mount
 

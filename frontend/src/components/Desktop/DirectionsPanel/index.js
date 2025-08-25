@@ -3,6 +3,7 @@ import LocationSearch from '../../Shared/LocationSearch';
 import DirectionsHeader from './DirectionsHeader';
 import { getLocationLabel } from '../../../utils/routeCalculations';
 import TRANSPORTATION_MODES from '../../../constants/transportationModes';
+import { generateShareableURL, copyToClipboard } from '../../../utils/shareUtils';
 import '../../../styles/unified-icons.css';
 
 const DirectionsPanel = ({ 
@@ -36,6 +37,7 @@ const DirectionsPanel = ({
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [isMinimized, setIsMinimized] = useState(false); // Start open
   const [activeInput, setActiveInput] = useState(null); // Track which input is active
+  const [showCopiedMessage, setShowCopiedMessage] = useState(false);
   const panelRef = useRef(null);
   
   // Store position before minimizing
@@ -309,6 +311,24 @@ const DirectionsPanel = ({
     }
   };
 
+  const handleShare = async () => {
+    const shareableURL = generateShareableURL(locations, legModes);
+    
+    if (!shareableURL) {
+      alert('Please add at least one location to share');
+      return;
+    }
+    
+    const copied = await copyToClipboard(shareableURL);
+    
+    if (copied) {
+      setShowCopiedMessage(true);
+      setTimeout(() => setShowCopiedMessage(false), 3000);
+    } else {
+      alert('Failed to copy link. URL: ' + shareableURL);
+    }
+  };
+
   // Drag handlers
   const handleMouseDown = (e) => {
     if (e.target.closest('.drag-handle')) {
@@ -537,6 +557,50 @@ const DirectionsPanel = ({
           >
             <span>➕ Add Next Location ({getLocationLabel(locations.length)})</span>
           </button>
+
+          {/* Share Button */}
+          {locations.some(loc => loc !== null) && (
+            <div className="share-section" style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #e0e0e0' }}>
+              <button 
+                className="share-button"
+                onClick={handleShare}
+                style={{
+                  width: '100%',
+                  padding: '10px 15px',
+                  backgroundColor: '#4CAF50',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  fontSize: '14px',
+                  fontWeight: '500',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  transition: 'all 0.2s ease'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#45a049'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#4CAF50'}
+              >
+                <span>🔗</span>
+                <span>{showCopiedMessage ? '✅ Link Copied!' : 'Share Trip'}</span>
+              </button>
+              {showCopiedMessage && (
+                <div style={{
+                  marginTop: '8px',
+                  padding: '8px',
+                  backgroundColor: '#d4edda',
+                  color: '#155724',
+                  borderRadius: '4px',
+                  fontSize: '12px',
+                  textAlign: 'center'
+                }}>
+                  Share link copied to clipboard!
+                </div>
+              )}
+            </div>
+          )}
 
 
         </div>
