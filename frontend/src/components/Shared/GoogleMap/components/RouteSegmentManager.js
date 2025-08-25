@@ -8,7 +8,8 @@ const RouteSegmentManager = ({
   directionsRoute,
   directionsLocations = [],
   directionsLegModes = [],
-  isMobile = false
+  isMobile = false,
+  onModesAutoUpdate = null
 }) => {
   const segmentsRef = useRef([]);
   const currentRouteIdRef = useRef(null);
@@ -479,6 +480,10 @@ const RouteSegmentManager = ({
           }
         }
         
+        // Track if any modes were auto-changed to flight
+        const autoUpdatedModes = [...validModes];
+        let modesChanged = false;
+        
         // Only render new segments (those that don't exist yet)
         const startIndex = existingSegmentCount;
         
@@ -712,6 +717,10 @@ const RouteSegmentManager = ({
               // No ground route found - automatically switch to flight mode
               console.log('No ground route found, switching to flight mode for segment', i);
               const flightMode = 'flight';
+              
+              // Update the modes array to reflect the automatic flight mode
+              autoUpdatedModes[i] = 'flight';
+              modesChanged = true;
               
               // Create flight path using the existing generateFlightArc function
               const flightPath = generateFlightArc(segmentOrigin, segmentDestination);
@@ -1122,6 +1131,12 @@ const RouteSegmentManager = ({
           // This ensures animation follows the EXACT displayed route
           window._routeSegments = newSegments.filter(s => s && s.route);
           console.log('Stored route segments globally for animation:', window._routeSegments);
+          
+          // If modes were automatically changed to flight, notify parent
+          if (modesChanged && onModesAutoUpdate) {
+            console.log('Auto-updating modes to include flight:', autoUpdatedModes);
+            onModesAutoUpdate(autoUpdatedModes);
+          }
         }
     };
     

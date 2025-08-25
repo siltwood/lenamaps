@@ -283,6 +283,10 @@ function AppContent() {
               setShowRouteAnimator(false);
             }}
             onMapReady={setMapInstance}
+            onModesAutoUpdate={(updatedModes) => {
+              // When routes are auto-switched to flight, update the UI modes
+              setDirectionsLegModes(updatedModes);
+            }}
           />
           {!isAnimating && (
             <div className="bmc-button-container" style={{

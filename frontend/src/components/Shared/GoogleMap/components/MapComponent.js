@@ -17,7 +17,8 @@ const MapComponent = ({
   isMobile = false,
   showRouteAnimator,
   onHideRouteAnimator,
-  onMapReady
+  onMapReady,
+  onModesAutoUpdate
 }) => {
   const mapRef = useRef();
   const [map, setMap] = useState(null);
@@ -204,6 +205,7 @@ const MapComponent = ({
         directionsLocations={directionsLocations}
         directionsLegModes={directionsLegModes}
         isMobile={isMobile}
+        onModesAutoUpdate={onModesAutoUpdate}
       />
       
       {/* Show RouteAnimator for desktop only - mobile handles it differently */}
