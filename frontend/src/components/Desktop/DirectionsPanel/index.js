@@ -82,6 +82,13 @@ const DirectionsPanel = ({
         console.log('[DirectionsPanel] Updated locations array:', newLocations.map((loc, i) => loc ? `${i}: ${loc.name || 'unnamed'}` : `${i}: empty`));
         onLocationsChange(newLocations, 'ADD_LOCATION');
         
+        // Center map on point A when it's the first location added (via click)
+        const isFirstLocation = newLocations.filter(loc => loc !== null).length === 1 && newLocations[0] === clickedLocation;
+        if (isFirstLocation && map) {
+          map.panTo({ lat: clickedLocation.lat, lng: clickedLocation.lng });
+          map.setZoom(15); // Zoom in to show the location clearly
+        }
+        
         // Auto-calculate route or show marker for single location
         const filledLocations = newLocations.filter(loc => loc !== null);
         if (filledLocations.length >= 1) {
@@ -472,7 +479,12 @@ const DirectionsPanel = ({
                     onLocationSelect={(loc) => {
                       updateLocation(index, loc);
                       setActiveInput(null); // Clear active input
-                      // Don't auto-pan/zoom - let user control the map view
+                      
+                      // Center map on point A when it's the first location added
+                      if (index === 0 && map && !locations.some((l, i) => i !== index && l !== null)) {
+                        map.panTo({ lat: loc.lat, lng: loc.lng });
+                        map.setZoom(15); // Zoom in to show the location clearly
+                      }
                     }}
                     placeholder={`Enter location ${getLocationLabel(index)}...`}
                     onFocus={() => setActiveInput(index)}
