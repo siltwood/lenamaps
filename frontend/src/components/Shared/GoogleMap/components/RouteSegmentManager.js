@@ -48,10 +48,9 @@ const RouteSegmentManager = ({
     const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
     const distance = R * c;
     
-    // Arc height based on distance - proportional to distance for consistent curve
-    // Use 10% of distance for arc height, with minimum of 0.5 degrees and no maximum cap
-    // This ensures long flights maintain a visible arc
-    const arcHeight = Math.max(0.5, distance * 0.1 / 111); // Convert km to degrees (111 km per degree)
+    // Subtle arc that scales proportionally with distance
+    // Always 2% of the distance for consistent subtle curve at any length
+    const arcHeight = distance * 0.02 / 111; // 2% of distance, converted to degrees
     
     // Generate points along the arc
     for (let i = 0; i <= numPoints; i++) {
@@ -533,6 +532,16 @@ const RouteSegmentManager = ({
                 5000,
                 false
               );
+            } else {
+              // For intermediate segments, add a waypoint marker at origin
+              markers.waypoint = createMarker(
+                segmentOrigin,
+                modeIcon,
+                modeColor,
+                `Stop ${i}`,
+                5000,
+                false
+              );
             }
             
             // Add end marker (only for last segment)
@@ -547,19 +556,7 @@ const RouteSegmentManager = ({
               );
             }
             
-            // Add transition marker if next segment has different mode
-            if (i < validLocations.length - 2 && validModes[i + 1] !== segmentMode) {
-              const nextMode = validModes[i + 1];
-              const nextIcon = TRANSPORT_ICONS[nextMode] || '🚶';
-              const nextColor = getTransportationColor(nextMode);
-              markers.transition = createTransitionMarker(
-                segmentDestination,
-                modeIcon,
-                modeColor,
-                nextIcon,
-                nextColor
-              );
-            }
+            // Don't add transition markers for flights - they're handled by waypoint markers
             
             // Store the flight segment
             const segment = {
@@ -712,7 +709,76 @@ const RouteSegmentManager = ({
             }
             
             if (!routeFound) {
-              throw new Error('No route found with any travel mode');
+              // No ground route found - automatically switch to flight mode
+              console.log('No ground route found, switching to flight mode for segment', i);
+              segmentMode = 'flight';
+              
+              // Create flight path using the existing generateFlightArc function
+              const flightPath = generateFlightArc(segmentOrigin, segmentDestination);
+              
+              // Create a simple polyline for the flight path
+              const flightPolyline = new window.google.maps.Polyline({
+                path: flightPath,
+                geodesic: false,
+                strokeColor: getTransportationColor('flight'),
+                strokeOpacity: 1.0,
+                strokeWeight: 4,
+                map: map,
+                zIndex: 1000
+              });
+              
+              // Create markers for flight segment
+              const markers = {};
+              const modeIcon = TRANSPORT_ICONS['flight'];
+              const modeColor = getTransportationColor('flight');
+              
+              // Add start marker (only for first segment)
+              if (i === 0) {
+                markers.start = createMarker(
+                  segmentOrigin,
+                  modeIcon,
+                  modeColor,
+                  'Start',
+                  5000,
+                  false
+                );
+              } else {
+                // For intermediate segments, add a waypoint marker at origin
+                markers.waypoint = createMarker(
+                  segmentOrigin,
+                  modeIcon,
+                  modeColor,
+                  `Stop ${i}`,
+                  5000,
+                  false
+                );
+              }
+              
+              // Add end marker (only for last segment)
+              if (i === validLocations.length - 2) {
+                markers.end = createMarker(
+                  segmentDestination,
+                  modeIcon,
+                  modeColor,
+                  'End',
+                  5001,
+                  false
+                );
+              }
+              
+              // Store flight segment
+              const segment = {
+                id: `segment-${i}`,
+                startLocation: segmentOrigin,
+                endLocation: segmentDestination,
+                mode: 'flight',
+                isFlight: true,
+                polyline: flightPolyline,
+                markers: markers
+              };
+              
+              newSegments[i] = segment;
+              continue; // Skip to next segment
             }
             
             // Check if this is still the current route after async operation

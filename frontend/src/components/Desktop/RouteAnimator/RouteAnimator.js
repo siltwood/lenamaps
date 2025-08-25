@@ -814,7 +814,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         }],
         map: map,
         clickable: true,
-        zIndex: 1000
+        zIndex: 5000  // Higher z-index to ensure marker appears above route segments
       });
       
       // Add click listener to jump to position
