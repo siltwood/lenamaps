@@ -173,6 +173,7 @@ const MapComponent = ({
     if (map && center && shouldCenterMap) {
       // Only center for initial geolocation, not for markers
       map.setCenter(center);
+      map.setZoom(15); // Set a reasonable zoom level when centering
       
       // Notify parent that centering is complete
       if (onMapCentered) {

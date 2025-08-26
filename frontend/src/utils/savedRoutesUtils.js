@@ -6,7 +6,6 @@ export const getSavedRoutes = () => {
     const saved = localStorage.getItem(STORAGE_KEY);
     return saved ? JSON.parse(saved) : [];
   } catch (error) {
-    console.error('Error loading saved routes:', error);
     return [];
   }
 };
@@ -30,7 +29,6 @@ export const saveRoute = (routeData) => {
     
     return newRoute;
   } catch (error) {
-    console.error('Error saving route:', error);
     throw error;
   }
 };
@@ -42,7 +40,6 @@ export const deleteRoute = (routeId) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     return true;
   } catch (error) {
-    console.error('Error deleting route:', error);
     return false;
   }
 };
@@ -56,7 +53,6 @@ export const updateRouteName = (routeId, newName) => {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
     return true;
   } catch (error) {
-    console.error('Error updating route name:', error);
     return false;
   }
 };

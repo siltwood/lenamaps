@@ -170,9 +170,7 @@ const MobileControls = ({
           locations: filledLocations,
           modes: legModes
         });
-        alert(`Route "${saved.name}" saved successfully!`);
       } catch (error) {
-        alert('Error saving route: ' + error.message);
       }
     }
   }, [locations, legModes]);
@@ -218,7 +216,6 @@ const MobileControls = ({
     const shareableURL = generateShareableURL(locations, legModes);
     
     if (!shareableURL) {
-      alert('Please add at least one location to share');
       return;
     }
     
@@ -238,11 +235,9 @@ const MobileControls = ({
           });
         } catch (err) {
           if (err.name !== 'AbortError') {
-            alert('Failed to share. URL: ' + shareableURL);
           }
         }
       } else {
-        alert('Failed to copy link. URL: ' + shareableURL);
       }
     }
   };

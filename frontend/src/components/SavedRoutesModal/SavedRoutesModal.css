@@ -9,17 +9,25 @@
   justify-content: center;
   align-items: center;
   z-index: 10000;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .saved-routes-modal {
   background: white;
   border-radius: 8px; /* Reduced border radius */
   width: 90%;
-  max-width: 800px;
-  max-height: 80vh;
+  max-width: 500px;
+  max-height: 90vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  touch-action: auto;
+  pointer-events: auto;
+  overflow: hidden;
+  cursor: auto;
 }
 
 .saved-routes-header {
@@ -79,6 +87,7 @@
   flex: 1;
   overflow-y: auto;
   padding: 20px;
+  -webkit-overflow-scrolling: touch;
 }
 
 .no-routes {
@@ -288,7 +297,12 @@
 @media (max-width: 600px) {
   .saved-routes-modal {
     width: 95%;
-    max-height: 90vh;
+    max-height: 85vh;
+  }
+  
+  .saved-routes-modal-overlay {
+    align-items: flex-start;
+    padding-top: 10vh;
   }
 
   .saved-routes-controls {
@@ -302,10 +316,26 @@
 
   .route-actions {
     flex-wrap: wrap;
+    gap: 5px;
   }
 
   .route-actions button {
     flex: 1;
-    min-width: 80px;
+    min-width: 70px;
+    padding: 6px 12px;
+    font-size: 12px;
+  }
+  
+  .saved-route-item {
+    padding: 12px;
+    margin-bottom: 10px;
+  }
+  
+  .route-header h3 {
+    font-size: 16px;
+  }
+  
+  .saved-routes-list {
+    padding: 15px;
   }
 }

@@ -678,7 +678,6 @@ const RouteSegmentManager = ({
             } catch (err) {
               // If transit fails, handle it appropriately
               if (segmentMode === 'transit') {
-                console.error('Transit route failed:', err);
                 
                 // For ZERO_RESULTS on long distances, try driving as an alternative
                 // Google Transit API often lacks long-distance rail data (like Amtrak)
@@ -706,8 +705,6 @@ const RouteSegmentManager = ({
                     validModes[i] = 'car';
                     routeFound = true;
                     
-                    // Notify user that we're showing driving instead
-                    console.warn('No transit route found - showing driving route instead');
                     
                     // Update the UI to reflect the mode change
                     if (onModesAutoUpdate) {
@@ -1202,7 +1199,7 @@ const RouteSegmentManager = ({
         return; // Same marker already exists
       }
       
-      // Clear any existing markers only if location changed
+      // Clear any existing markers if location or mode changed
       if (existingMarker) {
         clearAllSegments();
       }

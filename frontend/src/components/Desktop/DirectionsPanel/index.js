@@ -327,7 +327,6 @@ const DirectionsPanel = ({
           modes: legModes
         });
       } catch (error) {
-        console.error('Error saving route:', error);
       }
     }
   }, [locations, legModes]);
@@ -372,7 +371,6 @@ const DirectionsPanel = ({
     const shareableURL = generateShareableURL(locations, legModes);
     
     if (!shareableURL) {
-      alert('Please add at least one location to share');
       return;
     }
     
@@ -382,7 +380,6 @@ const DirectionsPanel = ({
       setShowCopiedMessage(true);
       setTimeout(() => setShowCopiedMessage(false), 3000);
     } else {
-      alert('Failed to copy link. URL: ' + shareableURL);
     }
   };
 

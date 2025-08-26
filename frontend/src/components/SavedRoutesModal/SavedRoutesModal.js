@@ -15,14 +15,30 @@ function SavedRoutesModal({ isOpen, onClose, onLoadRoute }) {
   useEffect(() => {
     if (isOpen) {
       setSavedRoutes(getSavedRoutes());
+      // Reset state when opening
+      setEditingId(null);
+      setEditingName('');
+      setSearchTerm('');
+      // Prevent body scroll when modal is open
+      document.body.style.overflow = 'hidden';
+      document.body.style.position = 'fixed';
+      document.body.style.width = '100%';
+    } else {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
     }
+
+    return () => {
+      document.body.style.overflow = '';
+      document.body.style.position = '';
+      document.body.style.width = '';
+    };
   }, [isOpen]);
 
   const handleDelete = (routeId) => {
-    if (window.confirm('Are you sure you want to delete this route?')) {
-      deleteRoute(routeId);
-      setSavedRoutes(getSavedRoutes());
-    }
+    deleteRoute(routeId);
+    setSavedRoutes(getSavedRoutes());
   };
 
   const handleRename = (routeId, currentName) => {
@@ -48,6 +64,14 @@ function SavedRoutesModal({ isOpen, onClose, onLoadRoute }) {
     onLoadRoute(route);
     onClose();
   };
+  
+  const handleClose = () => {
+    // Reset any editing state when closing
+    setEditingId(null);
+    setEditingName('');
+    setSearchTerm('');
+    onClose();
+  };
 
 
   const filteredRoutes = savedRoutes.filter(route =>
@@ -63,12 +87,41 @@ function SavedRoutesModal({ isOpen, onClose, onLoadRoute }) {
 
   if (!isOpen) return null;
 
+  const handleOverlayClick = (e) => {
+    // Only close if clicking directly on the overlay
+    if (e.target === e.currentTarget) {
+      handleClose();
+    }
+  };
+
+  const handleModalClick = (e) => {
+    e.stopPropagation();
+  };
+
   return (
-    <div className="saved-routes-modal-overlay" onClick={onClose}>
-      <div className="saved-routes-modal" onClick={(e) => e.stopPropagation()}>
+    <div 
+      className="saved-routes-modal-overlay" 
+      onClick={handleOverlayClick}
+      onTouchEnd={handleOverlayClick}
+      onTouchStart={(e) => {
+        // Prevent scrolling of background
+        e.preventDefault();
+      }}
+      onTouchMove={(e) => {
+        // Prevent scrolling of background
+        e.preventDefault();
+      }}
+    >
+      <div 
+        className="saved-routes-modal" 
+        onClick={handleModalClick}
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
+      >
         <div className="saved-routes-header">
           <h2>Saved Routes</h2>
-          <button className="close-button" onClick={onClose}>×</button>
+          <button className="close-button" onClick={handleClose}>×</button>
         </div>
 
         <div className="saved-routes-controls">

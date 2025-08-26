@@ -9,6 +9,10 @@
   justify-content: center;
   align-items: center;
   z-index: 10000;
+  touch-action: none;
+  -webkit-tap-highlight-color: transparent;
+  pointer-events: auto;
+  cursor: pointer;
 }
 
 .save-route-modal {
@@ -17,6 +21,11 @@
   width: 90%;
   max-width: 500px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  touch-action: auto;
+  pointer-events: auto;
+  overflow-y: auto;
+  max-height: 90vh;
+  cursor: auto;
 }
 
 .save-route-header {
@@ -141,5 +150,11 @@
 @media (max-width: 600px) {
   .save-route-modal {
     width: 95%;
+    max-height: 85vh;
+  }
+  
+  .save-route-modal-overlay {
+    align-items: flex-start;
+    padding-top: 10vh;
   }
 }

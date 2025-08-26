@@ -288,7 +288,6 @@ function AppContent() {
         });
         // Close the modal silently - no alert
       } catch (error) {
-        console.error('Error saving route:', error);
       }
     }
   }, [directionsLocations, directionsLegModes]);
