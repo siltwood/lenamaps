@@ -41,7 +41,9 @@ const MapComponent = ({
         mapId: 'eb5a26e3f8eb70b4848cf4bd', // Your Google Cloud Map ID
         zoom: MAP_CONFIG.zoom,
         center: center || DEFAULT_CENTER,
-        ...MAP_CONFIG
+        ...MAP_CONFIG,
+        // Allow one-finger panning on mobile
+        gestureHandling: isMobile ? 'greedy' : 'auto'
       });
 
       const directionsServiceInstance = new window.google.maps.DirectionsService();
@@ -160,7 +162,7 @@ const MapComponent = ({
       return;
     }
 
-  }, [onMapClick, center]);
+  }, [onMapClick, center, isMobile]);
 
   useEffect(() => {
     if (window.google) {
