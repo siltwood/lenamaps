@@ -505,6 +505,8 @@ const RouteSegmentManager = ({
           const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
           const distance = R * c; // Distance in km
           
+          // Removed early detection - let Google Maps API handle route validation
+          // This prevents false positives for legitimate routes
           
           // Handle flight mode separately with arc path
           if (segmentMode === 'flight') {
@@ -615,6 +617,9 @@ const RouteSegmentManager = ({
                 travelMode = window.google.maps.TravelMode.DRIVING;
                 actualModeUsed = 'car';
                 break;
+              case 'transit': // Use Google's TRANSIT mode for real public transit
+                travelMode = window.google.maps.TravelMode.TRANSIT;
+                break;
               case 'walk':
               default:
                 travelMode = window.google.maps.TravelMode.WALKING;
@@ -636,12 +641,21 @@ const RouteSegmentManager = ({
             travelMode: travelMode
           };
           
+          // Add transit preferences - let Google handle the best route including connections
+          if (segmentMode === 'transit') {
+            request.transitOptions = {
+              routingPreference: 'FEWER_TRANSFERS'  // Minimize transfers for better experience
+              // Don't restrict modes - let Google include walking/bus to reach rail stations
+            };
+          }
+          
           // Create polyline options
           const polylineOptions = createPolylineOptions(segmentMode);
           
+          let result;
+          let routeFound = false;
+          
           try {
-            let result;
-            let routeFound = false;
             
             // First try the requested mode
             try {
@@ -662,8 +676,34 @@ const RouteSegmentManager = ({
               });
               routeFound = true;
             } catch (err) {
+              // If transit fails, try driving as fallback (road trip instead of flight!)
+              if (segmentMode === 'transit') {
+                try {
+                  const driveRequest = {
+                    origin: request.origin,
+                    destination: request.destination,
+                    travelMode: window.google.maps.TravelMode.DRIVING
+                  };
+                  
+                  result = await new Promise((resolve, reject) => {
+                    directionsService.route(driveRequest, (result, status) => {
+                      if (status === window.google.maps.DirectionsStatus.OK) {
+                        resolve(result);
+                      } else {
+                        reject(status);
+                      }
+                    });
+                  });
+                  
+                  routeFound = true;
+                  // Keep it as transit mode visually (pink with tracks) even though it's driving
+                } catch (driveErr) {
+                  // If driving also fails, then we truly have no route
+                  routeFound = false;
+                }
+              }
               // If bike mode fails, try walking or driving as fallback
-              if (segmentMode === 'bike') {
+              else if (segmentMode === 'bike') {
                 try {
                   // For short distances try walking, for long distances try driving
                   const fallbackMode = distance > 30 ? 'DRIVING' : 'WALKING';
@@ -714,80 +754,29 @@ const RouteSegmentManager = ({
             }
             
             if (!routeFound) {
-              // No ground route found - automatically switch to flight mode
-              console.log('No ground route found, switching to flight mode for segment', i);
-              const flightMode = 'flight';
+              // Show user-friendly error message
+              const origin = validLocations[i];
+              const dest = validLocations[i + 1];
+              const originName = origin?.name || `Location ${String.fromCharCode(65 + i)}`;
+              const destName = dest?.name || `Location ${String.fromCharCode(65 + i + 1)}`;
               
-              // Update the modes array to reflect the automatic flight mode
-              autoUpdatedModes[i] = 'flight';
-              modesChanged = true;
-              
-              // Create flight path using the existing generateFlightArc function
-              const flightPath = generateFlightArc(segmentOrigin, segmentDestination);
-              
-              // Create a simple polyline for the flight path
-              const flightPolyline = new window.google.maps.Polyline({
-                path: flightPath,
-                geodesic: false,
-                strokeColor: getTransportationColor('flight'),
-                strokeOpacity: 1.0,
-                strokeWeight: 4,
-                map: map,
-                zIndex: 1000
+              // Create and dispatch a custom event that the app can listen to
+              const errorEvent = new CustomEvent('routeCalculationError', {
+                detail: {
+                  message: `No ${segmentMode} route available from ${originName} to ${destName}`,
+                  mode: segmentMode,
+                  origin: originName,
+                  destination: destName,
+                  shouldClearSecondLocation: true  // Tell the UI to clear the second location
+                }
               });
+              window.dispatchEvent(errorEvent);
               
-              // Create markers for flight segment
-              const markers = {};
-              const modeIcon = TRANSPORT_ICONS['flight'];
-              const modeColor = getTransportationColor('flight');
+              // Clear all routes and markers when a route fails
+              clearAllSegments();
               
-              // Add start marker (only for first segment)
-              if (i === 0) {
-                markers.start = createMarker(
-                  segmentOrigin,
-                  modeIcon,
-                  modeColor,
-                  'Start',
-                  5000,
-                  false
-                );
-              } else {
-                // For intermediate segments, add a waypoint marker at origin
-                markers.waypoint = createMarker(
-                  segmentOrigin,
-                  modeIcon,
-                  modeColor,
-                  `Stop ${i}`,
-                  5000,
-                  false
-                );
-              }
-              
-              // Add end marker (only for last segment)
-              if (i === validLocations.length - 2) {
-                markers.end = createMarker(
-                  segmentDestination,
-                  modeIcon,
-                  modeColor,
-                  'End',
-                  5001,
-                  false
-                );
-              }
-              
-              // Store flight segment
-              const segment = {
-                id: `segment-${i}`,
-                startLocation: segmentOrigin,
-                endLocation: segmentDestination,
-                mode: flightMode,
-                isFlight: true,
-                polyline: flightPolyline,
-                markers: markers
-              };
-              
-              newSegments[i] = segment;
-              continue; // Skip to next segment
+              // Don't show any markers or process any segments - route calculation failed
+              return;
             }
             
             // Check if this is still the current route after async operation
@@ -988,17 +977,15 @@ const RouteSegmentManager = ({
             
           } catch (error) {
             
-            // Last resort: try to find ANY route that gets us closer
-            const straightLinePath = [
-              new window.google.maps.LatLng(segmentOrigin.lat, segmentOrigin.lng),
-              new window.google.maps.LatLng(segmentDestination.lat, segmentDestination.lng)
-            ];
+            // If still no route, skip this segment
+            if (!routeFound) {
+              continue;
+            }
             
-            // This should rarely happen now since we try multiple modes
-            continue;
-            
-            // Handle transit fallback
-            if (segmentMode === 'bus' && error === window.google.maps.DirectionsStatus.ZERO_RESULTS) {
+            // Handle transit/bus fallback
+            if ((segmentMode === 'bus' || segmentMode === 'transit') && 
+                (error === window.google.maps.DirectionsStatus.ZERO_RESULTS || 
+                 error === 'TRANSIT_UNAVAILABLE')) {
               
               const fallbackRequest = {
                 origin: request.origin,
@@ -1130,11 +1117,9 @@ const RouteSegmentManager = ({
           // IMPORTANT: Store segments globally so RouteAnimator can access them
           // This ensures animation follows the EXACT displayed route
           window._routeSegments = newSegments.filter(s => s && s.route);
-          console.log('Stored route segments globally for animation:', window._routeSegments);
           
           // If modes were automatically changed to flight, notify parent
           if (modesChanged && onModesAutoUpdate) {
-            console.log('Auto-updating modes to include flight:', autoUpdatedModes);
             onModesAutoUpdate(autoUpdatedModes);
           }
         }

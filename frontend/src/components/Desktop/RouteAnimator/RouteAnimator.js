@@ -58,7 +58,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     // When zoom level changes to "whole", immediately show the whole route
     // (not just during animation)
     if (map && !isMinimized && zoomLevel === 'whole') {
-      console.log('[RouteAnimator] Switching to Whole Route view');
       // Fit the entire route when "whole" is selected
       // Check if we have a route to show with at least 2 locations
       if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length >= 2) {
@@ -87,7 +86,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         // Fit bounds with more padding to show the entire route clearly
         const padding = { top: 100, right: 100, bottom: 100, left: 100 };
         map.fitBounds(bounds, padding);
-        console.log('[RouteAnimator] Fitted map to show entire route');
       } else if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length === 1) {
         // Single location, just zoom out to show area
         const loc = directionsRoute.allLocations[0];
@@ -460,7 +458,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       densifiedPath.push(originalPath[originalPath.length - 1]);
     }
     
-    console.log(`Route: ${totalDistanceKm.toFixed(1)}km, Points: ${densifiedPath.length}`);
     return densifiedPath;
   }
 
@@ -497,6 +494,20 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       return;
     }
 
+    // Check if all locations are the same (no actual route to animate)
+    const locations = directionsRoute.allLocations.filter(loc => loc !== null);
+    if (locations.length >= 2) {
+      const firstLoc = locations[0];
+      const allSame = locations.every(loc => 
+        loc.lat === firstLoc.lat && loc.lng === firstLoc.lng
+      );
+      
+      if (allSame) {
+        showModal('Cannot animate a route where all locations are the same point.', 'Same Location', 'info');
+        return;
+      }
+    }
+
     setIsAnimating(true);
     setIsPaused(false);
     isAnimatingRef.current = true;
@@ -512,7 +523,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     if (directionsRoute.allLocations && directionsRoute.allLocations.length > 0) {
       const firstLocation = directionsRoute.allLocations[0];
       if (firstLocation && firstLocation.lat && firstLocation.lng) {
-        console.log('[RouteAnimator] Centering on first marker for animation start:', firstLocation.name || 'unnamed');
         map.panTo(new window.google.maps.LatLng(firstLocation.lat, firstLocation.lng));
         // Don't auto-zoom for follow mode - let user control zoom
       }
@@ -539,14 +549,10 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       
       // First check if we have stored route segments with actual route data
       if (window._routeSegments && window._routeSegments.length > 0) {
-        console.log('Using global route segments (exact match to displayed route)');
-        console.log('[Animation] Available modes:', allModes);
-        console.log('[Animation] Route segments:', window._routeSegments.map(s => s.mode));
         
         for (let i = 0; i < window._routeSegments.length; i++) {
           const segment = window._routeSegments[i];
           const mode = segment.mode || allModes[i] || 'walk';
-          console.log(`[Animation] Processing segment ${i}: mode=${mode}`);
           
           if (segment.route && segment.route.routes && segment.route.routes[0]) {
             const route = segment.route.routes[0];
@@ -571,9 +577,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
             // Fallback to overview_path if no steps
             if (segmentPath.length === 0) {
               segmentPath = route.overview_path || [];
-              console.log(`Using overview_path with ${segmentPath.length} points for segment ${i}`);
             } else {
-              console.log(`Using detailed path with ${segmentPath.length} points for segment ${i}`);
             }
             
             // Store segment info
@@ -589,12 +593,10 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
           }
         }
         
-        console.log(`Extracted ${fullPath.length} points from ${window._routeSegments.length} segments`);
       }
       
       // Fallback: If no segments or incomplete path, create simple straight lines
       if (fullPath.length === 0 && allLocations.length >= 2) {
-        console.log('No segments found, creating straight line paths');
         
         for (let i = 0; i < allLocations.length - 1; i++) {
           const start = new window.google.maps.LatLng(allLocations[i].lat, allLocations[i].lng);
@@ -637,7 +639,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       }
       const routeDistanceKm = routeDistance / 1000;
       
-      console.log(`Route distance: ${routeDistanceKm.toFixed(0)}km, Raw path points: ${fullPath.length}`);
       
       // Use full path for accuracy, but optimize densification for performance
       let densifiedPath;
@@ -645,11 +646,9 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       // IMPORTANT: Use exact route from Google Maps when available
       // This ensures the animation follows the actual road path
       if (window._routeSegments && window._routeSegments.length > 0 && fullPath.length > 0) {
-        console.log(`Using Google Maps route with ${fullPath.length} points`);
         
         // For very long routes, we may need to sample points to avoid performance issues
         if (fullPath.length > 10000) {
-          console.log(`Route has ${fullPath.length} points - sampling for performance`);
           densifiedPath = [];
           const sampleRate = Math.ceil(fullPath.length / 5000); // Keep max 5000 points
           for (let i = 0; i < fullPath.length; i += sampleRate) {
@@ -659,17 +658,14 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
           if (densifiedPath[densifiedPath.length - 1] !== fullPath[fullPath.length - 1]) {
             densifiedPath.push(fullPath[fullPath.length - 1]);
           }
-          console.log(`Sampled to ${densifiedPath.length} points (every ${sampleRate}th point)`);
         } else {
           densifiedPath = fullPath; // Use exact path if not too many points
         }
       } else if (routeDistanceKm > 100) {
         // Long routes without exact path - still use as-is
-        console.log('Long route - using points without densification');
         densifiedPath = fullPath;
       } else {
         // Only for very short routes (<100km), add minimal smoothing
-        console.log('Short route - minimal smoothing');
         densifiedPath = [];
         for (let i = 0; i < fullPath.length - 1; i++) {
           densifiedPath.push(fullPath[i]);
@@ -692,7 +688,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         densifiedPath.push(fullPath[fullPath.length - 1]);
       }
       
-      console.log(`Final path: ${densifiedPath.length} points`);
       
       // Validate that we have a valid path
       if (!densifiedPath || densifiedPath.length < 2) {
@@ -721,14 +716,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       
       pathRef.current = densifiedPath;
       segmentPathsRef.current = densifiedSegmentInfo;
-      
-      // Log segment info for debugging
-      console.log('[Animation] Segment info:', densifiedSegmentInfo.map(s => ({
-        mode: s.mode,
-        startIdx: s.startIndex,
-        endIdx: s.endIndex,
-        points: s.endIndex - s.startIndex
-      })));
       
       // Calculate total route distance for speed adjustment
       let totalDistance = 0;
@@ -878,7 +865,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
           const lat = typeof startPos.lat === 'function' ? startPos.lat() : startPos.lat;
           const lng = typeof startPos.lng === 'function' ? startPos.lng() : startPos.lng;
           if (lat && lng) {
-            console.log('[RouteAnimator] Starting animation - centering on first position:', lat, lng);
             map.panTo(new window.google.maps.LatLng(lat, lng));
           }
         }
@@ -1040,7 +1026,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       
       // Log significant speed changes (optional, remove in production)
       if (Math.abs(zoomDiff) > 3) {
-        console.log(`Zoom ${currentZoom}: Speed multiplier ${zoomSpeedMultiplier.toFixed(1)}x`);
       }
       
       // Apply playback speed multiplier - use ref for real-time updates
@@ -1100,7 +1085,6 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       
       // Safety check - make sure we have a valid path
       if (!path || path.length === 0) {
-        console.warn('No path available for camera tracking!');
         // Don't return - continue animation even if camera tracking fails
       } else {
       
@@ -1514,33 +1498,19 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
           <button 
             className="unified-icon animation"
             onClick={() => {
-              console.log('[RouteAnimator] Camera button clicked on mobile');
-              console.log('[RouteAnimator] Map exists:', !!map);
-              console.log('[RouteAnimator] DirectionsRoute:', directionsRoute);
-              console.log('[RouteAnimator] Current zoom level setting:', zoomLevelRef.current);
               
               // When showing animation controls on mobile, center on first marker
               if (map && directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length > 0) {
                 const firstLocation = directionsRoute.allLocations[0];
-                console.log('[RouteAnimator] First location found:', firstLocation);
                 
                 if (firstLocation && firstLocation.lat && firstLocation.lng) {
-                  console.log('[RouteAnimator] Mobile: Centering on first marker at:', firstLocation.lat, firstLocation.lng, 'name:', firstLocation.name || 'unnamed');
                   
                   // Use panTo for smooth positioning
                   const centerPoint = new window.google.maps.LatLng(firstLocation.lat, firstLocation.lng);
                   map.panTo(centerPoint);
                   
                   // Don't auto-zoom - let user control zoom
-                  console.log('[RouteAnimator] Keeping current zoom level');
                 }
-              } else {
-                console.log('[RouteAnimator] Cannot center - missing data:', {
-                  hasMap: !!map,
-                  hasRoute: !!directionsRoute,
-                  hasLocations: !!(directionsRoute?.allLocations),
-                  locationCount: directionsRoute?.allLocations?.length || 0
-                });
               }
               
               setIsMinimized(false);

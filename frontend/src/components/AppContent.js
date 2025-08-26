@@ -4,6 +4,7 @@ import { DirectionsPanel } from './Desktop';
 import { MobileControls } from './Mobile';
 import { useMobileDetection } from '../utils/deviceDetection';
 import { hasSharedTrip, loadSharedTrip, clearSharedTripFromURL } from '../utils/shareUtils';
+import Modal from './Desktop/RouteAnimator/Modal';
 
 function AppContent() {
   const [directionsRoute, setDirectionsRoute] = useState(null);
@@ -21,6 +22,42 @@ function AppContent() {
   const [history, setHistory] = useState([]);
   const [lastAction, setLastAction] = useState(null);
   
+  // Route error modal
+  const [routeErrorModal, setRouteErrorModal] = useState({
+    isOpen: false,
+    message: ''
+  });
+  
+  // Listen for route calculation errors
+  useEffect(() => {
+    const handleRouteError = (event) => {
+      // Show error modal
+      setRouteErrorModal({
+        isOpen: true,
+        message: event.detail.message
+      });
+      
+      // Clear the second location if route calculation failed
+      if (event.detail.shouldClearSecondLocation) {
+        // Keep only the first location, clear the rest
+        const newLocations = [directionsLocations[0], null];
+        if (directionsLocations.length > 2) {
+          // If there were more than 2 locations, clear all except the first
+          for (let i = 2; i < directionsLocations.length; i++) {
+            newLocations.push(null);
+          }
+        }
+        setDirectionsLocations(newLocations);
+        setDirectionsRoute(null);
+      }
+    };
+    
+    window.addEventListener('routeCalculationError', handleRouteError);
+    
+    return () => {
+      window.removeEventListener('routeCalculationError', handleRouteError);
+    };
+  }, [directionsLocations]);
   
   // Check for shared trip in URL on mount
   useEffect(() => {
@@ -28,7 +65,6 @@ function AppContent() {
       const sharedTrip = loadSharedTrip();
       
       if (sharedTrip) {
-        console.log('Loading shared trip:', sharedTrip);
         
         // Set the locations and modes
         setDirectionsLocations(sharedTrip.locations);
@@ -88,7 +124,7 @@ function AppContent() {
             setMapCenter(userLocation);
             setShouldCenterMap(true);
           },
-          (error) => {
+          () => {
             // Silently fail - use default location
             // Geolocation error - silently fail
           },
@@ -168,7 +204,6 @@ function AppContent() {
   }, []);
 
   const handleLocationSearch = useCallback((location) => {
-    console.log('[AppContent] handleLocationSearch called - centering map to searched location:', location.name || 'unnamed');
     setMapCenter({ lat: location.lat, lng: location.lng });
     setShouldCenterMap(true);
   }, []);
@@ -343,12 +378,10 @@ function AppContent() {
           onClearHistory={handleClearHistory}
           canUndo={history.length > 0}
           onShowAnimator={() => {
-            console.log('[AppContent] onShowAnimator called - entering animation mode');
             // Center on first marker when entering animation mode on mobile
             if (mapInstance && directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length > 0) {
               const firstLocation = directionsRoute.allLocations[0];
               if (firstLocation && firstLocation.lat && firstLocation.lng) {
-                console.log('[AppContent] Centering on first marker for animation:', firstLocation.name || 'unnamed');
                 mapInstance.setCenter(new window.google.maps.LatLng(firstLocation.lat, firstLocation.lng));
                 mapInstance.setZoom(17);
               }
@@ -369,6 +402,7 @@ function AppContent() {
             key="directions-panel"
             isOpen={true}
             onDirectionsCalculated={setDirectionsRoute}
+            directionsRoute={directionsRoute}
             clickedLocation={clickedLocation}
             onLocationUsed={handleLocationUsed}
             locations={directionsLocations}
@@ -383,6 +417,15 @@ function AppContent() {
           />
         )
       )}
+      
+      {/* Route Error Modal */}
+      <Modal
+        isOpen={routeErrorModal.isOpen}
+        onClose={() => setRouteErrorModal({ isOpen: false, message: '' })}
+        title="No Route Available"
+        message={routeErrorModal.message}
+        type="warning"
+      />
     </div>
   );
 }

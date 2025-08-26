@@ -97,5 +97,26 @@ export const createPolylineOptions = (mode, color) => {
     }];
   }
   
+  // Add train symbols for transit routes
+  if (mode === 'transit') {
+    baseOptions.strokeColor = '#ec4899'; // Pink color for transit
+    baseOptions.strokeWeight = 6;
+    baseOptions.strokeOpacity = 0.7;
+    baseOptions.icons = [
+      // Railroad track pattern
+      {
+        icon: {
+          path: 'M -2,-1 L 2,-1 M -2,1 L 2,1', // Railroad ties
+          strokeColor: '#ec4899',
+          strokeOpacity: 1,
+          strokeWeight: 2,
+          scale: 2
+        },
+        offset: '0',
+        repeat: '20px'
+      }
+    ];
+  }
+  
   return baseOptions;
 };

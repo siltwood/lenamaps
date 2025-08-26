@@ -7,7 +7,8 @@ import { generateShareableURL, copyToClipboard } from '../../../utils/shareUtils
 import '../../../styles/unified-icons.css';
 
 const DirectionsPanel = ({ 
-  onDirectionsCalculated, 
+  onDirectionsCalculated,
+  directionsRoute,
   isOpen,
   onClose,
   clickedLocation,
@@ -67,7 +68,6 @@ const DirectionsPanel = ({
         
         // If there's an active input (edit mode), replace that specific location
         if (activeInput !== null && activeInput !== undefined) {
-          console.log(`[DirectionsPanel] Replacing location at index ${activeInput} with clicked location:`, clickedLocation.name || 'unnamed');
           newLocations[activeInput] = clickedLocation;
           // Clear active input to exit edit mode and show the updated location
           setActiveInput(null);
@@ -75,19 +75,12 @@ const DirectionsPanel = ({
           // Otherwise, find the first empty slot
           const emptyIndex = newLocations.findIndex(loc => !loc);
           if (emptyIndex !== -1) {
-            console.log(`[DirectionsPanel] Adding new location at index ${emptyIndex}:`, clickedLocation.name || 'unnamed', clickedLocation);
             newLocations[emptyIndex] = clickedLocation;
           }
         }
-        console.log('[DirectionsPanel] Updated locations array:', newLocations.map((loc, i) => loc ? `${i}: ${loc.name || 'unnamed'}` : `${i}: empty`));
         onLocationsChange(newLocations, 'ADD_LOCATION');
         
-        // Center map on point A when it's the first location added (via click)
-        const isFirstLocation = newLocations.filter(loc => loc !== null).length === 1 && newLocations[0] === clickedLocation;
-        if (isFirstLocation && map) {
-          map.panTo({ lat: clickedLocation.lat, lng: clickedLocation.lng });
-          map.setZoom(15); // Zoom in to show the location clearly
-        }
+        // Don't center or zoom map when placing first marker
         
         // Auto-calculate route or show marker for single location
         const filledLocations = newLocations.filter(loc => loc !== null);
@@ -480,11 +473,7 @@ const DirectionsPanel = ({
                       updateLocation(index, loc);
                       setActiveInput(null); // Clear active input
                       
-                      // Center map on point A when it's the first location added
-                      if (index === 0 && map && !locations.some((l, i) => i !== index && l !== null)) {
-                        map.panTo({ lat: loc.lat, lng: loc.lng });
-                        map.setZoom(15); // Zoom in to show the location clearly
-                      }
+                      // Don't center or zoom map when placing first marker
                     }}
                     placeholder={`Enter location ${getLocationLabel(index)}...`}
                     onFocus={() => setActiveInput(index)}
@@ -570,8 +559,8 @@ const DirectionsPanel = ({
             <span>➕ Add Next Location ({getLocationLabel(locations.length)})</span>
           </button>
 
-          {/* Share Button */}
-          {locations.some(loc => loc !== null) && (
+          {/* Share Button - only show when we have a valid route */}
+          {directionsRoute && locations.filter(loc => loc !== null).length >= 2 && (
             <div className="share-section" style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #e0e0e0' }}>
               <button 
                 className="share-button"

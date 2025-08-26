@@ -33,11 +33,14 @@ const MobileControls = ({
   const [dragStartY, setDragStartY] = useState(0);
   const [cardTranslateY, setCardTranslateY] = useState(0);
   const [showCopiedMessage, setShowCopiedMessage] = useState(false);
+  const [cardHeight, setCardHeight] = useState(40); // Height as vh percentage
+  const initialDragHeight = useRef(40); // Store height at start of drag
   
   // Reset position when card is shown
   useEffect(() => {
     if (showCard) {
       setCardTranslateY(0);
+      setCardHeight(40); // Reset to default height
     }
   }, [showCard]);
   
@@ -194,46 +197,55 @@ const MobileControls = ({
     }
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
     setIsDragging(true);
-    setDragStartY(clientY - cardTranslateY); // Account for current position
+    setDragStartY(clientY); // Store the initial touch position
+    initialDragHeight.current = cardHeight; // Remember the current height when starting to drag
   };
 
   const handleDragMove = (e) => {
     if (!isDragging) return;
     // Don't preventDefault here - it causes issues with passive event listeners
     const clientY = e.touches ? e.touches[0].clientY : e.clientY;
-    const deltaY = clientY - dragStartY;
+    const deltaY = dragStartY - clientY; // Invert: positive = dragging up
     
-    // Limit dragging - don't allow dragging above initial position (deltaY < 0 means dragging up)
-    // Allow dragging down without limit for minimizing
-    const constrainedDeltaY = Math.max(0, deltaY);
-    setCardTranslateY(constrainedDeltaY);
+    // If dragging down from default position or below, use translate to slide down
+    if (initialDragHeight.current <= 40 && deltaY < 0) {
+      setCardTranslateY(-deltaY); // Move the card down
+    } else {
+      // Otherwise adjust height
+      setCardTranslateY(0); // Reset translate
+      // Convert drag distance to height change
+      // Each pixel dragged changes height by 0.1vh
+      const heightDelta = deltaY * 0.1;
+      const newHeight = Math.max(25, Math.min(90, initialDragHeight.current + heightDelta));
+      setCardHeight(newHeight);
+    }
   };
 
   const handleDragEnd = () => {
     if (!isDragging) return;
     setIsDragging(false);
     
-    // Get viewport height and card position
-    const viewportHeight = window.innerHeight;
-    const cardRect = cardRef.current?.getBoundingClientRect();
-    
-    if (cardRect) {
-      const cardTop = cardRect.top;
-      const cardHeight = cardRect.height;
-      
-      // If card top is dragged below 80px from bottom of screen, minimize it
-      if (cardTop > viewportHeight - 80) {
-        // Slide card completely off bottom of screen
-        const slideDistance = viewportHeight - cardTop + cardHeight + 10;
-        setCardTranslateY(slideDistance);
+    // Check if we were sliding down (translating) rather than resizing
+    if (cardTranslateY > 0) {
+      // If dragged down more than 80px, hide it
+      if (cardTranslateY > 80) {
+        // Animate card sliding down completely
+        setCardTranslateY(window.innerHeight);
         setTimeout(() => {
           setShowCard(false);
-          // Don't reset translateY here - do it when showing the card again
-        }, 400); // Wait for slide animation to complete
+        }, 400);
+      } else {
+        // Snap back to original position
+        setCardTranslateY(0);
       }
-      // Otherwise, keep it where the user dragged it - don't snap back
-      // cardTranslateY is already set to the current position
+    } else if (cardHeight < 15) {
+      // If height is very small, hide it
+      setCardTranslateY(window.innerHeight);
+      setTimeout(() => {
+        setShowCard(false);
+      }, 400);
     }
+    // Otherwise keep the height where user left it
   };
 
   // Render animator controls inline
@@ -306,11 +318,7 @@ const MobileControls = ({
                         setShowSearchInputs(prev => ({ ...prev, [index]: false }));
                         setActiveInput(null); // Clear active input
                         
-                        // Center map on point A when it's searched (not clicked)
-                        if (index === 0 && map) {
-                          map.panTo({ lat: loc.lat, lng: loc.lng });
-                          map.setZoom(15); // Zoom in to show the location clearly
-                        }
+                        // Don't center or zoom map when placing first marker
                         
                         // Calculate route if we have at least 2 locations
                         const filledCount = newLocations.filter(l => l).length;
@@ -344,11 +352,7 @@ const MobileControls = ({
                         setShowSearchInputs(prev => ({ ...prev, [index]: false }));
                         setActiveInput(null); // Clear active input
                         
-                        // Center map on point A when it's searched (not clicked)
-                        if (index === 0 && map) {
-                          map.panTo({ lat: loc.lat, lng: loc.lng });
-                          map.setZoom(15); // Zoom in to show the location clearly
-                        }
+                        // Don't center or zoom map when placing first marker
                         
                         // Calculate route if we have at least 2 locations
                         const filledCount = newLocations.filter(l => l).length;
@@ -471,7 +475,7 @@ const MobileControls = ({
           <button 
             className="mobile-action-btn secondary"
             onClick={handleShare}
-            disabled={!locations.some(l => l !== null)}
+            disabled={!directionsRoute || locations.filter(l => l !== null).length < 2}
             style={{ height: '44px', fontSize: '20px' }}
             title="Share Trip"
           >
@@ -507,10 +511,11 @@ const MobileControls = ({
       {/* Single Modal Card */}
       <div 
         ref={cardRef}
-        className={`mobile-card ${!showCard ? 'collapsed' : ''}`}
+        className={`mobile-card ${!showCard ? 'collapsed' : ''} ${isDragging ? 'dragging' : ''}`}
         style={{
           transform: `translateY(${cardTranslateY}px)`,
-          transition: isDragging ? 'none' : 'transform 0.4s ease-in-out'
+          height: `${cardHeight}vh`,
+          transition: isDragging ? 'none' : 'transform 0.4s ease-in-out, height 0.4s ease-in-out'
         }}
       >
         {/* Draggable handle for repositioning */}

@@ -171,7 +171,6 @@ const MapComponent = ({
   // Handle center changes from search only when requested
   useEffect(() => {
     if (map && center && shouldCenterMap) {
-      console.log('[MapComponent] Centering map to:', center, 'shouldCenterMap:', shouldCenterMap);
       // Only center for initial geolocation, not for markers
       map.setCenter(center);
       

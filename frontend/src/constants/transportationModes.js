@@ -3,6 +3,7 @@ export const TRANSPORTATION_MODES = {
   bike: { color: '#22c55e', icon: '🚴' },
   bus: { color: '#ef4444', icon: '🚌' },
   car: { color: '#f59e0b', icon: '🚗' },
+  transit: { color: '#ec4899', icon: '🚆' },
   flight: { color: '#8b5cf6', icon: '✈️' }
 };
 
@@ -11,6 +12,7 @@ export const TRANSPORTATION_COLORS = {
   bike: '#22c55e',
   bus: '#ef4444',
   car: '#f59e0b',
+  transit: '#ec4899',
   flight: '#8b5cf6'
 };
 
@@ -19,6 +21,7 @@ export const TRANSPORT_ICONS = {
   bike: '🚴',
   car: '🚗',
   bus: '🚌',
+  transit: '🚆',
   flight: '✈️'
 };
 

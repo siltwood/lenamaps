@@ -53,7 +53,6 @@ export const decodeTripFromURL = (encodedString) => {
     
     // Validate version
     if (tripData.v !== 1) {
-      console.warn('Unknown trip data version:', tripData.v);
     }
     
     // Reconstruct locations
@@ -76,7 +75,6 @@ export const decodeTripFromURL = (encodedString) => {
     
     return { locations, modes };
   } catch (error) {
-    console.error('Failed to decode trip from URL:', error);
     return null;
   }
 };
@@ -120,7 +118,6 @@ export const copyToClipboard = async (text) => {
       return successful;
     }
   } catch (err) {
-    console.error('Failed to copy to clipboard:', err);
     return false;
   }
 };

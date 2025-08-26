@@ -67,9 +67,10 @@
   box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.15);
   padding: 0;
   pointer-events: auto;
-  max-height: 85vh;
+  min-height: 25vh;
+  max-height: 90vh;
   overflow: hidden;
-  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), height 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   width: 100%;
   position: fixed;
   bottom: 0;
@@ -78,6 +79,8 @@
   right: 0;
   z-index: 2000;
   transform: translateY(0);
+  display: flex;
+  flex-direction: column;
 }
 
 /* Add drag handle indicator */
@@ -88,10 +91,16 @@
   left: 50%;
   transform: translateX(-50%);
   width: 40px;
-  height: 7px;
-  background: #94a3b8;
-  border-radius: 4px;
+  height: 6px;
+  background: #cbd5e1;
+  border-radius: 3px;
   z-index: 1;
+  transition: background-color 0.2s ease, transform 0.2s ease;
+}
+
+.mobile-card.dragging::before {
+  background: #94a3b8;
+  transform: translateX(-50%) scaleX(1.2);
 }
 
 .mobile-card.dragging {
@@ -396,11 +405,12 @@
 .mobile-planner-content {
   padding: 16px;
   padding-top: 16px;
-  height: calc(40vh - 80px);
-  max-height: calc(40vh - 80px);
+  flex: 1;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 /* Allow natural scrolling when dropdown is shown */
