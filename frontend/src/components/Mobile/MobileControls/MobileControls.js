@@ -3,6 +3,9 @@ import LocationSearch from '../../Shared/LocationSearch';
 import TRANSPORTATION_MODES from '../../../constants/transportationModes';
 import RouteAnimator from '../../Desktop/RouteAnimator/RouteAnimator';
 import { generateShareableURL, copyToClipboard } from '../../../utils/shareUtils';
+import { saveRoute } from '../../../utils/savedRoutesUtils';
+import { SaveRouteModal } from '../../SaveRouteModal';
+import { SavedRoutesModal } from '../../SavedRoutesModal';
 import '../../../styles/unified-icons.css';
 import './MobileControls.css';
 
@@ -35,6 +38,8 @@ const MobileControls = ({
   const [showCopiedMessage, setShowCopiedMessage] = useState(false);
   const [cardHeight, setCardHeight] = useState(40); // Height as vh percentage
   const initialDragHeight = useRef(40); // Store height at start of drag
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showSavedRoutesModal, setShowSavedRoutesModal] = useState(false);
   
   // Reset position when card is shown
   useEffect(() => {
@@ -154,6 +159,60 @@ const MobileControls = ({
       // Handle error silently
     }
   };
+
+  const handleSaveRoute = useCallback((routeData) => {
+    const filledLocations = locations.filter(loc => loc !== null);
+    if (filledLocations.length >= 1) {
+      try {
+        const saved = saveRoute({
+          name: routeData.name,
+          description: routeData.description,
+          locations: filledLocations,
+          modes: legModes
+        });
+        alert(`Route "${saved.name}" saved successfully!`);
+      } catch (error) {
+        alert('Error saving route: ' + error.message);
+      }
+    }
+  }, [locations, legModes]);
+
+  const handleLoadRoute = useCallback((route) => {
+    const loadedLocations = [...route.locations];
+    while (loadedLocations.length < 2) {
+      loadedLocations.push(null);
+    }
+    
+    onLocationsChange(loadedLocations, 'load_route');
+    onLegModesChange(route.modes);
+    
+    // Calculate route if we have at least 2 locations
+    if (route.locations.length >= 2) {
+      setTimeout(() => {
+        const segments = [];
+        for (let i = 0; i < route.locations.length - 1; i++) {
+          segments.push({
+            mode: route.modes[i] || 'walk',
+            startIndex: i,
+            endIndex: i + 1
+          });
+        }
+        
+        const routeData = {
+          origin: route.locations[0],
+          destination: route.locations[route.locations.length - 1],
+          waypoints: route.locations.slice(1, -1),
+          mode: route.modes[0] || 'walk',
+          segments,
+          allLocations: route.locations,
+          allModes: route.modes,
+          routeId: `loaded_${Date.now()}`
+        };
+        
+        onDirectionsCalculated(routeData);
+      }, 100);
+    }
+  }, [onLocationsChange, onLegModesChange, onDirectionsCalculated]);
 
   const handleShare = async () => {
     const shareableURL = generateShareableURL(locations, legModes);
@@ -474,6 +533,23 @@ const MobileControls = ({
           </button>
           <button 
             className="mobile-action-btn secondary"
+            onClick={() => setShowSaveModal(true)}
+            disabled={!locations.some(loc => loc !== null)}
+            style={{ height: '44px', fontSize: '20px' }}
+            title="Save Route"
+          >
+            💾
+          </button>
+          <button 
+            className="mobile-action-btn secondary"
+            onClick={() => setShowSavedRoutesModal(true)}
+            style={{ height: '44px', fontSize: '20px' }}
+            title="Load Route"
+          >
+            📂
+          </button>
+          <button 
+            className="mobile-action-btn secondary"
             onClick={handleShare}
             disabled={!directionsRoute || locations.filter(l => l !== null).length < 2}
             style={{ height: '44px', fontSize: '20px' }}
@@ -636,6 +712,21 @@ const MobileControls = ({
           </button>
         </div>
       )}
+      
+      {/* Save Route Modal */}
+      <SaveRouteModal
+        isOpen={showSaveModal}
+        onClose={() => setShowSaveModal(false)}
+        onSave={handleSaveRoute}
+        defaultName={`Route ${new Date().toLocaleDateString()}`}
+      />
+      
+      {/* Saved Routes Modal */}
+      <SavedRoutesModal
+        isOpen={showSavedRoutesModal}
+        onClose={() => setShowSavedRoutesModal(false)}
+        onLoadRoute={handleLoadRoute}
+      />
     </div>
   );
 };

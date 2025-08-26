@@ -4,7 +4,10 @@ import { DirectionsPanel } from './Desktop';
 import { MobileControls } from './Mobile';
 import { useMobileDetection } from '../utils/deviceDetection';
 import { hasSharedTrip, loadSharedTrip, clearSharedTripFromURL } from '../utils/shareUtils';
+import { saveRoute } from '../utils/savedRoutesUtils';
 import Modal from './Desktop/RouteAnimator/Modal';
+import { SaveRouteModal } from './SaveRouteModal';
+import { SavedRoutesModal } from './SavedRoutesModal';
 
 function AppContent() {
   const [directionsRoute, setDirectionsRoute] = useState(null);
@@ -27,6 +30,10 @@ function AppContent() {
     isOpen: false,
     message: ''
   });
+  
+  // Save/Load modals
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showSavedRoutesModal, setShowSavedRoutesModal] = useState(false);
   
   // Listen for route calculation errors
   useEffect(() => {
@@ -268,6 +275,69 @@ function AppContent() {
     setDirectionsLegModes(newModes);
   }, [saveToHistory]);
 
+  // Handle saving a route
+  const handleSaveRoute = useCallback((routeData) => {
+    const filledLocations = directionsLocations.filter(loc => loc !== null);
+    if (filledLocations.length >= 1) {
+      try {
+        saveRoute({
+          name: routeData.name,
+          description: routeData.description,
+          locations: filledLocations,
+          modes: directionsLegModes
+        });
+        // Close the modal silently - no alert
+      } catch (error) {
+        console.error('Error saving route:', error);
+      }
+    }
+  }, [directionsLocations, directionsLegModes]);
+
+  // Handle loading a saved route
+  const handleLoadRoute = useCallback((route) => {
+    // Ensure we have at least 2 locations
+    const locations = [...route.locations];
+    while (locations.length < 2) {
+      locations.push(null);
+    }
+    
+    setDirectionsLocations(locations);
+    setDirectionsLegModes(route.modes);
+    
+    // Center map on first location
+    if (route.locations[0]) {
+      setMapCenter({ 
+        lat: route.locations[0].lat, 
+        lng: route.locations[0].lng 
+      });
+      setShouldCenterMap(true);
+    }
+    
+    // Trigger route calculation if we have at least 2 locations
+    if (route.locations.length >= 2) {
+      const segments = [];
+      for (let i = 0; i < route.locations.length - 1; i++) {
+        segments.push({
+          mode: route.modes[i] || 'walk',
+          startIndex: i,
+          endIndex: i + 1
+        });
+      }
+      
+      const routeData = {
+        origin: route.locations[0],
+        destination: route.locations[route.locations.length - 1],
+        waypoints: route.locations.slice(1, -1),
+        mode: route.modes[0] || 'walk',
+        segments,
+        allLocations: route.locations,
+        allModes: route.modes,
+        routeId: `loaded_${Date.now()}`
+      };
+      
+      setDirectionsRoute(routeData);
+    }
+  }, []);
 
   return (
     <div className="app">
@@ -425,6 +495,21 @@ function AppContent() {
         title="No Route Available"
         message={routeErrorModal.message}
         type="warning"
+      />
+      
+      {/* Save Route Modal */}
+      <SaveRouteModal
+        isOpen={showSaveModal}
+        onClose={() => setShowSaveModal(false)}
+        onSave={handleSaveRoute}
+        defaultName={`Route ${new Date().toLocaleDateString()}`}
+      />
+      
+      {/* Saved Routes Modal */}
+      <SavedRoutesModal
+        isOpen={showSavedRoutesModal}
+        onClose={() => setShowSavedRoutesModal(false)}
+        onLoadRoute={handleLoadRoute}
       />
     </div>
   );

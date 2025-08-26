@@ -4,6 +4,9 @@ import DirectionsHeader from './DirectionsHeader';
 import { getLocationLabel } from '../../../utils/routeCalculations';
 import TRANSPORTATION_MODES from '../../../constants/transportationModes';
 import { generateShareableURL, copyToClipboard } from '../../../utils/shareUtils';
+import { saveRoute } from '../../../utils/savedRoutesUtils';
+import { SaveRouteModal } from '../../SaveRouteModal';
+import { SavedRoutesModal } from '../../SavedRoutesModal';
 import '../../../styles/unified-icons.css';
 
 const DirectionsPanel = ({ 
@@ -39,6 +42,8 @@ const DirectionsPanel = ({
   const [isMinimized, setIsMinimized] = useState(false); // Start open
   const [activeInput, setActiveInput] = useState(null); // Track which input is active
   const [showCopiedMessage, setShowCopiedMessage] = useState(false);
+  const [showSaveModal, setShowSaveModal] = useState(false);
+  const [showSavedRoutesModal, setShowSavedRoutesModal] = useState(false);
   const panelRef = useRef(null);
   
   // Store position before minimizing
@@ -311,6 +316,58 @@ const DirectionsPanel = ({
     }
   };
 
+  const handleSaveRoute = useCallback((routeData) => {
+    const filledLocations = locations.filter(loc => loc !== null);
+    if (filledLocations.length >= 1) {
+      try {
+        saveRoute({
+          name: routeData.name,
+          description: routeData.description,
+          locations: filledLocations,
+          modes: legModes
+        });
+      } catch (error) {
+        console.error('Error saving route:', error);
+      }
+    }
+  }, [locations, legModes]);
+
+  const handleLoadRoute = useCallback((route) => {
+    const loadedLocations = [...route.locations];
+    while (loadedLocations.length < 2) {
+      loadedLocations.push(null);
+    }
+    
+    onLocationsChange(loadedLocations, 'load_route');
+    onLegModesChange(route.modes);
+    
+    if (route.locations.length >= 2) {
+      setTimeout(() => {
+        const segments = [];
+        for (let i = 0; i < route.locations.length - 1; i++) {
+          segments.push({
+            mode: route.modes[i] || 'walk',
+            startIndex: i,
+            endIndex: i + 1
+          });
+        }
+        
+        const routeData = {
+          origin: route.locations[0],
+          destination: route.locations[route.locations.length - 1],
+          waypoints: route.locations.slice(1, -1),
+          mode: route.modes[0] || 'walk',
+          segments,
+          allLocations: route.locations,
+          allModes: route.modes,
+          routeId: `loaded_${Date.now()}`
+        };
+        
+        onDirectionsCalculated(routeData);
+      }, 100);
+    }
+  }, [onLocationsChange, onLegModesChange, onDirectionsCalculated]);
+
   const handleShare = async () => {
     const shareableURL = generateShareableURL(locations, legModes);
     
@@ -420,6 +477,7 @@ const DirectionsPanel = ({
   }
 
   return (
+    <>
     <div 
       className="directions-panel"
       ref={panelRef}
@@ -459,6 +517,110 @@ const DirectionsPanel = ({
       />
 
       <div className="directions-content">
+        {/* Action buttons - above Location A */}
+        <div style={{ 
+          display: 'flex', 
+          gap: '8px', 
+          marginBottom: '1.5rem',
+          justifyContent: 'flex-start'
+        }}>
+          <button 
+            onClick={() => setShowSavedRoutesModal(true)}
+            style={{
+              padding: '8px 12px',
+              backgroundColor: '#f3f4f6',
+              color: '#374151',
+              border: '1px solid #d1d5db',
+              borderRadius: '6px',
+              fontSize: '18px',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minWidth: '40px',
+              height: '36px'
+            }}
+            title="Load saved route"
+            onMouseEnter={(e) => {
+              e.currentTarget.style.backgroundColor = '#e5e7eb';
+              e.currentTarget.style.borderColor = '#9ca3af';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#f3f4f6';
+              e.currentTarget.style.borderColor = '#d1d5db';
+            }}
+          >
+            📂
+          </button>
+          <button 
+            onClick={() => setShowSaveModal(true)}
+            disabled={!locations.some(loc => loc !== null)}
+            style={{
+              padding: '8px 12px',
+              backgroundColor: '#f3f4f6',
+              color: !locations.some(loc => loc !== null) ? '#d1d5db' : '#374151',
+              border: `1px solid ${!locations.some(loc => loc !== null) ? '#e5e7eb' : '#d1d5db'}`,
+              borderRadius: '6px',
+              fontSize: '18px',
+              cursor: !locations.some(loc => loc !== null) ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minWidth: '40px',
+              height: '36px',
+              opacity: !locations.some(loc => loc !== null) ? 0.5 : 1
+            }}
+            title="Save route"
+            onMouseEnter={(e) => {
+              if (!e.currentTarget.disabled) {
+                e.currentTarget.style.backgroundColor = '#e5e7eb';
+                e.currentTarget.style.borderColor = '#9ca3af';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#f3f4f6';
+              e.currentTarget.style.borderColor = !e.currentTarget.disabled ? '#d1d5db' : '#e5e7eb';
+            }}
+          >
+            💾
+          </button>
+          <button 
+            onClick={handleShare}
+            disabled={!directionsRoute || locations.filter(l => l !== null).length < 2}
+            style={{
+              padding: '8px 12px',
+              backgroundColor: '#f3f4f6',
+              color: (!directionsRoute || locations.filter(l => l !== null).length < 2) ? '#d1d5db' : '#374151',
+              border: `1px solid ${(!directionsRoute || locations.filter(l => l !== null).length < 2) ? '#e5e7eb' : '#d1d5db'}`,
+              borderRadius: '6px',
+              fontSize: '18px',
+              cursor: (!directionsRoute || locations.filter(l => l !== null).length < 2) ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minWidth: '40px',
+              height: '36px',
+              opacity: (!directionsRoute || locations.filter(l => l !== null).length < 2) ? 0.5 : 1
+            }}
+            title="Share route"
+            onMouseEnter={(e) => {
+              if (!e.currentTarget.disabled) {
+                e.currentTarget.style.backgroundColor = '#e5e7eb';
+                e.currentTarget.style.borderColor = '#9ca3af';
+              }
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.backgroundColor = '#f3f4f6';
+              e.currentTarget.style.borderColor = !e.currentTarget.disabled ? '#d1d5db' : '#e5e7eb';
+            }}
+          >
+            {showCopiedMessage ? '✅' : '🔗'}
+          </button>
+        </div>
+
         <div className="route-inputs">
           {/* Display all locations in sequence */}
           {locations.map((location, index) => (
@@ -559,55 +721,27 @@ const DirectionsPanel = ({
             <span>➕ Add Next Location ({getLocationLabel(locations.length)})</span>
           </button>
 
-          {/* Share Button - only show when we have a valid route */}
-          {directionsRoute && locations.filter(loc => loc !== null).length >= 2 && (
-            <div className="share-section" style={{ marginTop: '15px', paddingTop: '15px', borderTop: '1px solid #e0e0e0' }}>
-              <button 
-                className="share-button"
-                onClick={handleShare}
-                style={{
-                  width: '100%',
-                  padding: '10px 15px',
-                  backgroundColor: '#4CAF50',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  fontSize: '14px',
-                  fontWeight: '500',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  transition: 'all 0.2s ease'
-                }}
-                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#45a049'}
-                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#4CAF50'}
-              >
-                <span>🔗</span>
-                <span>{showCopiedMessage ? '✅ Link Copied!' : 'Share Trip'}</span>
-              </button>
-              {showCopiedMessage && (
-                <div style={{
-                  marginTop: '8px',
-                  padding: '8px',
-                  backgroundColor: '#d4edda',
-                  color: '#155724',
-                  borderRadius: '4px',
-                  fontSize: '12px',
-                  textAlign: 'center'
-                }}>
-                  Share link copied to clipboard!
-                </div>
-              )}
-            </div>
-          )}
-
 
         </div>
 
       </div>
     </div>
+    
+    {/* Save Route Modal */}
+    <SaveRouteModal
+      isOpen={showSaveModal}
+      onClose={() => setShowSaveModal(false)}
+      onSave={handleSaveRoute}
+      defaultName={`Route ${new Date().toLocaleDateString()}`}
+    />
+    
+    {/* Saved Routes Modal */}
+    <SavedRoutesModal
+      isOpen={showSavedRoutesModal}
+      onClose={() => setShowSavedRoutesModal(false)}
+      onLoadRoute={handleLoadRoute}
+    />
+    </>
   );
 };
 
