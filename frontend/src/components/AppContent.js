@@ -56,6 +56,16 @@ function AppContent() {
         }
         setDirectionsLocations(newLocations);
         setDirectionsRoute(null);
+        
+        // Remove the last action from history since the route failed
+        // This prevents having to undo a "phantom" action
+        setHistory(prev => {
+          if (prev.length > 0) {
+            return prev.slice(0, -1);
+          }
+          return prev;
+        });
+        setLastAction(history.length > 1 ? history[history.length - 2] : null);
       }
     };
     
@@ -64,7 +74,7 @@ function AppContent() {
     return () => {
       window.removeEventListener('routeCalculationError', handleRouteError);
     };
-  }, [directionsLocations]);
+  }, [directionsLocations, history]);
   
   // Check for shared trip in URL on mount
   useEffect(() => {

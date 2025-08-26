@@ -46,7 +46,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       onAnimationStateChange(value);
     }
   }
-  const [zoomLevel, setZoomLevel] = useState('follow'); // 'follow', 'whole'
+  const [zoomLevel, setZoomLevel] = useState('whole'); // 'follow', 'whole'
   const [playbackSpeed, setPlaybackSpeed] = useState('medium'); // 'slow', 'medium', 'fast'
   const [animationProgress, setAnimationProgress] = useState(0); // 0-100 for timeline
   
@@ -55,10 +55,10 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     // Update the ref for animation loop access
     zoomLevelRef.current = zoomLevel;
     
-    // When zoom level changes to "whole", immediately show the whole route
-    // (not just during animation)
-    if (map && !isMinimized && zoomLevel === 'whole') {
-      // Fit the entire route when "whole" is selected
+    // Only adjust zoom if animation is playing
+    // In "whole" mode, don't zoom until play is pressed
+    if (map && !isMinimized && isAnimating && zoomLevel === 'whole') {
+      // Fit the entire route when "whole" is selected and animating
       // Check if we have a route to show with at least 2 locations
       if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length >= 2) {
         const bounds = new window.google.maps.LatLngBounds();
@@ -100,7 +100,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     }
     // For follow mode when NOT animating, don't change the view
     // Let the user control the map freely
-  }, [zoomLevel, map, directionsRoute, isMinimized]);
+  }, [zoomLevel, map, directionsRoute, isMinimized, isAnimating]);
   
   // Separate effect for handling animated polyline bounds during animation
   useEffect(() => {
