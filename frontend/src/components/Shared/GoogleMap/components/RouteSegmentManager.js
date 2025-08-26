@@ -676,29 +676,57 @@ const RouteSegmentManager = ({
               });
               routeFound = true;
             } catch (err) {
-              // If transit fails, try driving as fallback (road trip instead of flight!)
+              // If transit fails, handle it appropriately
               if (segmentMode === 'transit') {
-                try {
-                  const driveRequest = {
-                    origin: request.origin,
-                    destination: request.destination,
-                    travelMode: window.google.maps.TravelMode.DRIVING
-                  };
-                  
-                  result = await new Promise((resolve, reject) => {
-                    directionsService.route(driveRequest, (result, status) => {
-                      if (status === window.google.maps.DirectionsStatus.OK) {
-                        resolve(result);
-                      } else {
-                        reject(status);
+                console.error('Transit route failed:', err);
+                
+                // For ZERO_RESULTS on long distances, try driving as an alternative
+                // Google Transit API often lacks long-distance rail data (like Amtrak)
+                if (err === 'ZERO_RESULTS' && distance > 100) {
+                  try {
+                    const driveRequest = {
+                      origin: request.origin,
+                      destination: request.destination,
+                      travelMode: window.google.maps.TravelMode.DRIVING
+                    };
+                    
+                    result = await new Promise((resolve, reject) => {
+                      directionsService.route(driveRequest, (result, status) => {
+                        if (status === window.google.maps.DirectionsStatus.OK) {
+                          resolve(result);
+                        } else {
+                          reject(status);
+                        }
+                      });
+                    });
+                    
+                    // Use driving route but change the visual style to indicate it's a road trip alternative
+                    // We'll use car mode styling instead of misleading transit styling
+                    segmentMode = 'car';
+                    validModes[i] = 'car';
+                    routeFound = true;
+                    
+                    // Notify user that we're showing driving instead
+                    console.warn('No transit route found - showing driving route instead');
+                    
+                    // Update the UI to reflect the mode change
+                    if (onModesAutoUpdate) {
+                      onModesAutoUpdate(validModes);
+                    }
+                    
+                    // Optional: dispatch an info event
+                    const infoEvent = new CustomEvent('routeInfo', {
+                      detail: {
+                        message: 'No transit route available - showing driving route instead',
+                        type: 'info'
                       }
                     });
-                  });
-                  
-                  routeFound = true;
-                  // Keep it as transit mode visually (pink with tracks) even though it's driving
-                } catch (driveErr) {
-                  // If driving also fails, then we truly have no route
+                    window.dispatchEvent(infoEvent);
+                  } catch (driveErr) {
+                    routeFound = false;
+                  }
+                } else {
+                  // For short distances or API errors, just fail
                   routeFound = false;
                 }
               }

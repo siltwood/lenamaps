@@ -4,7 +4,8 @@ export const TRANSPORTATION_COLORS = {
   bike: "#22c55e",  // Green
   bus: "#ef4444",   // Red
   car: "#f59e0b",   // Orange
-  flight: "#8b5cf6" // Purple
+  flight: "#8b5cf6", // Purple
+  transit: "#ec4899"  // Pink for trains/transit
 };
 
 // Transportation icons
@@ -13,7 +14,8 @@ export const TRANSPORT_ICONS = {
   bike: '🚴',
   car: '🚗',
   bus: '🚌',
-  flight: '✈️'
+  flight: '✈️',
+  transit: '🚆'  // Train emoji for transit
 };
 
 // Default map center (NYC)
