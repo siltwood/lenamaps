@@ -272,6 +272,30 @@ const RouteSegmentManager = ({
     });
   }, [map]);
 
+  // Function to hide transit labels
+  const hideTransitLabels = () => {
+    if (!map) return;
+    
+    const mapContainer = map.getDiv();
+    if (!mapContainer) return;
+    
+    // Look for all transit icons (bus, tram, train, etc.)
+    const transitIcons = mapContainer.querySelectorAll('img[src*="/transit/"]');
+    transitIcons.forEach(icon => {
+      let parent = icon.parentElement;
+      let depth = 0;
+      while (parent && parent !== mapContainer && depth < 5) {
+        // Check if this looks like a transit label container
+        if (parent.querySelector('span') || (parent.textContent && /^\d+[A-Z]?/.test(parent.textContent.trim()))) {
+          parent.style.display = 'none';
+          break;
+        }
+        parent = parent.parentElement;
+        depth++;
+      }
+    });
+  };
+
   // Set up zoom listener
   useEffect(() => {
     if (!map) return;
@@ -676,54 +700,39 @@ const RouteSegmentManager = ({
               });
               routeFound = true;
             } catch (err) {
-              // If transit fails, handle it appropriately
+              // If transit fails, always fall back to car route
               if (segmentMode === 'transit') {
-                
-                // For ZERO_RESULTS on long distances, try driving as an alternative
-                // Google Transit API often lacks long-distance rail data (like Amtrak)
-                if (err === 'ZERO_RESULTS' && distance > 100) {
-                  try {
-                    const driveRequest = {
-                      origin: request.origin,
-                      destination: request.destination,
-                      travelMode: window.google.maps.TravelMode.DRIVING
-                    };
-                    
-                    result = await new Promise((resolve, reject) => {
-                      directionsService.route(driveRequest, (result, status) => {
-                        if (status === window.google.maps.DirectionsStatus.OK) {
-                          resolve(result);
-                        } else {
-                          reject(status);
-                        }
-                      });
-                    });
-                    
-                    // Use driving route but change the visual style to indicate it's a road trip alternative
-                    // We'll use car mode styling instead of misleading transit styling
-                    segmentMode = 'car';
-                    validModes[i] = 'car';
-                    routeFound = true;
-                    
-                    
-                    // Update the UI to reflect the mode change
-                    if (onModesAutoUpdate) {
-                      onModesAutoUpdate(validModes);
-                    }
-                    
-                    // Optional: dispatch an info event
-                    const infoEvent = new CustomEvent('routeInfo', {
-                      detail: {
-                        message: 'No transit route available - showing driving route instead',
-                        type: 'info'
+                try {
+                  const driveRequest = {
+                    origin: request.origin,
+                    destination: request.destination,
+                    travelMode: window.google.maps.TravelMode.DRIVING
+                  };
+                  
+                  result = await new Promise((resolve, reject) => {
+                    directionsService.route(driveRequest, (result, status) => {
+                      if (status === window.google.maps.DirectionsStatus.OK) {
+                        resolve(result);
+                      } else {
+                        reject(status);
                       }
                     });
-                    window.dispatchEvent(infoEvent);
-                  } catch (driveErr) {
-                    routeFound = false;
-                  }
-                } else {
-                  // For short distances or API errors, just fail
+                  });
+                  
+                  // Keep transit mode for visual styling - it's a "fake train" using roads
+                  routeFound = true;
+                  actualModeUsed = 'car'; // Internally it's a car route
+                  // But we keep segmentMode as 'transit' for coloring and icons
+                  
+                  // Optional: dispatch an info event
+                  const infoEvent = new CustomEvent('routeInfo', {
+                    detail: {
+                      message: 'No rail route found - using road route with train styling',
+                      type: 'info'
+                    }
+                  });
+                  window.dispatchEvent(infoEvent);
+                } catch (driveErr) {
                   routeFound = false;
                 }
               }
@@ -841,6 +850,9 @@ const RouteSegmentManager = ({
             
             segmentRenderer.setMap(map);
             segmentRenderer.setDirections(result);
+            
+            // Hide transit labels after route is displayed
+            setTimeout(hideTransitLabels, 100);
             
             // Force restore the view - Google Maps sometimes ignores preserveViewport
             setTimeout(() => {

@@ -632,7 +632,14 @@ const DirectionsPanel = ({
                       updateLocation(index, loc);
                       setActiveInput(null); // Clear active input
                       
-                      // Don't center or zoom map when placing first marker
+                      // Recenter map on first location (Point A)
+                      if (index === 0 && map && loc) {
+                        map.panTo({ lat: loc.lat, lng: loc.lng });
+                        // Optionally set a reasonable zoom level if needed
+                        if (map.getZoom() < 13) {
+                          map.setZoom(13);
+                        }
+                      }
                     }}
                     placeholder={`Enter location ${getLocationLabel(index)}...`}
                     onFocus={() => setActiveInput(index)}
