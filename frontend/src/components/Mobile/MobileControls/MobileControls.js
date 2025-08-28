@@ -393,16 +393,35 @@ const MobileControls = ({
                     />
                   </div>
                 ) : !location ? (
-                  <input 
-                    type="text"
-                    placeholder={index === 0 ? "Tap map or search..." : "Tap map or search..."}
-                    className={`mobile-route-input ${activeInput === index ? 'active' : ''}`}
-                    onClick={() => {
-                      setActiveInput(index);
-                      setShowSearchInputs(prev => ({ ...prev, [index]: true }));
-                    }}
-                    readOnly
-                  />
+                  <div className="mobile-search-container">
+                    <LocationSearch
+                      onLocationSelect={(loc) => {
+                        const newLocations = [...locations];
+                        newLocations[index] = loc;
+                        onLocationsChange(newLocations);
+                        setActiveInput(null); // Clear active input
+                        
+                        // Recenter map on first location (Point A)
+                        if (index === 0 && map && loc) {
+                          map.panTo({ lat: loc.lat, lng: loc.lng });
+                          // Optionally set a reasonable zoom level if needed
+                          if (map.getZoom() < 13) {
+                            map.setZoom(13);
+                          }
+                        }
+                        
+                        // Calculate route if we have at least 2 locations
+                        const filledCount = newLocations.filter(l => l).length;
+                        if (filledCount >= 2) {
+                          calculateRoute(newLocations, legModes);
+                        }
+                      }}
+                      placeholder={index === 0 ? "Tap to search..." : "Tap to search..."}
+                      enableInlineComplete={false}
+                      hideDropdown={false}
+                      autoFocus={false} // Don't auto-focus until clicked
+                    />
+                  </div>
                 ) : activeInput === index && showSearchInputs[index] ? (
                   <div className="mobile-search-container">
                     <LocationSearch
@@ -430,6 +449,7 @@ const MobileControls = ({
                       }}
                       placeholder={`Search for point ${String.fromCharCode(65 + index)}...`}
                       defaultValue={location?.name || location?.address || ''}
+                      autoFocus={true}
                     />
                     <button 
                       className="mobile-search-cancel"

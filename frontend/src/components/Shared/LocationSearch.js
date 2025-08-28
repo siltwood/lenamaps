@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 
 // Custom autocomplete implementation using Places Service
-const LocationSearch = ({ onLocationSelect, placeholder = "Search for a city or location...", enableInlineComplete = false, hideDropdown = false }) => {
+const LocationSearch = ({ onLocationSelect, placeholder = "Search for a city or location...", enableInlineComplete = false, hideDropdown = false, autoFocus = false }) => {
   const [searchInput, setSearchInput] = useState('');
   const [predictions, setPredictions] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -57,6 +57,18 @@ const LocationSearch = ({ onLocationSelect, placeholder = "Search for a city or 
 
     initializeServices();
   }, []);
+
+  // Auto-focus input when autoFocus prop is true
+  useEffect(() => {
+    if (autoFocus && inputRef.current) {
+      // Simple focus for when explicitly requested
+      setTimeout(() => {
+        if (inputRef.current) {
+          inputRef.current.focus();
+        }
+      }, 50);
+    }
+  }, [autoFocus]);
 
   useEffect(() => {
     // Click outside handler
@@ -288,6 +300,9 @@ const LocationSearch = ({ onLocationSelect, placeholder = "Search for a city or 
           autoCorrect="off"
           autoCapitalize="off"
           spellCheck="false"
+          autoFocus={autoFocus}
+          inputMode="text"
+          enterKeyHint="search"
           style={{ 
             position: 'relative', 
             zIndex: 2,
