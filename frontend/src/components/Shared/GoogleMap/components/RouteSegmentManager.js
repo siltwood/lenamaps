@@ -279,9 +279,27 @@ const RouteSegmentManager = ({
     const mapContainer = map.getDiv();
     if (!mapContainer) return;
     
-    // Look for all transit icons (bus, tram, train, etc.)
+    // Add CSS to hide transit labels immediately
+    if (!document.getElementById('hide-transit-labels-style')) {
+      const style = document.createElement('style');
+      style.id = 'hide-transit-labels-style';
+      style.textContent = `
+        /* Hide all transit icons and their parent containers */
+        img[src*="/transit/"] {
+          display: none !important;
+        }
+        /* Hide the parent containers that typically hold transit labels */
+        div:has(> img[src*="/transit/"]) {
+          display: none !important;
+        }
+      `;
+      document.head.appendChild(style);
+    }
+    
+    // Also hide them via DOM manipulation for older browsers
     const transitIcons = mapContainer.querySelectorAll('img[src*="/transit/"]');
     transitIcons.forEach(icon => {
+      icon.style.display = 'none';
       let parent = icon.parentElement;
       let depth = 0;
       while (parent && parent !== mapContainer && depth < 5) {
@@ -299,6 +317,9 @@ const RouteSegmentManager = ({
   // Set up zoom listener
   useEffect(() => {
     if (!map) return;
+    
+    // Hide transit labels as soon as map is available
+    hideTransitLabels();
     
     // Get initial zoom
     currentZoomRef.current = map.getZoom();
@@ -848,11 +869,18 @@ const RouteSegmentManager = ({
             
             const segmentRenderer = new window.google.maps.DirectionsRenderer(rendererOptions);
             
+            // Hide transit labels before setting the route
+            hideTransitLabels();
+            
             segmentRenderer.setMap(map);
+            
+            // Hide again before setting directions
+            hideTransitLabels();
+            
             segmentRenderer.setDirections(result);
             
-            // Hide transit labels after route is displayed
-            setTimeout(hideTransitLabels, 100);
+            // Hide once more after setting directions
+            hideTransitLabels();
             
             // Force restore the view - Google Maps sometimes ignores preserveViewport
             setTimeout(() => {
