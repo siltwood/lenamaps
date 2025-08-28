@@ -272,14 +272,27 @@ const RouteSegmentManager = ({
     });
   }, [map]);
 
-  // Function to hide transit labels
+  // Function to hide transit labels via DOM manipulation (CSS already injected on mount)
   const hideTransitLabels = () => {
     if (!map) return;
     
     const mapContainer = map.getDiv();
     if (!mapContainer) return;
     
-    // Add CSS to hide transit labels immediately
+    // Hide any existing transit icons via DOM for browsers that don't support :has()
+    const transitIcons = mapContainer.querySelectorAll('img[src*="/transit/"]');
+    transitIcons.forEach(icon => {
+      icon.style.display = 'none';
+      let parent = icon.parentElement;
+      if (parent) {
+        parent.style.display = 'none';
+      }
+    });
+  };
+
+  // Inject CSS to hide transit labels as early as possible
+  useEffect(() => {
+    // Add CSS immediately when component mounts (before map is even ready)
     if (!document.getElementById('hide-transit-labels-style')) {
       const style = document.createElement('style');
       style.id = 'hide-transit-labels-style';
@@ -295,31 +308,11 @@ const RouteSegmentManager = ({
       `;
       document.head.appendChild(style);
     }
-    
-    // Also hide them via DOM manipulation for older browsers
-    const transitIcons = mapContainer.querySelectorAll('img[src*="/transit/"]');
-    transitIcons.forEach(icon => {
-      icon.style.display = 'none';
-      let parent = icon.parentElement;
-      let depth = 0;
-      while (parent && parent !== mapContainer && depth < 5) {
-        // Check if this looks like a transit label container
-        if (parent.querySelector('span') || (parent.textContent && /^\d+[A-Z]?/.test(parent.textContent.trim()))) {
-          parent.style.display = 'none';
-          break;
-        }
-        parent = parent.parentElement;
-        depth++;
-      }
-    });
-  };
+  }, []); // Run once on mount
 
   // Set up zoom listener
   useEffect(() => {
     if (!map) return;
-    
-    // Hide transit labels as soon as map is available
-    hideTransitLabels();
     
     // Get initial zoom
     currentZoomRef.current = map.getZoom();
@@ -867,20 +860,12 @@ const RouteSegmentManager = ({
             const savedCenter = map.getCenter();
             const savedZoom = map.getZoom();
             
+            // Hide transit labels once before rendering
+            hideTransitLabels();
+            
             const segmentRenderer = new window.google.maps.DirectionsRenderer(rendererOptions);
-            
-            // Hide transit labels before setting the route
-            hideTransitLabels();
-            
             segmentRenderer.setMap(map);
-            
-            // Hide again before setting directions
-            hideTransitLabels();
-            
             segmentRenderer.setDirections(result);
-            
-            // Hide once more after setting directions
-            hideTransitLabels();
             
             // Force restore the view - Google Maps sometimes ignores preserveViewport
             setTimeout(() => {
