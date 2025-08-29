@@ -61,7 +61,8 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
   
   // Initialize by showing the whole route when component mounts
   useEffect(() => {
-    if (map && directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length >= 2 && !isMinimized) {
+    // Only run on initial mount, not when minimizing/unminimizing
+    if (map && directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length >= 2) {
       const bounds = new window.google.maps.LatLngBounds();
       
       // Include all route locations
@@ -109,7 +110,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
             const firstLoc = directionsRoute.allLocations[0];
             if (firstLoc && firstLoc.lat && firstLoc.lng) {
               map.panTo(new window.google.maps.LatLng(firstLoc.lat, firstLoc.lng));
-              map.setZoom(ANIMATION_ZOOM.FOLLOW_MODE);
+              map.setZoom(getFollowModeZoom());
             }
           }
         }
@@ -295,6 +296,23 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       markerRef.current.content = content;
     }
   }, [map]);
+
+  // Use zoom level based on route distance
+  const getFollowModeZoom = useCallback(() => {
+    // Use total distance if available
+    const routeDistanceKm = totalDistanceRef.current;
+    
+    if (routeDistanceKm > 500) {
+      // Long routes need less zoom
+      return ANIMATION_ZOOM.FOLLOW_MODE_LONG;
+    } else if (routeDistanceKm > 50) {
+      // Medium routes  
+      return ANIMATION_ZOOM.FOLLOW_MODE_MEDIUM;
+    } else {
+      // Short routes can handle more zoom
+      return ANIMATION_ZOOM.FOLLOW_MODE_SHORT;
+    }
+  }, []);
 
   // Define stopAnimation early so it can be used in effects
   const stopAnimation = useCallback(() => {
@@ -614,7 +632,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         map.panTo(new window.google.maps.LatLng(firstLocation.lat, firstLocation.lng));
         // Set appropriate zoom level based on mode
         if (zoomLevel === 'follow') {
-          map.setZoom(ANIMATION_ZOOM.FOLLOW_MODE);
+          map.setZoom(getFollowModeZoom());
         }
         // For whole mode, zoom will be handled by the existing fitBounds logic
       }
@@ -1248,7 +1266,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                   mapRef.current.fitBounds(bounds);
                   // Then set a more moderate zoom level
                   setTimeout(() => {
-                    mapRef.current.setZoom(ANIMATION_ZOOM.FOLLOW_MODE);
+                    mapRef.current.setZoom(getFollowModeZoom());
                   }, 100);
                 }
                 

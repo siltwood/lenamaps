@@ -1,8 +1,10 @@
 // Animation constants for RouteAnimator
 
 export const ANIMATION_ZOOM = {
-  FOLLOW_MODE: 11,  // Zoom level when in follow mode
-  DEFAULT: 13,      // Default zoom level
+  FOLLOW_MODE_SHORT: 15,   // Zoom for short routes (<50km)
+  FOLLOW_MODE_MEDIUM: 13,  // Zoom for medium routes (50-500km)  
+  FOLLOW_MODE_LONG: 11,    // Zoom for long routes (>500km)
+  DEFAULT: 13,             // Default zoom level
 };
 
 export const ANIMATION_PADDING = {
