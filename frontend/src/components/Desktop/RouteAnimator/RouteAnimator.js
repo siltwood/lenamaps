@@ -86,6 +86,46 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     // Update the ref for animation loop access
     zoomLevelRef.current = zoomLevel;
     
+    // Handle zoom level changes even when not animating
+    if (map && !isMinimized) {
+      // When switching to follow mode, zoom in to the first marker
+      if (zoomLevel === 'follow' && !isAnimating) {
+        if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length > 0) {
+          const firstLoc = directionsRoute.allLocations[0];
+          if (firstLoc && firstLoc.lat && firstLoc.lng) {
+            map.panTo(new window.google.maps.LatLng(firstLoc.lat, firstLoc.lng));
+            map.setZoom(14); // More reasonable zoom level for follow mode
+          }
+        }
+      }
+      // When switching to whole mode (not animating), show the entire route
+      else if (zoomLevel === 'whole' && !isAnimating) {
+        if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length >= 2) {
+          const bounds = new window.google.maps.LatLngBounds();
+          
+          directionsRoute.allLocations.forEach(loc => {
+            if (loc && loc.lat && loc.lng) {
+              bounds.extend(new window.google.maps.LatLng(loc.lat, loc.lng));
+            }
+          });
+          
+          if (directionsRoute.segments && directionsRoute.segments.length > 0) {
+            directionsRoute.segments.forEach(segment => {
+              if (segment.route && segment.route.overview_path) {
+                const step = Math.max(1, Math.floor(segment.route.overview_path.length / 20));
+                for (let i = 0; i < segment.route.overview_path.length; i += step) {
+                  bounds.extend(segment.route.overview_path[i]);
+                }
+              }
+            });
+          }
+          
+          const padding = { top: 100, right: 100, bottom: 100, left: 100 };
+          map.fitBounds(bounds, padding);
+        }
+      }
+    }
+    
     // Only adjust zoom if animation is playing
     // In "whole" mode, don't zoom until play is pressed
     if (map && !isMinimized && isAnimating && zoomLevel === 'whole') {
@@ -555,7 +595,11 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       const firstLocation = directionsRoute.allLocations[0];
       if (firstLocation && firstLocation.lat && firstLocation.lng) {
         map.panTo(new window.google.maps.LatLng(firstLocation.lat, firstLocation.lng));
-        // Don't auto-zoom for follow mode - let user control zoom
+        // Set appropriate zoom level based on mode
+        if (zoomLevel === 'follow') {
+          map.setZoom(14); // Reasonable zoom for follow mode - not too close
+        }
+        // For whole mode, zoom will be handled by the existing fitBounds logic
       }
     }
     
