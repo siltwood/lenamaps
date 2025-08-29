@@ -2,6 +2,15 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faPlay, faPause, faStop } from '@fortawesome/free-solid-svg-icons';
 import { TRANSPORT_ICONS } from '../../../constants/transportationModes';
+import { 
+  ANIMATION_ZOOM, 
+  ANIMATION_PADDING, 
+  ANIMATION_SPEEDS, 
+  DISTANCE_THRESHOLDS,
+  PLAYBACK_MULTIPLIERS,
+  ANIMATION_TIMING,
+  MARKER_SCALE
+} from '../../../constants/animationConstants';
 import DragHandle from '../../common/DragHandle';
 import Modal from './Modal';
 import { isMobileDevice } from '../../../utils/deviceDetection';
@@ -76,7 +85,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       }
       
       // Fit bounds to show the entire route
-      const padding = { top: 100, right: 100, bottom: 100, left: 100 };
+      const padding = ANIMATION_PADDING.WHOLE_ROUTE;
       map.fitBounds(bounds, padding);
     }
   }, [map, directionsRoute]); // Only run when map or route changes, not on minimize state changes
@@ -86,15 +95,22 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
     // Update the ref for animation loop access
     zoomLevelRef.current = zoomLevel;
     
-    // Handle zoom level changes even when not animating
+    // Handle zoom level changes
     if (map && !isMinimized) {
-      // When switching to follow mode, zoom in to the first marker
-      if (zoomLevel === 'follow' && !isAnimating) {
-        if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length > 0) {
-          const firstLoc = directionsRoute.allLocations[0];
-          if (firstLoc && firstLoc.lat && firstLoc.lng) {
-            map.panTo(new window.google.maps.LatLng(firstLoc.lat, firstLoc.lng));
-            map.setZoom(14); // More reasonable zoom level for follow mode
+      // When switching to follow mode (whether animating or not)
+      if (zoomLevel === 'follow') {
+        // During animation, just set the flag and let the animation loop handle it
+        if (isAnimating) {
+          // Set flag for animation loop to handle centering and zooming
+          forceCenterOnNextFrameRef.current = true;
+        } else {
+          // Not animating, so pan to first marker and zoom
+          if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length > 0) {
+            const firstLoc = directionsRoute.allLocations[0];
+            if (firstLoc && firstLoc.lat && firstLoc.lng) {
+              map.panTo(new window.google.maps.LatLng(firstLoc.lat, firstLoc.lng));
+              map.setZoom(ANIMATION_ZOOM.FOLLOW_MODE);
+            }
           }
         }
       }
@@ -120,7 +136,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
             });
           }
           
-          const padding = { top: 100, right: 100, bottom: 100, left: 100 };
+          const padding = ANIMATION_PADDING.WHOLE_ROUTE;
           map.fitBounds(bounds, padding);
         }
       }
@@ -155,7 +171,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         }
         
         // Fit bounds with more padding to show the entire route clearly
-        const padding = { top: 100, right: 100, bottom: 100, left: 100 };
+        const padding = ANIMATION_PADDING.WHOLE_ROUTE;
         map.fitBounds(bounds, padding);
       } else if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length === 1) {
         // Single location, just zoom out to show area
@@ -195,7 +211,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         bounds.extend(path.getAt(i));
       }
       
-      const padding = { top: 100, right: 100, bottom: 100, left: 100 };
+      const padding = ANIMATION_PADDING.WHOLE_ROUTE;
       map.fitBounds(bounds, padding);
     }
   }, [map, isMinimized, isAnimating, zoomLevel, directionsRoute]);
@@ -225,13 +241,14 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
   const zoomListenerRef = useRef(null);
   const lastMapUpdateTimeRef = useRef(0);
   const mapUpdateThrottleMs = 16; // Update roughly at 60fps for smooth following
-  const currentZoomRef = useRef(13);
+  const currentZoomRef = useRef(ANIMATION_ZOOM.DEFAULT);
   const lastSymbolUpdateRef = useRef(0);
   const countRef = useRef(0); // Add ref to persist animation count
   const totalDistanceRef = useRef(0); // Store total route distance in km
   const zoomLevelRef = useRef(zoomLevel); // Track zoom level in animation
   const visualOffsetRef = useRef(0); // Track the actual visual position of the icon
   const playbackSpeedRef = useRef(playbackSpeed); // Track playback speed in animation
+  const forceCenterOnNextFrameRef = useRef(false); // Force center on next animation frame
 
   // Calculate marker scale based on zoom level
   const getMarkerScale = (zoom) => {
@@ -597,7 +614,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         map.panTo(new window.google.maps.LatLng(firstLocation.lat, firstLocation.lng));
         // Set appropriate zoom level based on mode
         if (zoomLevel === 'follow') {
-          map.setZoom(14); // Reasonable zoom for follow mode - not too close
+          map.setZoom(ANIMATION_ZOOM.FOLLOW_MODE);
         }
         // For whole mode, zoom will be handled by the existing fitBounds logic
       }
@@ -949,7 +966,7 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         const bounds = new window.google.maps.LatLngBounds();
         densifiedPath.forEach(point => bounds.extend(point));
         // Use larger padding to show full route
-        const padding = { top: 100, right: 100, bottom: 100, left: 100 };
+        const padding = ANIMATION_PADDING.WHOLE_ROUTE;
         map.fitBounds(bounds, padding);
         // Don't pan to start or zoom out further - keep the fitted bounds view
       }
@@ -1170,7 +1187,13 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
       // Note: Position calculation is now handled in the camera following section below
       
       // Camera following for Follow mode - only update when actually animating (not paused)
-      if (zoomLevelRef.current === 'follow' && mapRef.current && !isPausedRef.current) {
+      if ((zoomLevelRef.current === 'follow' || forceCenterOnNextFrameRef.current) && mapRef.current && !isPausedRef.current) {
+        // Check if we need to force center and zoom (after mode switch)
+        const shouldForceZoom = forceCenterOnNextFrameRef.current;
+        if (forceCenterOnNextFrameRef.current) {
+          forceCenterOnNextFrameRef.current = false; // Reset flag
+        }
+        
         // Update camera every frame for smooth following
         // Use the visual offset which tracks the actual symbol position
         const symbolProgress = visualOffsetRef.current / 100; // Convert percentage to decimal
@@ -1210,7 +1233,24 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                 // This prevents conflicting animations between panTo and our frame updates
                 mapRef.current.setCenter(symbolPosition);
                 
-                // Don't change zoom - let user control it
+                // If we just switched to follow mode, force zoom and center
+                if (shouldForceZoom) {
+                  // Create a small bounds around the marker to force proper centering
+                  const bounds = new window.google.maps.LatLngBounds();
+                  bounds.extend(symbolPosition);
+                  // Extend bounds slightly to create a box
+                  const lat = symbolPosition.lat();
+                  const lng = symbolPosition.lng();
+                  bounds.extend(new window.google.maps.LatLng(lat + 0.001, lng + 0.001));
+                  bounds.extend(new window.google.maps.LatLng(lat - 0.001, lng - 0.001));
+                  
+                  // Fit bounds with no padding - this forces center and zoom
+                  mapRef.current.fitBounds(bounds);
+                  // Then set a more moderate zoom level
+                  setTimeout(() => {
+                    mapRef.current.setZoom(ANIMATION_ZOOM.FOLLOW_MODE);
+                  }, 100);
+                }
                 
                 break;
               }
