@@ -50,6 +50,37 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
   const [playbackSpeed, setPlaybackSpeed] = useState('medium'); // 'slow', 'medium', 'fast'
   const [animationProgress, setAnimationProgress] = useState(0); // 0-100 for timeline
   
+  // Initialize by showing the whole route when component mounts
+  useEffect(() => {
+    if (map && directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length >= 2 && !isMinimized) {
+      const bounds = new window.google.maps.LatLngBounds();
+      
+      // Include all route locations
+      directionsRoute.allLocations.forEach(loc => {
+        if (loc && loc.lat && loc.lng) {
+          bounds.extend(new window.google.maps.LatLng(loc.lat, loc.lng));
+        }
+      });
+      
+      // Include segment paths if available for more accurate bounds
+      if (directionsRoute.segments && directionsRoute.segments.length > 0) {
+        directionsRoute.segments.forEach(segment => {
+          if (segment.route && segment.route.overview_path) {
+            // Sample points from segments
+            const step = Math.max(1, Math.floor(segment.route.overview_path.length / 20));
+            for (let i = 0; i < segment.route.overview_path.length; i += step) {
+              bounds.extend(segment.route.overview_path[i]);
+            }
+          }
+        });
+      }
+      
+      // Fit bounds to show the entire route
+      const padding = { top: 100, right: 100, bottom: 100, left: 100 };
+      map.fitBounds(bounds, padding);
+    }
+  }, [map, directionsRoute]); // Only run when map or route changes, not on minimize state changes
+  
   // Add effect to update zoom whenever zoom level changes
   useEffect(() => {
     // Update the ref for animation loop access
