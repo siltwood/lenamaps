@@ -526,9 +526,15 @@
   min-height: 32px;
 }
 
-.mobile-animator-controls .zoom-radio:hover {
+.mobile-animator-controls .zoom-radio:hover:not(.disabled) {
   border-color: #4285F4;
   background: #f8f9fa;
+}
+
+.mobile-animator-controls .zoom-radio.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .mobile-animator-controls .zoom-radio.active {
@@ -649,9 +655,15 @@
   min-height: 70px;
 }
 
-.zoom-radio:hover:not([disabled]) {
+.zoom-radio:hover:not(.disabled) {
   border-color: #4285F4;
   background: #f8f9fa;
+}
+
+.zoom-radio.disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
 }
 
 .zoom-radio.active {

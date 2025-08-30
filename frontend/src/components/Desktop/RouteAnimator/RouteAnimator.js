@@ -1467,24 +1467,26 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
             <div className="mobile-section-label">View</div>
             <div className="zoom-control">
               <div className="zoom-radio-group">
-                <label className={`zoom-radio ${zoomLevel === 'follow' ? 'active' : ''}`}>
+                <label className={`zoom-radio ${zoomLevel === 'follow' ? 'active' : ''} ${isAnimating ? 'disabled' : ''}`}>
                   <input
                     type="radio"
                     name="zoom"
                     value="follow"
                     checked={zoomLevel === 'follow'}
                     onChange={() => setZoomLevel('follow')}
+                    disabled={isAnimating}
                   />
                   <span>Follow</span>
                   <small>Marker</small>
                 </label>
-                <label className={`zoom-radio ${zoomLevel === 'whole' ? 'active' : ''}`}>
+                <label className={`zoom-radio ${zoomLevel === 'whole' ? 'active' : ''} ${isAnimating ? 'disabled' : ''}`}>
                   <input
                     type="radio"
                     name="zoom"
                     value="whole"
                     checked={zoomLevel === 'whole'}
                     onChange={() => setZoomLevel('whole')}
+                    disabled={isAnimating}
                   />
                   <span>Whole</span>
                   <small>Route</small>
@@ -1741,24 +1743,26 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
             
             <div className="zoom-control">
               <div className="zoom-radio-group">
-                <label className={`zoom-radio ${zoomLevel === 'follow' ? 'active' : ''}`}>
+                <label className={`zoom-radio ${zoomLevel === 'follow' ? 'active' : ''} ${isAnimating ? 'disabled' : ''}`}>
                   <input
                     type="radio"
                     name="zoom"
                     value="follow"
                     checked={zoomLevel === 'follow'}
                     onChange={() => setZoomLevel('follow')}
+                    disabled={isAnimating}
                   />
                   <span>Follow</span>
                   <small>Marker</small>
                 </label>
-                <label className={`zoom-radio ${zoomLevel === 'whole' ? 'active' : ''}`}>
+                <label className={`zoom-radio ${zoomLevel === 'whole' ? 'active' : ''} ${isAnimating ? 'disabled' : ''}`}>
                   <input
                     type="radio"
                     name="zoom"
                     value="whole"
                     checked={zoomLevel === 'whole'}
                     onChange={() => setZoomLevel('whole')}
+                    disabled={isAnimating}
                   />
                   <span>Whole</span>
                   <small>Route</small>
