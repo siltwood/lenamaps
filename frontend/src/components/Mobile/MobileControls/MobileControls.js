@@ -599,11 +599,11 @@ const MobileControls = ({
               }
             }}
             disabled={locations.filter(l => l).length < 2}
-            title={directionsRoute ? "Animate Route" : "Calculate Route"}
+            title={directionsRoute ? "Play Animation" : "Calculate Route"}
             style={{ height: '44px' }}
           >
             <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-              <path d="M17 10.5V7c0-.55-.45-1-1-1H4c-.55 0-1 .45-1 1v10c0 .55.45 1 1 1h12c .55 0 1-.45 1-1v-3.5l4 4v-11l-4 4z"/>
+              <path d="M8 5v14l11-7z"/>
             </svg>
           </button>
         </div>
