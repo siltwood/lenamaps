@@ -1253,21 +1253,8 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
                 
                 // If we just switched to follow mode, force zoom and center
                 if (shouldForceZoom) {
-                  // Create a small bounds around the marker to force proper centering
-                  const bounds = new window.google.maps.LatLngBounds();
-                  bounds.extend(symbolPosition);
-                  // Extend bounds slightly to create a box
-                  const lat = symbolPosition.lat();
-                  const lng = symbolPosition.lng();
-                  bounds.extend(new window.google.maps.LatLng(lat + 0.001, lng + 0.001));
-                  bounds.extend(new window.google.maps.LatLng(lat - 0.001, lng - 0.001));
-                  
-                  // Fit bounds with no padding - this forces center and zoom
-                  mapRef.current.fitBounds(bounds);
-                  // Then set a more moderate zoom level
-                  setTimeout(() => {
-                    mapRef.current.setZoom(getFollowModeZoom());
-                  }, 100);
+                  // Simply set the zoom level directly
+                  mapRef.current.setZoom(getFollowModeZoom());
                 }
                 
                 break;

@@ -21,7 +21,7 @@ code {
 .header {
   background-color: #2563eb;
   color: white;
-  padding: 1rem;
+  padding: 0;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   display: flex;
   justify-content: space-between;
@@ -30,21 +30,21 @@ code {
 
 .header h1 {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 0.75rem;
 }
 
 .header-search {
   flex: 0 0 auto;
-  max-width: 400px;
+  max-width: 300px;
   width: 100%;
 }
 
 .location-search-input {
   width: 100%;
-  padding: 0.5rem 1rem;
+  padding: 0.2rem 0.6rem;
   border: none;
-  border-radius: 25px;
-  font-size: 16px; /* 16px prevents iOS auto-zoom, was 0.9rem */
+  border-radius: 15px;
+  font-size: 0.7rem;
   outline: none;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
