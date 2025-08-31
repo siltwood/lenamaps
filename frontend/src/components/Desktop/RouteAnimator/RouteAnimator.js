@@ -204,14 +204,18 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
           });
         }
         
-        // Fit bounds with more padding to show the entire route clearly
+        // Use immediate zoom transition for whole route view
         const padding = ANIMATION_PADDING.WHOLE_ROUTE;
-        map.fitBounds(bounds, padding);
+        const centerAndZoom = calculateBoundsZoomLevel(bounds, map);
+        if (centerAndZoom) {
+          map.setCenter(centerAndZoom.center);
+          map.setZoom(centerAndZoom.zoom - 1); // Subtract 1 for padding effect
+        }
       } else if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length === 1) {
         // Single location, just zoom out to show area
         const loc = directionsRoute.allLocations[0];
         if (loc && loc.lat && loc.lng) {
-          map.panTo(new window.google.maps.LatLng(loc.lat, loc.lng));
+          map.setCenter(new window.google.maps.LatLng(loc.lat, loc.lng));
           map.setZoom(13);
         }
       } else {
@@ -245,10 +249,15 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         bounds.extend(path.getAt(i));
       }
       
+      // Use immediate zoom transition
       const padding = ANIMATION_PADDING.WHOLE_ROUTE;
-      map.fitBounds(bounds, padding);
+      const centerAndZoom = calculateBoundsZoomLevel(bounds, map);
+      if (centerAndZoom) {
+        map.setCenter(centerAndZoom.center);
+        map.setZoom(centerAndZoom.zoom - 1); // Subtract 1 for padding effect
+      }
     }
-  }, [map, isMinimized, isAnimating, zoomLevel, directionsRoute]);
+  }, [map, isMinimized, isAnimating, zoomLevel, directionsRoute, calculateBoundsZoomLevel]);
   
   // Update playbackSpeed ref when state changes
   useEffect(() => {
