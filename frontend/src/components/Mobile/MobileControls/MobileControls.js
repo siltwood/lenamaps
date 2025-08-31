@@ -307,7 +307,13 @@ const MobileControls = ({
     if (!map || !directionsRoute) return null;
     
     return (
-      <RouteAnimator
+      <div 
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchMove={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => e.stopPropagation()}
+        style={{ height: '100%', overflow: 'auto' }}
+      >
+        <RouteAnimator
         map={map}
         directionsRoute={directionsRoute}
         onAnimationStateChange={(isAnimating) => {
@@ -344,6 +350,7 @@ const MobileControls = ({
         }}
         embeddedInModal={true}
       />
+      </div>
     );
   };
 

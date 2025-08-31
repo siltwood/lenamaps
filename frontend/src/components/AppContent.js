@@ -363,7 +363,7 @@ function AppContent() {
            process.env.REACT_APP_GOOGLE_MAPS_API_KEY !== "your_google_maps_api_key_here" ? (
             <LocationSearch 
               onLocationSelect={handleLocationSearch}
-              placeholder="Navigate me to..."
+              placeholder="Find location..."
             />
           ) : (
             <div style={{ 

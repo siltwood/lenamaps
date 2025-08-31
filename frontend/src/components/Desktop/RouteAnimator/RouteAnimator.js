@@ -59,6 +59,30 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
   const [playbackSpeed, setPlaybackSpeed] = useState('medium'); // 'slow', 'medium', 'fast'
   const [animationProgress, setAnimationProgress] = useState(0); // 0-100 for timeline
   
+  // Helper function to calculate zoom level for bounds
+  const calculateBoundsZoomLevel = useCallback((bounds, map) => {
+    if (!bounds || !map) return null;
+    
+    const WORLD_DIM = { height: 256, width: 256 };
+    const ZOOM_MAX = 21;
+    
+    const ne = bounds.getNorthEast();
+    const sw = bounds.getSouthWest();
+    
+    const latFraction = (Math.abs(ne.lat() - sw.lat()) / 180);
+    const lngDiff = ne.lng() - sw.lng();
+    const lngFraction = ((lngDiff < 0 ? lngDiff + 360 : lngDiff) / 360);
+    
+    const mapDiv = map.getDiv();
+    const latZoom = Math.floor(Math.log(mapDiv.offsetHeight / WORLD_DIM.height / latFraction) / Math.LN2);
+    const lngZoom = Math.floor(Math.log(mapDiv.offsetWidth / WORLD_DIM.width / lngFraction) / Math.LN2);
+    
+    return {
+      center: bounds.getCenter(),
+      zoom: Math.min(latZoom, lngZoom, ZOOM_MAX)
+    };
+  }, []);
+
   // Initialize by showing the whole route when component mounts
   useEffect(() => {
     // Only run on initial mount, not when minimizing/unminimizing
@@ -85,11 +109,15 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
         });
       }
       
-      // Fit bounds to show the entire route
+      // Immediately show the entire route without animation
       const padding = ANIMATION_PADDING.WHOLE_ROUTE;
-      map.fitBounds(bounds, padding);
+      const centerAndZoom = calculateBoundsZoomLevel(bounds, map);
+      if (centerAndZoom) {
+        map.setCenter(centerAndZoom.center);
+        map.setZoom(centerAndZoom.zoom - 1); // Subtract 1 for padding effect
+      }
     }
-  }, [map, directionsRoute]); // Only run when map or route changes, not on minimize state changes
+  }, [map, directionsRoute, calculateBoundsZoomLevel]); // Only run when map or route changes, not on minimize state changes
   
   // Add effect to update zoom whenever zoom level changes
   useEffect(() => {
@@ -105,11 +133,11 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
           // Set flag for animation loop to handle centering and zooming
           forceCenterOnNextFrameRef.current = true;
         } else {
-          // Not animating, so pan to first marker and zoom
+          // Not animating, so immediately center on first marker and zoom
           if (directionsRoute && directionsRoute.allLocations && directionsRoute.allLocations.length > 0) {
             const firstLoc = directionsRoute.allLocations[0];
             if (firstLoc && firstLoc.lat && firstLoc.lng) {
-              map.panTo(new window.google.maps.LatLng(firstLoc.lat, firstLoc.lng));
+              map.setCenter(new window.google.maps.LatLng(firstLoc.lat, firstLoc.lng));
               map.setZoom(getFollowModeZoom());
             }
           }
@@ -137,8 +165,13 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
             });
           }
           
+          // Use immediate bounds fitting without animation
           const padding = ANIMATION_PADDING.WHOLE_ROUTE;
-          map.fitBounds(bounds, padding);
+          const centerAndZoom = calculateBoundsZoomLevel(bounds, map);
+          if (centerAndZoom) {
+            map.setCenter(centerAndZoom.center);
+            map.setZoom(centerAndZoom.zoom - 1); // Subtract 1 for padding effect
+          }
         }
       }
     }
@@ -1400,7 +1433,14 @@ const RouteAnimator = ({ map, directionsRoute, onAnimationStateChange, isMobile 
           {!isMobile && <DragHandle />}
           <h4>Route Animator</h4>
         </div>
-        <div className="mobile-animator-controls">
+        <div 
+          className="mobile-animator-controls"
+          onTouchStart={(e) => e.stopPropagation()}
+          onTouchMove={(e) => e.stopPropagation()}
+          onTouchEnd={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onWheel={(e) => e.stopPropagation()}
+        >
           <div className="controls-section">
             <div className="playback-controls">
               {!isAnimating ? (

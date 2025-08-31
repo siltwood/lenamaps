@@ -414,6 +414,9 @@
   max-height: 200px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+  touch-action: pan-y; /* Only allow vertical scrolling */
+  user-select: none; /* Prevent text selection */
+  -webkit-user-select: none;
 }
 
 .mobile-animator-controls .controls-section {
