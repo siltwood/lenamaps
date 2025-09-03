@@ -41,11 +41,7 @@ class DirectionsCache {
     this.stats.hits++;
     this.stats.apiCallsSaved++;
     
-    // Log cache efficiency every 10 operations
-    if ((this.stats.hits + this.stats.misses) % 10 === 0) {
-      const hitRate = ((this.stats.hits / (this.stats.hits + this.stats.misses)) * 100).toFixed(1);
-      console.log(`📊 Cache Stats: ${hitRate}% hit rate | ${this.stats.apiCallsSaved} API calls saved`);
-    }
+    // Cache efficiency tracking disabled in production
     
     return cached.result;
   }

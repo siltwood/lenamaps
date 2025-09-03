@@ -747,7 +747,6 @@ const RouteSegmentManager = ({
             // Check cache first
             const cachedResult = directionsCache.get(segmentOrigin, segmentDestination, actualModeUsed);
             if (cachedResult) {
-              console.log(`📦 Cache HIT: Using cached route for ${segmentOrigin.lat.toFixed(4)},${segmentOrigin.lng.toFixed(4)} -> ${segmentDestination.lat.toFixed(4)},${segmentDestination.lng.toFixed(4)} (${actualModeUsed})`);
               result = cachedResult;
               routeFound = true;
             } else {
@@ -770,7 +769,6 @@ const RouteSegmentManager = ({
                 });
                 routeFound = true;
                 // Cache the successful result
-                console.log(`🌐 API CALL: Fetched new route for ${segmentOrigin.lat.toFixed(4)},${segmentOrigin.lng.toFixed(4)} -> ${segmentDestination.lat.toFixed(4)},${segmentDestination.lng.toFixed(4)} (${actualModeUsed})`);
                 directionsCache.set(segmentOrigin, segmentDestination, actualModeUsed, result);
             } catch (err) {
               // If transit fails, always fall back to car route
