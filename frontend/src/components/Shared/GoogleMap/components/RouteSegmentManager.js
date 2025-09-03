@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { getTransportationColor, createPolylineOptions, createMarkerContent, clearAdvancedMarker } from '../utils/mapHelpers';
 import { TRANSPORT_ICONS } from '../utils/constants';
+import directionsCache from '../../../../utils/directionsCache';
 
 const RouteSegmentManager = ({ 
   map, 
@@ -16,6 +17,7 @@ const RouteSegmentManager = ({
   const cleanupTimeoutRef = useRef(null);
   const zoomListenerRef = useRef(null);
   const currentZoomRef = useRef(13);
+  const prevRouteRef = useRef(null); // Store previous route for comparison
 
   // Calculate marker scale based on zoom level
   const getMarkerScale = (zoom) => {
@@ -495,10 +497,58 @@ const RouteSegmentManager = ({
     const routeId = Date.now();
     currentRouteIdRef.current = routeId;
     
+    // Check if we can reuse any existing segments
+    let canReuseSegments = false;
+    let segmentsToReuse = [];
     
-    // Clear ALL existing segments when route changes
-    // This is simple and fast enough for typical use (2-10 locations)
-    clearAllSegments();
+    if (prevRouteRef.current && segmentsRef.current.length > 0) {
+      const prevLocations = prevRouteRef.current.locations;
+      const prevModes = prevRouteRef.current.modes;
+      
+      // Check if only modes changed for existing segments
+      if (prevLocations && prevModes) {
+        canReuseSegments = true;
+        
+        // Compare each segment to see what changed
+        for (let i = 0; i < Math.min(validLocations.length - 1, prevLocations.length - 1); i++) {
+          const locationsSame = 
+            validLocations[i] && prevLocations[i] &&
+            validLocations[i].lat === prevLocations[i].lat &&
+            validLocations[i].lng === prevLocations[i].lng &&
+            validLocations[i + 1] && prevLocations[i + 1] &&
+            validLocations[i + 1].lat === prevLocations[i + 1].lat &&
+            validLocations[i + 1].lng === prevLocations[i + 1].lng;
+          
+          const modeSame = validModes[i] === prevModes[i];
+          
+          if (locationsSame && modeSame && segmentsRef.current[i]) {
+            // This segment is unchanged - reuse it
+            segmentsToReuse[i] = segmentsRef.current[i];
+          } else {
+            // Segment changed - will need to recalculate
+            segmentsToReuse[i] = null;
+          }
+        }
+      }
+    }
+    
+    // Store current route for next comparison
+    prevRouteRef.current = {
+      locations: [...validLocations],
+      modes: [...validModes]
+    };
+    
+    if (!canReuseSegments) {
+      // Clear ALL existing segments when route changes significantly
+      clearAllSegments();
+    } else {
+      // Only clear segments that changed
+      segmentsRef.current.forEach((segment, i) => {
+        if (!segmentsToReuse[i]) {
+          clearSegment(segment);
+        }
+      });
+    }
     
     // Render immediately for better UX
     const renderSegments = async () => {
@@ -507,14 +557,15 @@ const RouteSegmentManager = ({
           return;
         }
         
-        // Start fresh with no segments
-        const newSegments = [];
-        const existingSegmentCount = 0; // Always start from 0 since we cleared
+        // Start with reused segments or fresh array
+        const newSegments = canReuseSegments ? [...segmentsToReuse] : [];
         
-        // Copy existing segments that are still valid
-        for (let i = 0; i < Math.min(existingSegmentCount, validLocations.length - 1); i++) {
-          if (segmentsRef.current[i] && segmentsRef.current[i].id !== 'single-marker') {
-            newSegments.push(segmentsRef.current[i]);
+        // Determine which segments need to be rendered
+        const segmentsToRender = [];
+        for (let i = 0; i < validLocations.length - 1; i++) {
+          if (!newSegments[i]) {
+            // This segment needs to be rendered
+            segmentsToRender.push(i);
           }
         }
         
@@ -522,10 +573,8 @@ const RouteSegmentManager = ({
         const autoUpdatedModes = [...validModes];
         let modesChanged = false;
         
-        // Only render new segments (those that don't exist yet)
-        const startIndex = existingSegmentCount;
-        
-        for (let i = startIndex; i < validLocations.length - 1; i++) {
+        // Only render segments that need updating
+        for (const i of segmentsToRender) {
           const segmentMode = validModes[i] || 'walk';
           const segmentOrigin = validLocations[i];
           const segmentDestination = validLocations[i + 1];
@@ -695,110 +744,147 @@ const RouteSegmentManager = ({
           
           try {
             
-            // First try the requested mode
-            try {
-              result = await new Promise((resolve, reject) => {
-                // Extra safety check for travelMode
-                if (!request || !request.travelMode) {
-                  reject('Invalid request: missing travelMode');
-                  return;
-                }
-                
-                directionsService.route(request, (result, status) => {
-                  if (status === window.google.maps.DirectionsStatus.OK) {
-                    resolve(result);
-                  } else {
-                    reject(status);
-                  }
-                });
-              });
+            // Check cache first
+            const cachedResult = directionsCache.get(segmentOrigin, segmentDestination, actualModeUsed);
+            if (cachedResult) {
+              console.log(`📦 Cache HIT: Using cached route for ${segmentOrigin.lat.toFixed(4)},${segmentOrigin.lng.toFixed(4)} -> ${segmentDestination.lat.toFixed(4)},${segmentDestination.lng.toFixed(4)} (${actualModeUsed})`);
+              result = cachedResult;
               routeFound = true;
+            } else {
+              // First try the requested mode
+              try {
+                result = await new Promise((resolve, reject) => {
+                  // Extra safety check for travelMode
+                  if (!request || !request.travelMode) {
+                    reject('Invalid request: missing travelMode');
+                    return;
+                  }
+                  
+                  directionsService.route(request, (result, status) => {
+                    if (status === window.google.maps.DirectionsStatus.OK) {
+                      resolve(result);
+                    } else {
+                      reject(status);
+                    }
+                  });
+                });
+                routeFound = true;
+                // Cache the successful result
+                console.log(`🌐 API CALL: Fetched new route for ${segmentOrigin.lat.toFixed(4)},${segmentOrigin.lng.toFixed(4)} -> ${segmentDestination.lat.toFixed(4)},${segmentDestination.lng.toFixed(4)} (${actualModeUsed})`);
+                directionsCache.set(segmentOrigin, segmentDestination, actualModeUsed, result);
             } catch (err) {
               // If transit fails, always fall back to car route
               if (segmentMode === 'transit') {
-                try {
-                  const driveRequest = {
-                    origin: request.origin,
-                    destination: request.destination,
-                    travelMode: window.google.maps.TravelMode.DRIVING
-                  };
-                  
-                  result = await new Promise((resolve, reject) => {
-                    directionsService.route(driveRequest, (result, status) => {
-                      if (status === window.google.maps.DirectionsStatus.OK) {
-                        resolve(result);
-                      } else {
-                        reject(status);
+                // Check cache for fallback route
+                const cachedFallback = directionsCache.get(segmentOrigin, segmentDestination, 'car');
+                if (cachedFallback) {
+                  result = cachedFallback;
+                  routeFound = true;
+                  actualModeUsed = 'car';
+                } else {
+                  try {
+                    const driveRequest = {
+                      origin: request.origin,
+                      destination: request.destination,
+                      travelMode: window.google.maps.TravelMode.DRIVING
+                    };
+                    
+                    result = await new Promise((resolve, reject) => {
+                      directionsService.route(driveRequest, (result, status) => {
+                        if (status === window.google.maps.DirectionsStatus.OK) {
+                          resolve(result);
+                        } else {
+                          reject(status);
+                        }
+                      });
+                    });
+                    
+                    // Keep transit mode for visual styling - it's a "fake train" using roads
+                    routeFound = true;
+                    actualModeUsed = 'car'; // Internally it's a car route
+                    // Cache the fallback result
+                    directionsCache.set(segmentOrigin, segmentDestination, 'car', result);
+                    // But we keep segmentMode as 'transit' for coloring and icons
+                    
+                    // Optional: dispatch an info event
+                    const infoEvent = new CustomEvent('routeInfo', {
+                      detail: {
+                        message: 'No rail route found - using road route with train styling',
+                        type: 'info'
                       }
                     });
-                  });
-                  
-                  // Keep transit mode for visual styling - it's a "fake train" using roads
-                  routeFound = true;
-                  actualModeUsed = 'car'; // Internally it's a car route
-                  // But we keep segmentMode as 'transit' for coloring and icons
-                  
-                  // Optional: dispatch an info event
-                  const infoEvent = new CustomEvent('routeInfo', {
-                    detail: {
-                      message: 'No rail route found - using road route with train styling',
-                      type: 'info'
-                    }
-                  });
-                  window.dispatchEvent(infoEvent);
-                } catch (driveErr) {
-                  routeFound = false;
+                    window.dispatchEvent(infoEvent);
+                  } catch (driveErr) {
+                    routeFound = false;
+                  }
                 }
               }
               // If bike mode fails, try walking or driving as fallback
               else if (segmentMode === 'bike') {
-                try {
-                  // For short distances try walking, for long distances try driving
-                  const fallbackMode = distance > 30 ? 'DRIVING' : 'WALKING';
-                  const altRequest = {
-                    origin: request.origin,
-                    destination: request.destination,
-                    travelMode: distance > 30 ? 
-                      window.google.maps.TravelMode.DRIVING : 
-                      window.google.maps.TravelMode.WALKING
-                  };
-                  
-                  result = await new Promise((resolve, reject) => {
-                    directionsService.route(altRequest, (result, status) => {
-                      if (status === window.google.maps.DirectionsStatus.OK) {
-                        resolve(result);
-                      } else {
-                        reject(status);
-                      }
-                    });
-                  });
-                  
+                const fallbackMode = distance > 30 ? 'car' : 'walk';
+                const cachedFallback = directionsCache.get(segmentOrigin, segmentDestination, fallbackMode);
+                if (cachedFallback) {
+                  result = cachedFallback;
                   routeFound = true;
-                } catch (altErr) {
+                } else {
+                  try {
+                    // For short distances try walking, for long distances try driving
+                    const altRequest = {
+                      origin: request.origin,
+                      destination: request.destination,
+                      travelMode: distance > 30 ? 
+                        window.google.maps.TravelMode.DRIVING : 
+                        window.google.maps.TravelMode.WALKING
+                    };
+                    
+                    result = await new Promise((resolve, reject) => {
+                      directionsService.route(altRequest, (result, status) => {
+                        if (status === window.google.maps.DirectionsStatus.OK) {
+                          resolve(result);
+                        } else {
+                          reject(status);
+                        }
+                      });
+                    });
+                    
+                    routeFound = true;
+                    // Cache the fallback result
+                    directionsCache.set(segmentOrigin, segmentDestination, fallbackMode, result);
+                  } catch (altErr) {
+                  }
                 }
               } else if (segmentMode === 'walk' && distance > 30) {
                 // For long walking routes, try driving
-                try {
-                  const altRequest = {
-                    origin: request.origin,
-                    destination: request.destination,
-                    travelMode: window.google.maps.TravelMode.DRIVING
-                  };
-                  
-                  result = await new Promise((resolve, reject) => {
-                    directionsService.route(altRequest, (result, status) => {
-                      if (status === window.google.maps.DirectionsStatus.OK) {
-                        resolve(result);
-                      } else {
-                        reject(status);
-                      }
-                    });
-                  });
-                  
+                const cachedFallback = directionsCache.get(segmentOrigin, segmentDestination, 'car');
+                if (cachedFallback) {
+                  result = cachedFallback;
                   routeFound = true;
-                } catch (altErr) {
+                } else {
+                  try {
+                    const altRequest = {
+                      origin: request.origin,
+                      destination: request.destination,
+                      travelMode: window.google.maps.TravelMode.DRIVING
+                    };
+                    
+                    result = await new Promise((resolve, reject) => {
+                      directionsService.route(altRequest, (result, status) => {
+                        if (status === window.google.maps.DirectionsStatus.OK) {
+                          resolve(result);
+                        } else {
+                          reject(status);
+                        }
+                      });
+                    });
+                    
+                    routeFound = true;
+                    // Cache the fallback result
+                    directionsCache.set(segmentOrigin, segmentDestination, 'car', result);
+                  } catch (altErr) {
+                  }
                 }
               }
+            }
             }
             
             if (!routeFound) {
@@ -879,7 +965,7 @@ const RouteSegmentManager = ({
             const modeColor = getTransportationColor(segmentMode);
             
             // Add start marker (only for first segment and if we don't already have one)
-            if (i === 0 && startIndex === 0) {
+            if (i === 0 && !canReuseSegments) {
               // Check if we already have a single marker at this location
               const existingSingleMarker = segmentsRef.current.length === 1 && 
                 segmentsRef.current[0].id === 'single-marker' &&
@@ -1037,18 +1123,27 @@ const RouteSegmentManager = ({
                 (error === window.google.maps.DirectionsStatus.ZERO_RESULTS || 
                  error === 'TRANSIT_UNAVAILABLE')) {
               
-              const fallbackRequest = {
-                origin: request.origin,
-                destination: request.destination,
-                travelMode: window.google.maps.TravelMode.DRIVING
-              };
+              let fallbackResult;
               
-              try {
-                const fallbackResult = await new Promise((resolve, reject) => {
-                  directionsService.route(fallbackRequest, (result, status) => {
-                    if (status === window.google.maps.DirectionsStatus.OK) {
-                      resolve(result);
-                    } else {
+              // Check cache for fallback route first
+              const cachedFallback = directionsCache.get(segmentOrigin, segmentDestination, 'car');
+              if (cachedFallback) {
+                fallbackResult = cachedFallback;
+              } else {
+                const fallbackRequest = {
+                  origin: request.origin,
+                  destination: request.destination,
+                  travelMode: window.google.maps.TravelMode.DRIVING
+                };
+                
+                try {
+                  fallbackResult = await new Promise((resolve, reject) => {
+                    directionsService.route(fallbackRequest, (result, status) => {
+                      if (status === window.google.maps.DirectionsStatus.OK) {
+                        // Cache the successful fallback
+                        directionsCache.set(segmentOrigin, segmentDestination, 'car', result);
+                        resolve(result);
+                      } else {
                       // Even fallback failed, use straight line
                       const straightLineRoute = {
                         routes: [{
@@ -1070,7 +1165,12 @@ const RouteSegmentManager = ({
                     }
                   });
                 });
-                
+                } catch (fallbackError) {
+                  // Fallback driving route also failed, fallbackResult will be undefined
+                }
+              }
+              
+              if (fallbackResult) {
                 // Check if this is still the current route after async operation
                 if (currentRouteIdRef.current !== routeId) {
                   return;
@@ -1152,9 +1252,6 @@ const RouteSegmentManager = ({
                 
                 // Insert at the correct index to maintain order
                 newSegments[i] = segment;
-                
-              } catch (fallbackError) {
-                // Fallback driving route also failed
               }
             }
           }
